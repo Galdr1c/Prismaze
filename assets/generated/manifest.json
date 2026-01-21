@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "generatedAt": "2026-01-18T14:56:37.511474",
+  "episodes": {
+    "3": {
+      "file": "assets/generated/episode_03.json",
+      "count": 200,
+      "seedStart": 100000,
+      "seedEnd": 100259,
+      "updatedAt": "2026-01-18T15:30:18.107335"
+    },
+    "4": {
+      "file": "assets/generated/episode_04.json",
+      "count": 200,
+      "seedStart": 200000,
+      "seedEnd": 200199,
+      "updatedAt": "2026-01-18T15:30:23.000023"
+    },
+    "5": {
+      "file": "assets/generated/episode_05.json",
+      "count": 200,
+      "seedStart": 300000,
+      "seedEnd": 300276,
+      "updatedAt": "2026-01-18T15:31:16.334390"
+    },
+    "1": {
+      "file": "assets/generated/episode_01.json",
+      "count": 200,
+      "seedStart": 0,
+      "seedEnd": 274,
+      "updatedAt": "2026-01-18T15:30:08.297132"
+    },
+    "2": {
+      "file": "assets/generated/episode_02.json",
+      "count": 200,
+      "seedStart": 50000,
+      "seedEnd": 50260,
+      "updatedAt": "2026-01-18T15:30:16.177489"
+    }
+  }
+}

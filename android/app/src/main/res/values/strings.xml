@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Prismaze</string>
+    <!-- Placeholder App ID for Google Play Games Services -->
+    <!-- Replace with your actual App ID from Google Play Console -->
+    <string name="app_id">000000000000</string>
+</resources>
