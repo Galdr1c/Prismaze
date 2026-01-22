@@ -42,3 +42,4 @@ class Filter extends PositionComponent {
     );
   }
 }
+

@@ -43,7 +43,7 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
   Future<void> _handleClaim() async {
     if (!_canClaim) return;
     
-    AudioManager().playSfx('success.mp3');
+    AudioManager().playSfxId(SfxId.achievementUnlocked);
     final reward = await widget.economyManager.claimDailyLoginReward();
     
     if (reward != null) {
@@ -68,7 +68,7 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
     setState(() => _isRestoring = true);
     final success = await widget.economyManager.restoreStreakWithTokens();
     if (success) {
-      AudioManager().playSfx('ding.mp3');
+      AudioManager().playSfxId(SfxId.starEarned);
     }
     setState(() => _isRestoring = false);
   }
@@ -81,7 +81,7 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
     
     if (success) {
       await widget.economyManager.restoreStreakWithAd();
-      AudioManager().playSfx('ding.mp3');
+      AudioManager().playSfxId(SfxId.starEarned);
     }
     
     setState(() => _isRestoring = false);
@@ -396,3 +396,4 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
     );
   }
 }
+

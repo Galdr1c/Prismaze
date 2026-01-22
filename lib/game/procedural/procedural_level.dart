@@ -257,3 +257,4 @@ class ProceduralLevel {
     'solution': solution.map((s) => s.toJson()).toList(),
   };
 }
+

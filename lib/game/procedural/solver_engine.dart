@@ -471,3 +471,4 @@ class _SearchNode {
   
   const _SearchNode(this.state, this.moves);
 }
+

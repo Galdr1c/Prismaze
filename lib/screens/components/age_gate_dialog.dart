@@ -72,7 +72,7 @@ class _AgeGateDialogState extends State<AgeGateDialog> {
                 onChanged: (val) {
                   if (val != null) {
                     setState(() => _selectedYear = val);
-                    AudioManager().playSfx('soft_button_click.mp3');
+                    AudioManager().playSfxId(SfxId.uiClick);
                   }
                 },
               ),
@@ -84,7 +84,7 @@ class _AgeGateDialogState extends State<AgeGateDialog> {
       actions: [
         ElevatedButton(
           onPressed: () {
-            AudioManager().playSfx('soft_button_click.mp3');
+            AudioManager().playSfxId(SfxId.uiClick);
             final age = _currentYear - _selectedYear;
             final isAdult = age >= 13;
             Navigator.pop(context, isAdult);
@@ -107,3 +107,4 @@ class _AgeGateDialogState extends State<AgeGateDialog> {
     );
   }
 }
+

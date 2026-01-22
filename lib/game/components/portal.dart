@@ -56,3 +56,4 @@ class Portal extends PositionComponent {
     );
   }
 }
+

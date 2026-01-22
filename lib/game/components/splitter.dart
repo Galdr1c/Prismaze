@@ -51,3 +51,4 @@ class Splitter extends PositionComponent {
     );
   }
 }
+

@@ -416,3 +416,4 @@ class HintHighlightEffect extends PositionComponent with HasGameRef<PrismazeGame
     );
   }
 }
+

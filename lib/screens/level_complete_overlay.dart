@@ -34,6 +34,7 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
   
   bool _statsVisible = false;
   bool _buttonVisible = false;
+  bool _cancelled = false;
 
   @override
   void initState() {
@@ -58,33 +59,41 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
   Future<void> _playSequence() async {
       // 0. Panel opens (handled by initState)
       await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted || _cancelled) return;
       
       // 1-3. Stars Fall
       for (int i = 0; i < 3; i++) {
           if (i < widget.result.stars) {
              _starControllers[i].forward();
-             AudioManager().playSfx('ding.mp3'); 
-             AudioManager().vibrateStar(i);
+             if (mounted && !_cancelled) {
+                 AudioManager().playSfxId(SfxId.starEarned); 
+                 AudioManager().vibrateStar(i);
+             }
           }
           await Future.delayed(const Duration(milliseconds: 400));
+          if (!mounted || _cancelled) return;
       }
       
       // Confetti & Win Sound
       if (widget.result.stars == 3) {
-           _confettiController.play();
-           AudioManager().playSfx('win.mp3');
+           if (mounted && !_cancelled) {
+               _confettiController.play();
+               AudioManager().playSfxId(SfxId.levelComplete);
+           }
       }
       
       // 4. Stats Fade In
-      if (mounted) setState(() => _statsVisible = true);
+      if (mounted && !_cancelled) setState(() => _statsVisible = true);
       await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted || _cancelled) return;
       
       // 5. Button Bounce In
-      if (mounted) setState(() => _buttonVisible = true);
+      if (mounted && !_cancelled) setState(() => _buttonVisible = true);
   }
 
   @override
   void dispose() {
+    _cancelled = true;
     _confettiController.dispose();
     _mainController.dispose();
     for(final c in _starControllers) c.dispose();
@@ -337,3 +346,4 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
       );
   }
 }
+

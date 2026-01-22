@@ -48,3 +48,4 @@ class MoveBehavior extends Component {
     }
   }
 }
+

@@ -77,3 +77,4 @@ class AbsorbingWall extends PositionComponent {
     );
   }
 }
+

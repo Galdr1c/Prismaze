@@ -39,7 +39,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         title: Text(loc.getString('stat_title'), style: PrismazeTheme.headingMedium),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: true,
+        centerTitle: false,
         leadingWidth: 100,
         leading: Padding(
           padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
@@ -53,13 +53,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           children: [
             // 1. Personal Stats Grid
             Text(loc.getString('stat_personal'), style: PrismazeTheme.headingSmall),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             GridView.count(
-                crossAxisCount: 2,
+                crossAxisCount: 3,
                 shrinkWrap: true,
-                childAspectRatio: 2.5,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+                childAspectRatio: 2.5, // More square
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
                 physics: const NeverScrollableScrollPhysics(),
                 children: [
                     _buildStatCard(loc.getString('stat_playtime'), "${(pm.totalPlayTime / 60).toStringAsFixed(1)} dk", Icons.timer),
@@ -75,9 +75,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             
             // 2. Weekly Activity Chart
             Text(loc.getString('stat_weekly'), style: PrismazeTheme.headingSmall),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Container(
-                height: 200,
+                height: 150,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                     color: PrismazeTheme.backgroundCard,
@@ -94,7 +94,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             
             // 3. Achievement Progress (Pieish)
             Text(loc.getString('stat_distribution'), style: PrismazeTheme.headingSmall),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             _buildDistributionBars(pieData),
             
             const SizedBox(height: 20),
@@ -108,24 +108,24 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       return Container(
           decoration: BoxDecoration(
               color: PrismazeTheme.backgroundCard,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(color: PrismazeTheme.primaryPurpleLight.withOpacity(0.2))
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                  Icon(icon, color: PrismazeTheme.primaryPurpleLight, size: 28),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                            Text(value, style: PrismazeTheme.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
-                            Text(label, style: PrismazeTheme.bodySmall, overflow: TextOverflow.ellipsis),
-                        ],
-                    ),
-                  )
+                  Icon(icon, color: PrismazeTheme.primaryPurpleLight, size: 24),
+                  const SizedBox(height: 8),
+                  Text(value, style: PrismazeTheme.bodyLarge.copyWith(fontWeight: FontWeight.bold, fontSize: 18)),
+                  const SizedBox(height: 4),
+                  Text(
+                    label, 
+                    style: PrismazeTheme.bodySmall.copyWith(color: Colors.white60), 
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis
+                  ),
               ],
           ),
       );
@@ -216,3 +216,4 @@ class BarChartPainter extends CustomPainter {
     @override
     bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
+

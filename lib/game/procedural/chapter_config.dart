@@ -128,3 +128,4 @@ class ChapterConfig {
       'Prisms($minPrisms-$maxPrisms), Walls($minWalls-$maxWalls), '
       'Targets($minTargets-$maxTargets), Moves($minOptimalMoves-$maxOptimalMoves)';
 }
+

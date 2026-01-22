@@ -170,9 +170,12 @@ class EconomyManager extends ChangeNotifier {
   int get previousStreak => _previousStreak;
   bool get canRestoreStreak => _wasStreakBroken && _previousStreak > 1;
   
-  /// Check daily login status using UTC for consistency
+  /// Check daily login status using Local Calendar Days (Midnight Reset)
   Future<void> _checkDailyLogin() async {
-      final nowUtc = DateTime.now().toUtc();
+      // Use Local time for consistent daily resets at user's midnight
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      
       final lastClaimStr = _prefs.getString(keyLastLogin);
       
       _dailyStreak = _prefs.getInt('login_streak_count') ?? 0;
@@ -195,30 +198,34 @@ class EconomyManager extends ChangeNotifier {
           return;
       }
       
-      final hoursSinceLastClaim = nowUtc.difference(_lastClaimTime!).inHours;
+      // Compare Calendar Days
+      final lastClaimLocal = _lastClaimTime!.toLocal();
+      final lastDate = DateTime(lastClaimLocal.year, lastClaimLocal.month, lastClaimLocal.day);
       
-      // Already claimed within last 24 hours?
-      if (hoursSinceLastClaim < 24) {
+      final diffDays = today.difference(lastDate).inDays;
+      
+      if (diffDays == 0) {
+          // Already claimed today
           _canClaimDailyLogin = false;
-      } else {
+      } else if (diffDays == 1) {
+          // Claimed yesterday -> Can claim today (Streak continues)
           _canClaimDailyLogin = true;
           
-          // Check streak status (48h grace period from last claim)
-          if (hoursSinceLastClaim <= 48) {
-              // Streak maintained - will continue on claim
-              // Cycle resets after day 7
-              if (_dailyStreak >= 7) {
-                  _dailyStreak = 0; // Will become 1 on claim
-              }
-          } else {
-              // Streak broken (more than 48h since last claim)
-              if (_dailyStreak > 1) {
-                  _previousStreak = _dailyStreak;
-                  _wasStreakBroken = true;
-                  await _prefs.setInt('previous_streak', _dailyStreak);
-              }
-              _dailyStreak = 0; // Will become 1 on claim
+          // Cycle wrap correction: If streak was 7, next claim starts 1
+          if (_dailyStreak >= 7) {
+              _dailyStreak = 0; 
           }
+      } else {
+          // diffDays > 1: Missed at least one day -> Streak Broken
+          _canClaimDailyLogin = true;
+          
+          // Only mark broken if we had a meaningful streak
+          if (_dailyStreak > 1) {
+              _previousStreak = _dailyStreak;
+              _wasStreakBroken = true;
+              await _prefs.setInt('previous_streak', _dailyStreak);
+          }
+          _dailyStreak = 0; // Reset to Day 1
       }
       notifyListeners();
   }
@@ -235,13 +242,14 @@ class EconomyManager extends ChangeNotifier {
       return DailyReward.getForDay(nextDay);
   }
   
-  /// Get hours until next claim is available (for UI countdown)
+  /// Get hours until next claim is available (Midnight)
   int getHoursUntilNextClaim() {
-      if (_lastClaimTime == null || _canClaimDailyLogin) return 0;
-      final nowUtc = DateTime.now().toUtc();
-      final nextClaimTime = _lastClaimTime!.add(const Duration(hours: 24));
-      final diff = nextClaimTime.difference(nowUtc);
-      return diff.isNegative ? 0 : diff.inHours + 1;
+      if (_canClaimDailyLogin) return 0;
+      // Count down to next midnight
+      final now = DateTime.now();
+      final midnight = DateTime(now.year, now.month, now.day + 1);
+      final diff = midnight.difference(now);
+      return diff.inHours + 1; // Round up slightly for display
   }
   
   /// Claim daily login reward
@@ -436,3 +444,4 @@ class EconomyManager extends ChangeNotifier {
   // NOTE: Logic for purchaseProduct and watchAdForTokens has been moved to IAPManager and AdManager.
   // This ensures better separation of concerns and simpler testing.
 }
+

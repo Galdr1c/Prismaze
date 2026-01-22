@@ -3,9 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../game/easter_egg_manager.dart';
+import '../game/event_manager.dart'; // Added
 import '../game/localization_manager.dart';
 import '../game/audio_manager.dart';
-import '../game/secure_save_manager.dart';
+import '../game/progress/campaign_progress.dart';
 import '../game/utils/security_utils.dart';
 import '../theme/app_theme.dart';
 import 'components/styled_back_button.dart';
@@ -65,7 +66,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
   }
   
   void _onVersionTap() {
-    AudioManager().playSfx('soft_button_click.mp3');
+    AudioManager().playSfxId(SfxId.uiClick);
     _versionTapCount++;
     
     if (_versionTapCount >= 5) {
@@ -125,10 +126,10 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.setBool(_keyDevUnlocked, true);
                 setState(() => _devModeUnlocked = true);
-                AudioManager().playSfx('success.mp3');
+                AudioManager().playSfxId(SfxId.achievementUnlocked);
                 _showDevPanel();
               } else {
-                AudioManager().playSfx('error_sound.mp3');
+                AudioManager().playSfxId(SfxId.error);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Yanlış şifre!'), backgroundColor: Colors.red),
                 );
@@ -217,7 +218,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                                       final prefs = await SharedPreferences.getInstance();
                                       await prefs.setBool('settings_debug_mode', val);
                                       setModalState(() {});
-                                      AudioManager().playSfx('soft_button_click.mp3');
+                                      AudioManager().playSfxId(SfxId.uiClick);
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text(val ? 'Debug overlay aktif! Level\'e girin.' : 'Debug overlay kapatıldı.'),
@@ -241,19 +242,16 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                             Expanded(child: _devButton('TÜM LEVELLERİ AÇ', Icons.lock_open, Colors.green, () async {
                               setModalState(() => _isLoadingDebug = true);
                               try {
-                                // Create level data map (level_id -> stars)
-                                final Map<String, int> levelStars = {};
-                                for (int i = 1; i <= 200; i++) {
-                                  levelStars[i.toString()] = 3; // 3 stars for all
+                                // NEW: Use CampaignProgress for episode-based system (5 episodes x 200 levels = 1000 total)
+                                final progress = CampaignProgress();
+                                for (int episode = 1; episode <= 5; episode++) {
+                                  final levelCount = progress.getLevelCount(episode);
+                                  await progress.debugSetProgress(episode, levelCount, 3);
                                 }
                                 
-                                // Save using SecureSaveManager (same format as ProgressManager)
-                                final jsonData = jsonEncode(levelStars);
-                                await SecureSaveManager().saveData('level_stars_', jsonData);
-                                
-                                AudioManager().playSfx('success.mp3');
+                                AudioManager().playSfxId(SfxId.achievementUnlocked);
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tüm leveller açıldı (3★)! Hot restart yapın.'), backgroundColor: Colors.green));
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tüm leveller açıldı (5 Episode x 200 = 1000 level, 3★)!'), backgroundColor: Colors.green));
                                 }
                               } catch (e) {
                                 print('Debug unlock error: $e');
@@ -267,16 +265,12 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                             Expanded(child: _devButton('LEVELLERİ SIFIRLA', Icons.restart_alt, Colors.orange, () async {
                               setModalState(() => _isLoadingDebug = true);
                               try {
-                                // Clear secure data
-                                await SecureSaveManager().clearSecureData('level_stars_');
-                                
-                                // Also clear SharedPreferences backup keys
-                                final prefs = await SharedPreferences.getInstance();
-                                await prefs.remove('level_stars__secure');
+                                // NEW: Use CampaignProgress.resetAll() for episode-based system
+                                await CampaignProgress().resetAll();
                                 
                                 AudioManager().playSfx('trash.mp3');
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Leveller sıfırlandı! Hot restart yapın.'), backgroundColor: Colors.orange));
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tüm leveller sıfırlandı!'), backgroundColor: Colors.orange));
                                 }
                               } catch (e) {
                                 print('Debug reset error: $e');
@@ -296,7 +290,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                               await prefs.remove('last_login_date');
                               await prefs.remove('login_streak_count');
                               await prefs.remove('mission_date');
-                              AudioManager().playSfx('success.mp3');
+                              AudioManager().playSfxId(SfxId.achievementUnlocked);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Günlükler sıfırlandı! Restart gerekli.'), backgroundColor: Colors.blue));
                               }
@@ -308,7 +302,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                               await prefs.setString('last_login_date', threeDaysAgo);
                               await prefs.setInt('login_streak_count', 5);
                               await prefs.setInt('previous_streak', 5);
-                              AudioManager().playSfx('error_sound.mp3');
+                              AudioManager().playSfxId(SfxId.error);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Seri kırıldı! Restart gerekli.'), backgroundColor: Colors.red));
                               }
@@ -347,7 +341,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                               // Add and re-encode
                               final newTokens = currentTokens + 100;
                               await prefs.setString('hint_tokens_enc', SecurityUtils.encodeValue(newTokens));
-                              AudioManager().playSfx('coin_collect.mp3');
+                              AudioManager().playSfxId(SfxId.coin);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('+100 jeton ($newTokens toplam)! Hot restart yapın.'), backgroundColor: Colors.amber));
                               }
@@ -362,7 +356,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                               }
                               final newTokens = currentTokens + 500;
                               await prefs.setString('hint_tokens_enc', SecurityUtils.encodeValue(newTokens));
-                              AudioManager().playSfx('coin_collect.mp3');
+                              AudioManager().playSfxId(SfxId.coin);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('+500 jeton ($newTokens toplam)! Hot restart yapın.'), backgroundColor: Colors.amber));
                               }
@@ -408,7 +402,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                                 'theme_halloween', 'theme_summer', 'theme_abyss',
                               ];
                               await prefs.setStringList('unlocked_items', allItems);
-                              AudioManager().playSfx('success.mp3');
+                              AudioManager().playSfxId(SfxId.achievementUnlocked);
                               setModalState(() => _isLoadingDebug = false);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tüm ${allItems.length} item açıldı! Restart gerekli.'), backgroundColor: Colors.purple));
@@ -436,7 +430,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                               final fiveDaysAgo = DateTime.now().subtract(Duration(days: 5)).toIso8601String();
                               await prefs.setString('last_played_date', fiveDaysAgo);
                               await prefs.remove('comeback_claimed');
-                              AudioManager().playSfx('success.mp3');
+                              AudioManager().playSfxId(SfxId.achievementUnlocked);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('5 gün uzaklık! Restart gerekli.'), backgroundColor: Colors.teal));
                               }
@@ -447,7 +441,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                               final ago = DateTime.now().subtract(Duration(days: 35)).toIso8601String();
                               await prefs.setString('last_played_date', ago);
                               await prefs.remove('comeback_claimed');
-                              AudioManager().playSfx('success.mp3');
+                              AudioManager().playSfxId(SfxId.achievementUnlocked);
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('35 gün uzaklık! Restart gerekli.'), backgroundColor: Colors.indigo));
                               }
@@ -515,14 +509,16 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
   Widget _eventButton(String label, String eventId, BuildContext ctx) {
     return GestureDetector(
       onTap: () async {
-        final prefs = await SharedPreferences.getInstance();
-        // Simulate event by setting dates (this is a simplified approach)
-        // In production, EventManager would need a debug override
-        await prefs.setString('debug_force_event', eventId);
-        AudioManager().playSfx('success.mp3');
+        // Use EventManager for instant update
+        await EventManager().debugForceEvent(eventId);
+        AudioManager().playSfxId(SfxId.achievementUnlocked);
         Navigator.pop(ctx);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label etkinliği simüle edildi! Uygulamayı yeniden başlatın.'), backgroundColor: Colors.purple),
+          SnackBar(
+            content: Text('$label etkinliği aktif! Mağaza ve görevleri kontrol edin.'), 
+            backgroundColor: Colors.purple,
+            duration: const Duration(seconds: 2),
+          ),
         );
       },
       child: Container(
@@ -540,12 +536,11 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
   Widget _clearEventButton(BuildContext ctx) {
     return GestureDetector(
       onTap: () async {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('debug_force_event');
+        await EventManager().debugClearEvent();
         AudioManager().playSfx('trash.mp3');
         Navigator.pop(ctx);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Etkinlik simülasyonu kaldırıldı! Hot restart yapın.'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Etkinlik simülasyonu kapatıldı.'), backgroundColor: Colors.red),
         );
       },
       child: Container(
@@ -814,7 +809,7 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
   Widget _buildSocialButton(IconData icon, String label, VoidCallback onTap) {
     return GestureDetector(
       onTap: () {
-        AudioManager().playSfx('soft_button_click.mp3');
+        AudioManager().playSfxId(SfxId.uiClick);
         onTap();
       },
       child: Column(
@@ -835,3 +830,4 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
     );
   }
 }
+

@@ -100,7 +100,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
       AudioManager().setSfxVolume(sm.sfxVolume);
       AudioManager().setVibration(sm.vibrationEnabled);
 
-      AudioManager().playMenuMusic();
+      AudioManager().setContext(AudioContext.menu);
   }
 
   @override
@@ -118,7 +118,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
           NotificationManager().scheduleRetentionNotifications();
       } else if (state == AppLifecycleState.resumed) {
           // User returned -> Resume music and cancel reminders
-          AudioManager().playMenuMusic();
+          AudioManager().setContext(AudioContext.menu);
           NotificationManager().cancelAll();
       }
   }
@@ -250,7 +250,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                     Icon(Icons.star, color: PrismazeTheme.starGold, size: 18),
                     const SizedBox(width: 4),
                     Text(
-                      '${progress.totalStars}', 
+                      '${CampaignProgress().getTotalStars()}', 
                       style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                   ],
@@ -285,7 +285,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
               // Store Button
               GestureDetector(
                 onTap: () {
-                  AudioManager().playSfx('soft_button_click.mp3');
+                  AudioManager().playSfxId(SfxId.uiClick);
                   Navigator.push(context, FastPageRoute(page: StoreScreen(iapManager: iapManager)));
                 },
                 child: Container(
@@ -345,9 +345,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   
   Widget _buildLastPlayedInfo() {
       final loc = LocalizationManager();
-      final nextLevel = progress.getNextPlayableLevel();
+      final lastPlayed = progress.lastPlayedLevelId;
       return Text(
-          "${loc.getString('last_played')}: ${loc.getString('level_prefix')} $nextLevel",
+          "${loc.getString('last_played')}: ${loc.getString('level_prefix')} $lastPlayed",
           style: GoogleFonts.dynaPuff(
             color: PrismazeTheme.textSecondary, 
             letterSpacing: 2,
@@ -382,14 +382,14 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
         scale: Tween(begin: 1.0, end: 1.05).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
         child: GestureDetector(
             onTap: () {
-                AudioManager().playSfx('soft_button_click.mp3');
+                AudioManager().playSfxId(SfxId.uiClick);
                 Navigator.push(context, FastPageRoute(page: GameScreen(
                     levelId: displayLevelId,
                     episode: targetEpisode,
                     levelIndex: targetLevelIndex,
                 )))
                   .then((_) {
-                       AudioManager().playMenuMusic();       
+                       AudioManager().setContext(AudioContext.menu);       
                        _loadData();
                   });
             },
@@ -421,10 +421,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   Widget _buildLevelsButton() {
      return GestureDetector(
          onTap: () {
-           AudioManager().playSfx('soft_button_click.mp3');
+           AudioManager().playSfxId(SfxId.uiClick);
            Navigator.push(context, FastPageRoute(page: const CampaignScreen()))
              .then((_) {
-                  AudioManager().playMenuMusic();
+                  AudioManager().setContext(AudioContext.menu);
                   _loadData();
              });
          },
@@ -449,10 +449,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   Widget _buildEndlessModeButton() {
      return GestureDetector(
          onTap: () {
-             AudioManager().playSfx('whoosh.mp3');
+             AudioManager().playSfxId(SfxId.mirrorMove);
              Navigator.push(context, FastPageRoute(page: const EndlessModeScreen()))
                .then((_) {
-                    AudioManager().playMenuMusic();
+                    AudioManager().setContext(AudioContext.menu);
                     _loadData();
                });
          },
@@ -499,7 +499,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                         clipBehavior: Clip.none,
                         children: [
                           MenuIconButton(icon: Icons.assignment, onTap: () {
-                              AudioManager().playSfx('soft_button_click.mp3');
+                              AudioManager().playSfxId(SfxId.uiClick);
                               Navigator.push(context, FastPageRoute(
                                   page: DailyQuestsScreen(
                                       missionManager: missionManager,
@@ -525,7 +525,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                         ],
                       ),
                       MenuIconButton(icon: Icons.palette, onTap: () {
-                          AudioManager().playSfx('soft_button_click.mp3');
+                          AudioManager().playSfxId(SfxId.uiClick);
                           final cm = CustomizationManager(progress);
                           cm.init().then((_) {
                               Navigator.push(context, FastPageRoute(
@@ -534,13 +534,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                           });
                       }),
                       MenuIconButton(icon: Icons.emoji_events, onTap: () {
-                          AudioManager().playSfx('soft_button_click.mp3');
+                          AudioManager().playSfxId(SfxId.uiClick);
                           Navigator.push(context, FastPageRoute(
                               page: AchievementsScreen(progressManager: progress),
                           ));
                       }),
                       MenuIconButton(icon: Icons.bar_chart, onTap: () {
-                          AudioManager().playSfx('soft_button_click.mp3');
+                          AudioManager().playSfxId(SfxId.uiClick);
                           Navigator.push(context, FastPageRoute(
                               page: StatisticsScreen(progressManager: progress),
                           ));
@@ -619,3 +619,5 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
     );
   }
 }
+
+

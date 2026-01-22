@@ -22,7 +22,8 @@ export 'ray_tracer_adapter.dart';
 export 'solver.dart';
 export 'episode_config.dart';
 export 'level_generator.dart';
-export 'level_provider.dart';
 export 'hint_engine.dart';
 export 'batch_validator.dart';
 export 'campaign_loader.dart';
+export 'occupancy_grid.dart';
+

@@ -21,6 +21,7 @@ class LevelIntroOverlay extends StatefulWidget {
 class _LevelIntroOverlayState extends State<LevelIntroOverlay> with SingleTickerProviderStateMixin {
   double _opacity = 0.0;
   bool _showButton = false;
+  bool _cancelled = false;
   late AnimationController _pulseController;
 
   @override
@@ -37,12 +38,14 @@ class _LevelIntroOverlayState extends State<LevelIntroOverlay> with SingleTicker
     
     // 2. Wait
     Future.delayed(const Duration(seconds: 2), () {
-        if (!mounted) return;
+        if (!mounted || _cancelled) return;
         
         if (widget.autoStart) {
             // Auto Start: Fade Out
             setState(() => _opacity = 0.0);
-            Future.delayed(const Duration(milliseconds: 500), widget.onStart); 
+            Future.delayed(const Duration(milliseconds: 500), () {
+               if (mounted && !_cancelled) widget.onStart();
+            }); 
         } else {
             // Manual Start: Show Button
             setState(() => _showButton = true);
@@ -52,6 +55,7 @@ class _LevelIntroOverlayState extends State<LevelIntroOverlay> with SingleTicker
   
   @override
   void dispose() {
+    _cancelled = true;
     _pulseController.dispose();
     super.dispose();
   }
@@ -72,7 +76,7 @@ class _LevelIntroOverlayState extends State<LevelIntroOverlay> with SingleTicker
                         Text(
                             "${loc.getString('level_prefix')} ${widget.levelId}",
                             style: const TextStyle(
-                                fontFamily: 'Orbitron',
+                                fontFamily: 'Dynapuff',
                                 fontSize: 48,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
@@ -90,7 +94,9 @@ class _LevelIntroOverlayState extends State<LevelIntroOverlay> with SingleTicker
                                 child: ElevatedButton(
                                     onPressed: () {
                                         setState(() => _opacity = 0.0);
-                                        Future.delayed(const Duration(milliseconds: 500), widget.onStart);
+                                        Future.delayed(const Duration(milliseconds: 500), () {
+                                            if (mounted && !_cancelled) widget.onStart();
+                                        });
                                     },
                                     style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.purpleAccent,
@@ -107,3 +113,4 @@ class _LevelIntroOverlayState extends State<LevelIntroOverlay> with SingleTicker
     );
   }
 }
+

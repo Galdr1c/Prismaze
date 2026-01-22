@@ -142,7 +142,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
         children: [
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () { AudioManager().playSfx('soft_button_click.mp3'); widget.onClose(); },
+            onTap: () { AudioManager().playSfxId(SfxId.uiClick); widget.onClose(); },
             child: Padding(
               padding: const EdgeInsets.all(11), // 11 + 22 + 11 = 44px
               child: Icon(Icons.close, color: Colors.white70, size: 22),
@@ -161,7 +161,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
       children: [
         GestureDetector(
           onTap: () {
-            AudioManager().playSfx('soft_button_click.mp3');
+            AudioManager().playSfxId(SfxId.uiClick);
             setState(() => _expandedSection = isExpanded ? -1 : idx);
           },
           child: Container(
@@ -196,7 +196,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
     return Column(
       children: [
         _sliderRow(LocalizationManager().getString('settings_audio_master'), _masterVol, (v) => setState(() => _masterVol = v), (v) { widget.settingsManager.setMasterVolume(v); AudioManager().setMasterVolume(v); AudioManager().updateBgmVolume(); }),
-        _sliderRow(LocalizationManager().getString('settings_audio_music'), _musicVol, (v) => setState(() => _musicVol = v), (v) { widget.settingsManager.setMusicVolume(v); AudioManager().setMusicVolume(v); AudioManager().updateBgmVolume(); if (v > 0) AudioManager().playMenuMusic(); }),
+        _sliderRow(LocalizationManager().getString('settings_audio_music'), _musicVol, (v) => setState(() => _musicVol = v), (v) { widget.settingsManager.setMusicVolume(v); AudioManager().setMusicVolume(v); AudioManager().updateBgmVolume(); if (v > 0) AudioManager().setContext(AudioContext.menu); }),
         _sliderRow(LocalizationManager().getString('settings_audio_sfx'), _sfxVol, (v) => setState(() => _sfxVol = v), (v) { widget.settingsManager.setSfxVolume(v); AudioManager().setSfxVolume(v); }),
         _sliderRow(LocalizationManager().getString('settings_audio_ambient'), _ambientVol, (v) => setState(() => _ambientVol = v), (v) => widget.settingsManager.setAmbientVolume(v)),
         _sliderRow(LocalizationManager().getString('settings_audio_voice'), _voiceVol, (v) => setState(() => _voiceVol = v), (v) => widget.settingsManager.setVoiceVolume(v)),
@@ -208,7 +208,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
             AudioManager().stopBgm();
           } else {
             AudioManager().updateBgmVolume();
-            AudioManager().playMenuMusic();
+            AudioManager().setContext(AudioContext.menu);
           }
         }),
       ],
@@ -245,7 +245,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                     setState(() => _vibStrength = options[i]); 
                     widget.settingsManager.setVibrationStrength(options[i]);
                     AudioManager().setVibrationStrength(options[i]);
-                    if (options[i] > 0) AudioManager().playSfx('soft_button_click.mp3'); 
+                    if (options[i] > 0) AudioManager().playSfxId(SfxId.uiClick); 
                   },
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -468,7 +468,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   }
 
   Future<void> _exportData() async {
-    AudioManager().playSfx('soft_button_click.mp3');
+    AudioManager().playSfxId(SfxId.uiClick);
     ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Veriler hazırlanıyor...'), duration: Duration(seconds: 1), backgroundColor: Colors.blue)
     );
@@ -495,12 +495,12 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
       if (mounted) {
           setState(() => _isSyncing = false);
           if (result == SyncResult.success) {
-              AudioManager().playSfx('success.mp3');
+              AudioManager().playSfxId(SfxId.achievementUnlocked);
           } else if (result == SyncResult.conflict) {
-              AudioManager().playSfx('error_sound.mp3');
+              AudioManager().playSfxId(SfxId.error);
               _showConflictDialog();
           } else {
-              AudioManager().playSfx('error_sound.mp3');
+              AudioManager().playSfxId(SfxId.error);
           }
       }
   }
@@ -517,7 +517,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
             Navigator.pop(ctx);
             // In a real app, logic to force-download would go here
             // CloudSaveManager().forceDownload();
-            AudioManager().playSfx('success.mp3');
+            AudioManager().playSfxId(SfxId.achievementUnlocked);
           }
         ),
       );
@@ -550,7 +550,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
         final isSelected = _langCode == e.key;
         return GestureDetector(
           onTap: () {
-            AudioManager().playSfx('soft_button_click.mp3');
+            AudioManager().playSfxId(SfxId.uiClick);
             setState(() => _langCode = e.key);
             widget.settingsManager.setLanguage(e.key);
             LocalizationManager().setLanguage(e.key);
@@ -575,7 +575,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
       children: [
         GestureDetector(
           onTap: () {
-            AudioManager().playSfx('soft_button_click.mp3');
+            AudioManager().playSfxId(SfxId.uiClick);
             Navigator.push(context, FastPageRoute(page: const AboutScreen()));
           },
           child: Container(
@@ -642,7 +642,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   }
 
   void _restoreProgress() {
-    AudioManager().playSfx('soft_button_click.mp3');
+    AudioManager().playSfxId(SfxId.uiClick);
     showDialog(
       context: context,
       builder: (ctx) => _confirmDialog(
@@ -661,7 +661,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   }
 
   void _deleteAllData() {
-    AudioManager().playSfx('error_sound.mp3');
+    AudioManager().playSfxId(SfxId.error);
     showDialog(
       context: context,
       builder: (ctx) => _confirmDialog(
@@ -726,7 +726,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   GestureDetector(
-                    onTap: () { AudioManager().playSfx('soft_button_click.mp3'); Navigator.pop(context); },
+                    onTap: () { AudioManager().playSfxId(SfxId.uiClick); Navigator.pop(context); },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
@@ -772,3 +772,5 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
     );
   }
 }
+
+

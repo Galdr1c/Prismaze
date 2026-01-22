@@ -199,3 +199,4 @@ class AdManager extends ChangeNotifier {
       notifyListeners();
   }
 }
+

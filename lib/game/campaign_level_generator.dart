@@ -517,3 +517,4 @@ class _LevelConfig {
     this.hasMovingPrisms = false,
   });
 }
+

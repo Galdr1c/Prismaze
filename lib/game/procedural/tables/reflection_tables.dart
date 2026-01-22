@@ -117,3 +117,4 @@ Legend:
 - Each cell shows the outgoing direction after reflection
 ''';
 }
+

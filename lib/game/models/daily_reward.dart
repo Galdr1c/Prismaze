@@ -72,3 +72,4 @@ class StreakRestoreOption {
   static const int tokenCost = 50;
   static const bool allowAdRestore = true;
 }
+

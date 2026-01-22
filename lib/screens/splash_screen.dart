@@ -41,9 +41,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _initAudio() async {
+    try {
       await AudioManager().init();
       await AudioManager().loadAssets(); 
-      await AudioManager().initSfxPool(); // Initialize low-latency SFX pool 
+      // initSfxPool removed - new AudioManager uses on-demand loading
       
       // Sync with Settings before playing
       final sm = SettingsManager();
@@ -60,15 +61,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       AudioManager().setSfxVolume(sm.sfxVolume);
       
       print("SplashScreen: Playing starting sound. Effective SFX: ${AudioManager().effectiveSfxVolume} (Master: ${sm.masterVolume})");
-      AudioManager().playSfx('starting_sound.mp3'); 
+      // Play sound only if successfully initialized
+      AudioManager().playSfxId(SfxId.start); 
+    } catch (e) {
+      print("SplashScreen: Audio Init Error: $e");
+      // Continue even if audio fails
+    }
       
-      // Delay showing the "Tap to Continue" to let the logo/sound shine alone
-      await Future.delayed(const Duration(seconds: 3));
-      if (mounted) {
-          setState(() {
-              _showTapIndicator = true;
-          });
-      }
+    // Delay showing the "Tap to Continue" to let the logo/sound shine alone
+    await Future.delayed(const Duration(seconds: 3));
+    if (mounted) {
+        setState(() {
+            _showTapIndicator = true;
+        });
+    }
   }
 
   void _navigateToHome() {
@@ -143,8 +149,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               ),
                             ),
                             const SizedBox(height: 50),
-                            // Tap to continue (always visible)
-                            _TapIndicator(),
+                            // Tap to continue (visible only when ready)
+                            AnimatedOpacity(
+                              opacity: _showTapIndicator ? 1.0 : 0.0,
+                              duration: const Duration(milliseconds: 500),
+                              child: _TapIndicator(),
+                            ),
                           ],
                         ),
                       ),
@@ -208,3 +218,4 @@ class _TapIndicatorState extends State<_TapIndicator> with SingleTickerProviderS
     );
   }
 }
+

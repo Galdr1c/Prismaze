@@ -85,3 +85,4 @@ class NetworkManager {
     _controller.close();
   }
 }
+

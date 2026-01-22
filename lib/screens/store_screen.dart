@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../game/iap_catalog.dart';
 import '../game/economy_manager.dart';
 import '../game/iap_manager.dart';
+import '../game/event_manager.dart'; // Added
 import '../game/audio_manager.dart';
+import 'dart:async'; // Added for Timer
 import 'package:google_fonts/google_fonts.dart';
 import '../game/localization_manager.dart';
 import 'components/styled_back_button.dart';
@@ -19,15 +21,28 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late EventManager _eventManager;
+  Timer? _timer;
   
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    
+    _eventManager = EventManager();
+    _eventManager.init().then((_) {
+      if (mounted) setState(() {});
+    });
+    
+    // Start timer for countdown
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) setState(() {});
+    });
   }
   
   @override
   void dispose() {
+    _timer?.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -157,7 +172,13 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   }
   
   Widget _buildSeasonalTab() {
-    final seasonalProducts = IAPCatalog.seasonalProducts;
+    final activeEventId = _eventManager.activeEvent?.id;
+    
+    // Filter products: Only show if they match the active event ID
+    final seasonalProducts = IAPCatalog.seasonalProducts.where((p) {
+      if (activeEventId == null) return false;
+      return p.id.contains(activeEventId);
+    }).toList();
     
     if (seasonalProducts.isEmpty) {
       return Center(
@@ -186,6 +207,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   }) {
     final badgeColor = StoreUtils.getBadgeColor(product);
     final loc = LocalizationManager();
+    final isCyanTheme = !featured; // Cyan for normal, Purple for featured
     
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -196,30 +218,37 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
           constraints: BoxConstraints(
             minWidth: cardWidth,
             maxWidth: cardWidth,
-            minHeight: featured ? 220 : 180, // Consistent minimum height
+            minHeight: featured ? 230 : 190, 
           ),
           child: GestureDetector(
             onTap: () => _purchaseProduct(product),
             child: Container(
               decoration: BoxDecoration(
-                gradient: featured ? LinearGradient(
-                  colors: [
-                    const Color(0xFF2A1A4A),
-                    const Color(0xFF1A0A2E),
-                  ],
-                ) : null,
-                color: featured ? null : Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: featured 
+                    ? [const Color(0xFF4A148C).withOpacity(0.8), const Color(0xFF2A0A4E).withOpacity(0.9)] 
+                    : [const Color(0xFF1A1A2E).withOpacity(0.8), const Color(0xFF0D0D1A).withOpacity(0.9)],
+                ),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: featured ? Colors.purpleAccent.withOpacity(0.5) : Colors.white12,
+                  color: featured ? Colors.purpleAccent.withOpacity(0.6) : Colors.cyanAccent.withOpacity(0.3),
                   width: featured ? 2 : 1,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: featured ? Colors.purpleAccent.withOpacity(0.15) : Colors.cyanAccent.withOpacity(0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Stack(
                 children: [
                   // Card Content
                    Padding(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -233,8 +262,9 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                                 loc.getString(product.name),
                                 style: GoogleFonts.dynaPuff(
                                   color: Colors.white,
-                                  fontSize: featured ? 13 : 11,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: featured ? 14 : 12,
+                                  fontWeight: FontWeight.w700,
+                                  height: 1.1,
                                 ),
                               ),
                             ),
@@ -242,40 +272,52 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                             if (product.badgeOrSavings.isNotEmpty) ...[
                               const SizedBox(width: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                                 decoration: BoxDecoration(
                                   color: badgeColor,
-                                  borderRadius: BorderRadius.circular(6),
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [
+                                    BoxShadow(color: badgeColor.withOpacity(0.4), blurRadius: 4)
+                                  ],
                                 ),
                                 child: Text(
                                   product.savings != null 
                                     ? loc.getString('badge_save_percent').replaceAll('{0}', '${product.savings}') 
                                     : loc.getString(product.badgeOrSavings),
-                                  style: GoogleFonts.dynaPuff(color: Colors.black, fontSize: 8, fontWeight: FontWeight.bold),
+                                  style: GoogleFonts.dynaPuff(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ],
                           ],
                         ),
-                        // Limited badge below title if seasonal
+                        // Limited badge below title if seasonal (with Timer)
                         if (isLimited) ...[
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: Colors.redAccent,
-                              borderRadius: BorderRadius.circular(4),
+                              color: Colors.redAccent.withOpacity(0.2),
+                              border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                              borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.timer, color: Colors.white, size: 10),
-                                const SizedBox(width: 2),
-                                Text(loc.getString('store_badge_limited'), style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 8)),
+                                const Icon(Icons.timer, color: Colors.redAccent, size: 10),
+                                const SizedBox(width: 4),
+                                Text(
+                                  // Dynamic Timer Text
+                                  StoreUtils.formatEventTimer(_eventManager.remainingDuration), 
+                                  style: GoogleFonts.dynaPuff(color: Colors.redAccent, fontSize: 9, fontWeight: FontWeight.bold)
+                                ),
                               ],
                             ),
                           ),
                         ],
+                        
+                        const SizedBox(height: 8),
+                        
+                        // Price Section
                         if (product.savings != null && product.originalPrice != null)
                           Text(
                             product.originalPrice!,
@@ -289,24 +331,30 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                         Text(
                           product.formattedPrice + (isSubscription ? StoreUtils.formatSubscriptionPeriod(product) : ''),
                           style: GoogleFonts.dynaPuff(
-                            color: Colors.cyanAccent,
-                            fontSize: featured ? 16 : 14,
-                            fontWeight: FontWeight.bold,
+                            color: featured ? Colors.purpleAccent : Colors.cyanAccent,
+                            fontSize: featured ? 18 : 15,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        
+                        const SizedBox(height: 8),
+                        
+                        // Description
                         Text(
                           loc.getString(product.description),
-                          style: GoogleFonts.dynaPuff(color: Colors.white54, fontSize: 10),
+                          style: GoogleFonts.dynaPuff(color: Colors.white60, fontSize: 10, height: 1.2),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 6),
+                        
+                        const SizedBox(height: 10),
+                        
+                        // Features List
                          ...product.contents.take(3).map((contentKey) => Padding(
-                          padding: const EdgeInsets.only(bottom: 2),
+                          padding: const EdgeInsets.only(bottom: 3),
                           child: Row(
                             children: [
-                              const Icon(Icons.check_circle, color: Colors.greenAccent, size: 12),
+                              Icon(Icons.check_circle, color: featured ? Colors.purpleAccent : Colors.cyanAccent, size: 12),
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
@@ -319,20 +367,39 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                             ],
                           ),
                         )),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => _purchaseProduct(product),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: featured ? Colors.purpleAccent : Colors.cyanAccent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        
+                        const SizedBox(height: 12),
+                        
+                        // Action Button
+                        GestureDetector(
+                          onTap: () => _purchaseProduct(product),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: featured 
+                                  ? [Colors.purpleAccent, const Color(0xFFAB47BC)] 
+                                  : [Colors.cyanAccent, const Color(0xFF00ACC1)],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: (featured ? Colors.purpleAccent : Colors.cyanAccent).withOpacity(0.4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            child: Text(
+                            child: Center(
+                              child: Text(
                                 isSubscription ? loc.getString('btn_subscribe') : loc.getString('btn_buy'),
-                                style: GoogleFonts.dynaPuff(fontWeight: FontWeight.bold, fontSize: 11),
+                                style: GoogleFonts.dynaPuff(
+                                  color: featured ? Colors.white : Colors.black, // High contrast
+                                  fontWeight: FontWeight.w800, 
+                                  fontSize: 12
+                                ),
+                              ),
                             ),
                           ),
                         ),
@@ -349,7 +416,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   }
   
   Future<void> _purchaseProduct(IAPProduct product) async {
-    AudioManager().playSfx('soft_button_click.mp3');
+    AudioManager().playSfxId(SfxId.uiClick);
     
     // Check if IAP is busy
     if (widget.iapManager.isPurchasing) return;
@@ -394,3 +461,4 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
     }
   }
 }
+

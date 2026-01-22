@@ -115,3 +115,4 @@ class ColorBlindnessUtils {
       textPainter.paint(canvas, center - Offset(textPainter.width / 2, textPainter.height / 2));
   }
 }
+

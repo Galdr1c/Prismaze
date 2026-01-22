@@ -355,3 +355,4 @@ class CampaignProgress {
     await prefs.setString(_storageKey, jsonEncode(data));
   }
 }
+

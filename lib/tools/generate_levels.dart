@@ -80,3 +80,4 @@ String _valueToJson(dynamic value) {
   if (value is List) return '[${value.map(_valueToJson).join(', ')}]';
   return value.toString();
 }
+

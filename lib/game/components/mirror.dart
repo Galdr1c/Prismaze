@@ -49,6 +49,16 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
   static const _glowColor = Color(0xFF64FFDA);         // Cyan accent glow
   static const _impactColor = Color(0xFFFFFFFF);       // White impact flash
 
+  // === OPTIMIZATION: CACHED PAINTS ===
+  final Paint _basePaint = Paint();
+  final Paint _strokePaint = Paint()..style = PaintingStyle.stroke;
+  final Paint _glowPaint = Paint();
+  final Paint _shaderPaint = Paint();
+  
+  // Static MaskFilters
+  static const _blur3 = MaskFilter.blur(BlurStyle.solid, 3);
+  static const _blur4 = MaskFilter.blur(BlurStyle.normal, 4);
+
   Mirror({
     required Vector2 position,
     double angle = 0,
@@ -182,26 +192,23 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
     
     if (highContrast) {
       // High Contrast Mode: Simple solid with white border
-      canvas.drawRRect(rrect, Paint()..color = Colors.grey.shade800.withOpacity(opacity));
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..color = Colors.white.withOpacity(opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
+      _basePaint.color = Colors.grey.shade800.withOpacity(opacity);
+      canvas.drawRRect(rrect, _basePaint);
+      _strokePaint
+        ..color = Colors.white.withOpacity(opacity)
+        ..strokeWidth = 2
+        ..maskFilter = null;
+      canvas.drawRRect(rrect, _strokePaint);
       return;
     }
 
     // === LAYER 1: Drop Shadow (Depth) ===
     if (!reducedGlow) {
       final shadowRRect = rrect.shift(const Offset(2, 3));
-      canvas.drawRRect(
-        shadowRRect,
-        Paint()
-          ..color = Colors.black.withOpacity(0.35 * opacity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
+      _glowPaint
+        ..color = Colors.black.withOpacity(0.35 * opacity)
+        ..maskFilter = _blur4;
+      canvas.drawRRect(shadowRRect, _glowPaint);
     }
 
     // === LAYER 2: Golden Frame (Outer) ===
@@ -217,23 +224,19 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
       stops: const [0.0, 0.35, 0.65, 1.0],
     );
     
-    canvas.drawRRect(
-      rrect,
-      Paint()..shader = frameGradient.createShader(rect),
-    );
+    _shaderPaint.shader = frameGradient.createShader(rect);
+    canvas.drawRRect(rrect, _shaderPaint);
     
     // Frame inner shadow (inset effect)
     final innerShadowRRect = RRect.fromRectAndRadius(
       rect.deflate(1),
       const Radius.circular(5),
     );
-    canvas.drawRRect(
-      innerShadowRRect,
-      Paint()
-        ..color = Colors.black.withOpacity(0.3 * opacity)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
+    _strokePaint
+      ..color = Colors.black.withOpacity(0.3 * opacity)
+      ..strokeWidth = 1
+      ..maskFilter = null;
+    canvas.drawRRect(innerShadowRRect, _strokePaint);
 
     // === LAYER 3: Chrome Mirror Surface ===
     final innerRect = Rect.fromCenter(
@@ -256,10 +259,8 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
       stops: const [0.0, 0.3, 0.7, 1.0],
     );
     
-    canvas.drawRRect(
-      innerRRect,
-      Paint()..shader = chromeGradient.createShader(innerRect),
-    );
+    _shaderPaint.shader = chromeGradient.createShader(innerRect);
+    canvas.drawRRect(innerRRect, _shaderPaint);
 
     // === LAYER 4: Idle Shimmer (Subtle sweep) ===
     if (!reducedGlow) {
@@ -317,48 +318,35 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
       );
       
       // Surface flash
-      canvas.drawRRect(
-        innerRRect,
-        Paint()
-          ..color = _impactColor.withOpacity(_lightHitIntensity * 0.4 * opacity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
-      );
+      _glowPaint
+        ..color = _impactColor.withOpacity(_lightHitIntensity * 0.4 * opacity)
+        ..maskFilter = _blur3;
+      canvas.drawRRect(innerRRect, _glowPaint);
     }
 
     // === LAYER 7: Frame Glow (Pulsing) ===
     if (!reducedGlow) {
       final pulseIntensity = 0.3 + 0.1 * sin(_time * 2.5);
-      canvas.drawRRect(
-        rrect,
-        Paint()
-          ..color = _glowColor.withOpacity(pulseIntensity * opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
-      );
+      _strokePaint
+        ..color = _glowColor.withOpacity(pulseIntensity * opacity)
+        ..strokeWidth = 2
+        ..maskFilter = _blur3;
+      canvas.drawRRect(rrect, _strokePaint);
     }
     
     // === LAYER 8: Crisp Frame Border ===
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..color = _frameGoldLight.withOpacity(0.9 * opacity)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
+    _strokePaint
+      ..color = _frameGoldLight.withOpacity(0.9 * opacity)
+      ..strokeWidth = 1
+      ..maskFilter = null;
+    canvas.drawRRect(rrect, _strokePaint);
     
     // Locked Indicator
     if (isLocked) {
-      canvas.drawCircle(
-        Offset(size.x / 2, size.y / 2),
-        4,
-        Paint()..color = Colors.redAccent.withOpacity(opacity),
-      );
-      canvas.drawCircle(
-        Offset(size.x / 2, size.y / 2),
-        2,
-        Paint()..color = Colors.white.withOpacity(opacity),
-      );
+      _basePaint.color = Colors.redAccent.withOpacity(opacity);
+      canvas.drawCircle(Offset(size.x / 2, size.y / 2), 4, _basePaint);
+      _basePaint.color = Colors.white.withOpacity(opacity);
+      canvas.drawCircle(Offset(size.x / 2, size.y / 2), 2, _basePaint);
     }
   }
 
@@ -537,3 +525,4 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
       _shineOffset = -0.5; // Start off-left
   }
 }
+

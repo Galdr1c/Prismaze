@@ -22,7 +22,7 @@ class TermsOfServiceScreen extends StatelessWidget {
                    IconButton(
                     icon: Icon(Icons.arrow_back_ios_new, color: PrismazeTheme.accentCyan),
                     onPressed: () {
-                        AudioManager().playSfx('soft_button_click.mp3');
+                        AudioManager().playSfxId(SfxId.uiClick);
                         Navigator.pop(context);
                     },
                    ),
@@ -72,3 +72,4 @@ class TermsOfServiceScreen extends StatelessWidget {
     );
   }
 }
+

@@ -185,3 +185,4 @@ class _Achievement {
   
   const _Achievement(this.title, this.description, this.id);
 }
+

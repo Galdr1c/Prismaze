@@ -276,3 +276,4 @@ class Wall extends PositionComponent with HasGameRef<PrismazeGame> {
   }
 }
 
+

@@ -74,10 +74,10 @@ class _CustomizationScreenState extends State<CustomizationScreen> with SingleTi
     return GridView.builder(
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+        crossAxisCount: 4,
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
-        childAspectRatio: 0.8,
+        childAspectRatio: 1.8,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) => _buildItemCard(items[index]),
@@ -114,7 +114,7 @@ class _CustomizationScreenState extends State<CustomizationScreen> with SingleTi
                 children: [
                   // Icon/Preview
                   Container(
-                    width: 50,
+                    width: 250,
                     height: 50,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
@@ -204,7 +204,7 @@ class _CustomizationScreenState extends State<CustomizationScreen> with SingleTi
       return;
     }
     
-    AudioManager().playSfx('soft_button_click.mp3');
+    AudioManager().playSfxId(SfxId.uiClick);
     await widget.customizationManager.selectItem(item.id);
     setState(() {});
     
@@ -233,3 +233,4 @@ class _CustomizationScreenState extends State<CustomizationScreen> with SingleTi
     return [Colors.grey, Colors.blueGrey];
   }
 }
+

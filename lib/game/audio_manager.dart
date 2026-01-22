@@ -1,394 +1,459 @@
+/// Centralized Audio Manager
+/// 
+/// Single source of truth for all audio playback.
+/// Uses enum-based API to prevent raw filename usage.
+/// Supports stoppable SFX, context switching, and cooldown/maxInstances.
+library;
+
 import 'dart:async';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:audioplayers/audioplayers.dart' as ap;
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
+/// Audio context for automatic BGM/SFX management.
+enum AudioContext { menu, gameplay }
+
+/// Background music identifiers.
+enum BgmId {
+  menu,
+  level1_50,
+  level50_100,
+  level100_200,
+  eventSummer,
+  eventHalloween,
+  eventFrozen,
+}
+
+/// Sound effect identifiers.
+enum SfxId {
+  uiClick,
+  uiOpenMenu,
+  mirrorTap,
+  mirrorMove,
+  prismTap,
+  prismRotate,
+  targetHit,
+  wrongColor,
+  colorMix,
+  coin,
+  tokenSpent,
+  error,
+  starEarned,
+  levelComplete,
+  victory,
+  confetti,
+  achievementUnlock,
+  achievementUnlocked,
+  dailyQuestComplete,
+  notification,
+  popup,
+  rareItemUnlocked,
+  start,
+  lightReflection,
+}
+
+/// Centralized audio manager - singleton.
 class AudioManager {
   static final AudioManager _instance = AudioManager._internal();
   factory AudioManager() => _instance;
   AudioManager._internal();
 
-  bool _isMuted = false;
-  
-  // Volume Channels
+  // === VOLUME CONTROLS ===
   double _masterVolume = 1.0;
-  double _musicVolume = 1.0;
-  double _sfxVolume = 1.0;
-  double _ambientVolume = 1.0;
+  double _musicVolume = 0.8;
+  double _sfxVolume = 0.9;
+  double _ambientVolume = 0.5;
   double _voiceVolume = 1.0;
   bool _vibrationEnabled = true;
+  double _vibrationStrength = 1.0;
 
-  // Asset Mapping for Legacy Calls
-  static const Map<String, String> sfxMapping = {
-    'whoosh.mp3': 'mirror_move_sound.mp3',
-    'click.mp3': 'crystal_tap_sound.mp3',
-    'tap.mp3': 'crystal_tap_sound.mp3',
-    'ding.mp3': 'target_hit_sound.mp3',
-    'win.mp3': 'level_complete_sound.mp3',
-    'victory.mp3': 'victory.mp3',
-    'power_up.mp3': 'light_reflection_sound.mp3', // Map power_up to light reflection
-    'coin.mp3': 'coin_collect.mp3',
-    'error.mp3': 'error_sound.mp3',
-    'star.mp3': 'star_earned.mp3',
-    'unlock.mp3': 'achievement_unlock.mp3',
-    'confetti.mp3': 'confetti.mp3',
+  // === BGM STATE ===
+  AudioPlayer? _bgmPlayer;
+  BgmId? _currentBgm;
+  bool _bgmLoading = false;
+
+  // === SFX STATE ===
+  final Map<SfxId, Set<AudioPlayer>> _activeSfx = {};
+  final Map<SfxId, DateTime> _lastPlayTime = {};
+  
+  /// Debug: Get total active SFX player count
+  int get debugActiveSfxCount => _activeSfx.values.fold(0, (sum, set) => sum + set.length);
+
+  // === CENTRAL PATH MAPPINGS ===
+  static const Map<BgmId, String> _bgmPaths = {
+    BgmId.menu: 'audio/bgm/main_menu_sound2.mp3',
+    BgmId.level1_50: 'audio/bgm/1-50_level_bgm.mp3',
+    BgmId.level50_100: 'audio/bgm/50-100_level_bgm.mp3',
+    BgmId.level100_200: 'audio/bgm/100-200_level_bgm.mp3',
+    BgmId.eventSummer: 'audio/bgm/summer_event_bgm.mp3',
+    BgmId.eventHalloween: 'audio/bgm/hallowen_event_bgm.mp3',
+    BgmId.eventFrozen: 'audio/bgm/frozen_event_bgm.mp3',
   };
 
+  static const Map<SfxId, String> _sfxPaths = {
+    SfxId.uiClick: 'audio/sfx/soft_button_click.mp3',
+    SfxId.uiOpenMenu: 'audio/sfx/menu_open.mp3',
+    SfxId.mirrorTap: 'audio/sfx/mirror_tap_sound.mp3',
+    SfxId.mirrorMove: 'audio/sfx/mirror_move_sound.mp3',
+    SfxId.prismTap: 'audio/sfx/crystal_tap_sound.mp3',
+    SfxId.prismRotate: 'audio/sfx/crystal_move_sound.mp3',
+    SfxId.targetHit: 'audio/sfx/target_hit_sound.mp3',
+    SfxId.wrongColor: 'audio/sfx/wrong_color_sound.mp3',
+    SfxId.colorMix: 'audio/sfx/color_mixing_sound.mp3',
+    SfxId.coin: 'audio/sfx/coin_collect.mp3',
+    SfxId.tokenSpent: 'audio/sfx/token_spent_sound.mp3',
+    SfxId.error: 'audio/sfx/error_sound.mp3',
+    SfxId.starEarned: 'audio/sfx/star_earned.mp3',
+    SfxId.levelComplete: 'audio/sfx/level_complete_sound.mp3',
+    SfxId.victory: 'audio/sfx/victory.mp3',
+    SfxId.confetti: 'audio/sfx/confetti.mp3',
+    SfxId.achievementUnlock: 'audio/sfx/achievement_unlock.mp3',
+    SfxId.achievementUnlocked: 'audio/sfx/achievement_unlocked.mp3',
+    SfxId.dailyQuestComplete: 'audio/sfx/daily_quest_complete.mp3',
+    SfxId.notification: 'audio/sfx/mobile_notification.mp3',
+    SfxId.popup: 'audio/sfx/pop_up_sound.mp3',
+    SfxId.rareItemUnlocked: 'audio/sfx/rare_item_unlocked.mp3',
+    SfxId.start: 'audio/sfx/starting_sound.mp3',
+    SfxId.lightReflection: 'audio/sfx/light_reflection_sound.mp3',
+  };
+
+  // === COOLDOWN / MAX INSTANCES POLICIES ===
+  static const Map<SfxId, int> _cooldownMs = {
+    SfxId.uiClick: 40,
+    SfxId.mirrorTap: 60,
+    SfxId.prismTap: 60,
+    SfxId.starEarned: 200,
+    SfxId.targetHit: 100,
+    SfxId.wrongColor: 150,
+    SfxId.coin: 50,
+  };
+
+  static const Map<SfxId, int> _maxInstances = {
+    SfxId.uiClick: 2,
+    SfxId.mirrorTap: 2,
+    SfxId.prismTap: 2,
+    SfxId.starEarned: 1,
+    SfxId.levelComplete: 1,
+    SfxId.victory: 1,
+    SfxId.targetHit: 3,
+    SfxId.coin: 3,
+  };
+
+  // === LEGACY FILENAME MAPPING ===
+  static const Map<String, SfxId> _legacyMap = {
+    'soft_button_click.mp3': SfxId.uiClick,
+    'whoosh.mp3': SfxId.mirrorMove,
+    'ding.mp3': SfxId.targetHit,
+    'win.mp3': SfxId.levelComplete,
+    'power_up.mp3': SfxId.colorMix,
+    'success.mp3': SfxId.achievementUnlocked,
+    'trash.mp3': SfxId.popup,
+    'rotate.mp3': SfxId.prismRotate,
+    'mirror_tap_sound.mp3': SfxId.mirrorTap,
+    'crystal_tap_sound.mp3': SfxId.prismTap,
+    'star_earned.mp3': SfxId.starEarned,
+    'coin_collect.mp3': SfxId.coin,
+    'level_complete_sound.mp3': SfxId.levelComplete,
+    'victory.mp3': SfxId.victory,
+    'error_sound.mp3': SfxId.error,
+  };
+
+  // === INITIALIZATION ===
   Future<void> init() async {
-      // Any async init
+    // Configure global audio context to allow mixing (prevents SFX from stopping BGM)
+    final audioContext = ap.AudioContext(
+      iOS: ap.AudioContextIOS(
+        category: ap.AVAudioSessionCategory.playback,
+        options: {ap.AVAudioSessionOptions.mixWithOthers},
+      ),
+      android: ap.AudioContextAndroid(
+        isSpeakerphoneOn: true,
+        stayAwake: true,
+        contentType: ap.AndroidContentType.sonification,
+        usageType: ap.AndroidUsageType.game,
+        audioFocus: ap.AndroidAudioFocus.none, 
+      ),
+    );
+    await ap.AudioPlayer.global.setAudioContext(audioContext);
+
+    _bgmPlayer = AudioPlayer();
+    _bgmPlayer!.setReleaseMode(ReleaseMode.loop);
+    debugPrint('AudioManager: Initialized');
   }
 
-  // Preload assets
+  /// Preload minimal frequently-used assets to reduce stutter.
   Future<void> loadAssets() async {
+    const preloadSfx = [
+      SfxId.uiClick,
+      SfxId.error,
+      SfxId.mirrorTap,
+      SfxId.prismTap,
+      SfxId.targetHit,
+      SfxId.starEarned,
+      SfxId.levelComplete,
+      SfxId.coin,
+    ];
+
+    for (final id in preloadSfx) {
+      final path = _sfxPaths[id];
+      if (path != null) {
+        try {
+          // FlameAudio assumes 'audio/' prefix, so strip it from our keys
+          final effectivePath = path.replaceFirst('audio/', '');
+          await FlameAudio.audioCache.load(effectivePath);
+        } catch (e) {
+          debugPrint('AudioManager: Failed to preload $path: $e');
+        }
+      }
+    }
+
+    // Preload menu BGM
     try {
-      await FlameAudio.audioCache.loadAll([
-        '1-50_level_bgm.mp3',
-        '50-100_level_bgm.mp3', 
-        '100-200_level_bgm.mp3',
-        'achievement_unlock.mp3',
-        'achievement_unlocked.mp3',
-        'coin_collect.mp3',
-        'color_mixing_sound.mp3',
-        'confetti.mp3',
-        'crystal_move_sound.mp3',
-        'crystal_tap_sound.mp3',
-        'daily_quest_complete.mp3',
-        'error_sound.mp3',
-        'frozen_event_bgm.mp3',
-        'hallowen_event_bgm.mp3',
-        'level_complete_sound.mp3',
-        'light_reflection_sound.mp3',
-        'main_menu_sound.mp3',
-        'main_menu_sound2.mp3',
-        'menu_open.mp3',
-        'mirror_move_sound.mp3',
-        'mirror_tap_sound.mp3',
-        'mobile_notification.mp3',
-        'pop_up_sound.mp3',
-        'rare_item_unlocked.mp3',
-        'star_earned.mp3',
-        'starting_sound.mp3',
-        'summer_event_bgm.mp3',
-        'target_hit_sound.mp3',
-        'token_spent_sound.mp3',
-        'victory.mp3',
-        'wrong_color_sound.mp3'
-      ]);
-      print("AudioManager: Assets loaded successfully.");
-    } catch (e) { print("Audio assets error: $e"); }
+      final bgmPath = _bgmPaths[BgmId.menu]!;
+      final effectiveBgmPath = bgmPath.replaceFirst('audio/', '');
+      await FlameAudio.audioCache.load(effectiveBgmPath);
+    } catch (e) {
+      debugPrint('AudioManager: Failed to preload menu BGM: $e');
+    }
+
+    debugPrint('AudioManager: Preloaded ${preloadSfx.length} SFX + menu BGM');
   }
-  
-  // Setters
+
+  // === VOLUME SETTERS ===
   void setMasterVolume(double vol) => _masterVolume = vol.clamp(0.0, 1.0);
-  void setMusicVolume(double vol) => _musicVolume = vol.clamp(0.0, 1.0);
+  void setMusicVolume(double vol) { _musicVolume = vol.clamp(0.0, 1.0); updateBgmVolume(); }
   void setSfxVolume(double vol) => _sfxVolume = vol.clamp(0.0, 1.0);
   void setAmbientVolume(double vol) => _ambientVolume = vol.clamp(0.0, 1.0);
   void setVoiceVolume(double vol) => _voiceVolume = vol.clamp(0.0, 1.0);
   void setVibration(bool enabled) => _vibrationEnabled = enabled;
-  
-  // Effective volume (applies master)
+  void setVibrationStrength(double str) => _vibrationStrength = str.clamp(0.0, 1.0);
+
   double get effectiveMusicVolume => _masterVolume * _musicVolume;
   double get effectiveSfxVolume => _masterVolume * _sfxVolume;
-  double get effectiveAmbientVolume => _masterVolume * _ambientVolume;
-  double get effectiveVoiceVolume => _masterVolume * _voiceVolume;
 
-  // Background audio mode (player's own music)
-  bool allowBackgroundAudio = false;
+  // === CONTEXT SWITCHING ===
+  /// Switch audio context (stops all SFX, changes BGM appropriately).
+  Future<void> setContext(AudioContext ctx, {int? levelId}) async {
+    stopAllSfx();
 
-  // Track names for re-looping
-  String? _currentMenuTrack;
-  String? _currentGameTrack;
-  AudioPlayer? _menuPlayer;
-  AudioPlayer? _gamePlayer;
-  bool _menuMusicActive = false;  // Flag to prevent restart
-  bool _gameMusicActive = false;  // Flag for game music
-  bool _musicChanging = false;    // Mutex to prevent concurrent calls
-  
-  // Subscription cleanup to prevent memory leaks
-  StreamSubscription? _menuLoopSub;
-  StreamSubscription? _gameLoopSub;
-
-  Future<void> playMenuMusic() async {
-    if (allowBackgroundAudio) return;
-    if (_musicChanging) return; // Prevent concurrent calls
-    
-    _musicChanging = true;
-    
-    try {
-      // Stop gameplay music first
-      if (_gamePlayer != null) {
-        try {
-          await _gamePlayer!.stop();
-          await _gamePlayer!.dispose();
-        } catch(e) {}
-        _gamePlayer = null;
-        _currentGameTrack = null;
-        _gameMusicActive = false;
-      }
-      
-      // If menu music is already active and player is still playing, just update volume
-      if (_menuMusicActive && _menuPlayer != null) {
-        final state = _menuPlayer!.state;
-        if (state == PlayerState.playing || state == PlayerState.paused) {
-          await _menuPlayer!.setVolume(0.5 * effectiveMusicVolume);
-          _musicChanging = false;
-          return;
-        }
-        // Player stopped unexpectedly - will recreate below
-        print("Menu player stopped unexpectedly, recreating...");
-      }
-      
-      if (effectiveMusicVolume <= 0) {
-        _musicChanging = false;
-        return;
-      }
-
-      if (FlameAudio.bgm.isPlaying) FlameAudio.bgm.stop();
-      
-      // Dispose old player if exists
-      if (_menuPlayer != null) {
-        try { await _menuPlayer!.dispose(); } catch(e) {}
-        _menuPlayer = null;
-      }
-      
-      _currentMenuTrack = 'main_menu_sound2.mp3';
-      _menuMusicActive = true;
-      
-      // Create dedicated player for menu music
-      _menuPlayer = AudioPlayer();
-      await _menuPlayer!.setReleaseMode(ReleaseMode.stop); // Don't auto-release
-      await _menuPlayer!.setSource(AssetSource('audio/$_currentMenuTrack'));
-      await _menuPlayer!.setVolume(0.5 * effectiveMusicVolume);
-      await _menuPlayer!.resume();
-      
-      print("Menu music started: $_currentMenuTrack");
-      
-      // Cancel old subscription before adding new one
-      await _menuLoopSub?.cancel();
-      
-      // Loop only after track completes
-      _menuLoopSub = _menuPlayer!.onPlayerComplete.listen((_) async {
-        if (_currentMenuTrack != null && _menuPlayer != null && _menuMusicActive) {
-          try {
-            await _menuPlayer!.seek(Duration.zero);
-            await _menuPlayer!.resume();
-            print("Menu music looped");
-          } catch(e) {
-            print("Menu loop error: $e");
-          }
-        }
-      });
-    } catch(e) { 
-      print("Menu Music Error: $e"); 
-      _menuMusicActive = false;
+    switch (ctx) {
+      case AudioContext.menu:
+        await playBgm(BgmId.menu);
+        break;
+      case AudioContext.gameplay:
+        final bgm = _getBgmForLevel(levelId ?? 1);
+        await playBgm(bgm);
+        break;
     }
-    
-    _musicChanging = false;
+
+    debugPrint('AudioManager: Context set to ${ctx.name}');
   }
 
-  Future<void> playGameplayMusic(int levelId) async {
-    if (allowBackgroundAudio) return;
-    if (_musicChanging) return; // Prevent concurrent calls
-    
-    _musicChanging = true;
-    
-    try {
-      // Stop menu music first
-      if (_menuPlayer != null) {
-        try {
-          await _menuPlayer!.stop();
-          await _menuPlayer!.dispose();
-        } catch(e) {}
-        _menuPlayer = null;
-        _currentMenuTrack = null;
-        _menuMusicActive = false;
-      }
-      
-      if (effectiveMusicVolume <= 0) {
-        _musicChanging = false;
-        return;
-      }
-
-      String track;
-      if (levelId <= 50) track = '1-50_level_bgm.mp3';
-      else if (levelId <= 100) track = '50-100_level_bgm.mp3';
-      else track = '100-200_level_bgm.mp3';
-
-      // If same track is already playing, just update volume
-      if (_gameMusicActive && _currentGameTrack == track && _gamePlayer != null) {
-        _gamePlayer!.setVolume(0.4 * effectiveMusicVolume);
-        _musicChanging = false;
-        return;
-      }
-
-      // Stop old game music if different track
-      if (_gamePlayer != null) {
-        try {
-          await _gamePlayer!.stop();
-          await _gamePlayer!.dispose();
-        } catch(e) {}
-        _gamePlayer = null;
-      }
-
-      _currentGameTrack = track;
-      _gameMusicActive = true;
-      
-      // Create dedicated player for game music
-      _gamePlayer = AudioPlayer();
-      await _gamePlayer!.setReleaseMode(ReleaseMode.stop);
-      await _gamePlayer!.setSource(AssetSource('audio/$track'));
-      await _gamePlayer!.setVolume(0.4 * effectiveMusicVolume);
-      await _gamePlayer!.resume();
-      
-      // Cancel old subscription before adding new one
-      await _gameLoopSub?.cancel();
-      
-      // Loop only after track completes
-      _gameLoopSub = _gamePlayer!.onPlayerComplete.listen((_) async {
-        if (_currentGameTrack != null && _gamePlayer != null && _gameMusicActive) {
-          try {
-            await _gamePlayer!.seek(Duration.zero);
-            await _gamePlayer!.resume();
-          } catch(e) {
-            print("Game loop error: $e");
-          }
-        }
-      });
-    } catch(e) { 
-      print("Game Music Error: $e"); 
-    }
-    
-    _musicChanging = false;
+  BgmId _getBgmForLevel(int levelId) {
+    if (levelId <= 50) return BgmId.level1_50;
+    if (levelId <= 100) return BgmId.level50_100;
+    return BgmId.level100_200;
   }
-  
+
+  // === BGM PLAYBACK ===
+  Future<void> playBgm(BgmId id) async {
+    if (_bgmLoading) return;
+    if (_currentBgm == id && _bgmPlayer?.state == PlayerState.playing) return;
+
+    _bgmLoading = true;
+    try {
+      final path = _bgmPaths[id];
+      if (path == null) {
+        debugPrint('AudioManager: Unknown BGM $id');
+        return;
+      }
+
+      await _bgmPlayer?.stop();
+      _currentBgm = id;
+
+      await _bgmPlayer?.setSource(AssetSource(path));
+      await _bgmPlayer?.setVolume(effectiveMusicVolume);
+      await _bgmPlayer?.resume();
+
+      debugPrint('AudioManager: Playing BGM $id');
+    } catch (e) {
+      debugPrint('AudioManager: Failed to play BGM $id: $e');
+    } finally {
+      _bgmLoading = false;
+    }
+  }
+
+  void stopBgm() {
+    _bgmPlayer?.stop();
+    _currentBgm = null;
+    debugPrint('AudioManager: BGM stopped');
+  }
+
   void updateBgmVolume() {
-     _menuPlayer?.setVolume(0.5 * effectiveMusicVolume);
-     _gamePlayer?.setVolume(0.4 * effectiveMusicVolume);
+    _bgmPlayer?.setVolume(effectiveMusicVolume);
   }
 
-  void stopAllMusic() async {
-    try {
-      await _menuPlayer?.stop();
-      await _menuPlayer?.dispose();
-    } catch(e) {}
-    try {
-      await _gamePlayer?.stop();
-      await _gamePlayer?.dispose();
-    } catch(e) {}
-    _menuPlayer = null;
-    _gamePlayer = null;
-    _menuMusicActive = false;
-    _gameMusicActive = false;
-    _currentMenuTrack = null;
-    _currentGameTrack = null;
-    FlameAudio.bgm.stop();
+  // === LEGACY WRAPPERS (for backward compatibility) ===
+  void playMenuMusic() => setContext(AudioContext.menu);
+  void playGameplayMusic(int levelId) => setContext(AudioContext.gameplay, levelId: levelId);
+  void playMenuBgm() => setContext(AudioContext.menu);
+  void playGameBgm(int levelId) => setContext(AudioContext.gameplay, levelId: levelId);
+
+  void stopAllMusic() {
+    stopBgm();
+    stopAllSfx();
   }
 
-  // Legacy Wrappers
-  void playMenuBgm() => playMenuMusic();
-  void playGameBgm(int levelId) => playGameplayMusic(levelId);
-  void stopBgm() => stopAllMusic();
+  // === SFX PLAYBACK (STOPPABLE) ===
+  /// Play SFX by enum ID (preferred).
+  Future<void> playSfxId(SfxId id, {double? volume}) async {
+    final path = _sfxPaths[id];
+    if (path == null) {
+      debugPrint('AudioManager: Unknown SFX $id');
+      return;
+    }
 
-  // --- SFX (using FlameAudio for better audio context management) ---
-  
-  void playSfx(String file, {double volume = 1.0}) {
-    if (_isMuted || effectiveSfxVolume <= 0) return;
-    
-    // Map legacy/logical names to actual files
-    String actualFile = sfxMapping[file] ?? file;
-    
-    // Use FlameAudio for SFX - handles audio context properly
+    // Cooldown check
+    final cooldown = _cooldownMs[id] ?? 0;
+    if (cooldown > 0) {
+      final lastTime = _lastPlayTime[id];
+      if (lastTime != null) {
+        final elapsed = DateTime.now().difference(lastTime).inMilliseconds;
+        if (elapsed < cooldown) return;
+      }
+    }
+
+    // Max instances check
+    final maxInst = _maxInstances[id] ?? 5;
+    final active = _activeSfx[id] ?? {};
+    if (active.length >= maxInst) {
+      // Kill oldest
+      if (active.isNotEmpty) {
+        final oldest = active.first;
+        await oldest.stop();
+        await oldest.dispose();
+        active.remove(oldest);
+      }
+    }
+
+    _lastPlayTime[id] = DateTime.now();
+
     try {
-      FlameAudio.play(actualFile, volume: volume * effectiveSfxVolume);
-    } catch(e) {
-      print("SFX Error ($file -> $actualFile): $e");
+      final player = AudioPlayer();
+      await player.setSource(AssetSource(path));
+      await player.setVolume((volume ?? 1.0) * effectiveSfxVolume);
+      
+      _activeSfx[id] = active..add(player);
+
+      player.onPlayerComplete.listen((_) {
+        player.dispose();
+        _activeSfx[id]?.remove(player);
+      });
+
+      await player.resume();
+    } catch (e) {
+      debugPrint('AudioManager: Failed to play SFX $id: $e');
     }
   }
-  
-  // Pool initialization (kept for compatibility but not used)
-  Future<void> initSfxPool() async {
-    // SFX now uses FlameAudio instead of pooled players
-    // to avoid audio focus conflicts with music
-    print("AudioManager: SFX using FlameAudio (no pool)");
-  }
-  
-  // Ambient sounds
-  void playAmbient(String file, {double volume = 0.3}) {
-      // Logic for ambient if needed, e.g. 'frozen_event_bgm.mp3' as ambient?
-  }
-  
-  // Voice/Tutorial narration
-  void playVoice(String file, {double volume = 1.0}) {
-    if (_isMuted || effectiveVoiceVolume <= 0) return;
-    try {
-      FlameAudio.play(file, volume: volume * effectiveVoiceVolume);
-    } catch(e) {}
-  }
-  
-  // --- Haptics ---
-  
-  double _vibrationStrength = 1.0;
 
-  void setVibrationStrength(double str) => _vibrationStrength = str;
+  /// Legacy playSfx with raw filename (deprecated, use playSfxId).
+  @Deprecated('Use playSfxId with SfxId enum instead')
+  Future<void> playSfx(String file, {double volume = 1.0}) async {
+    // Try legacy mapping
+    final mapped = _legacyMap[file];
+    if (mapped != null) {
+      await playSfxId(mapped, volume: volume);
+      return;
+    }
 
+    // Try direct path
+    for (final entry in _sfxPaths.entries) {
+      if (entry.value.endsWith(file)) {
+        await playSfxId(entry.key, volume: volume);
+        return;
+      }
+    }
+
+    debugPrint('AudioManager: Legacy SFX "$file" not mapped');
+  }
+
+  /// Stop all active SFX players.
+  Future<void> stopAllSfx() async {
+    for (final players in _activeSfx.values) {
+      for (final player in players) {
+        try {
+          await player.stop();
+          await player.dispose();
+        } catch (_) {}
+      }
+    }
+    _activeSfx.clear();
+    debugPrint('AudioManager: All SFX stopped');
+  }
+
+  // === VIBRATION ===
   void vibrate() {
-      if (!_vibrationEnabled || _vibrationStrength <= 0) return;
-      if (_vibrationStrength < 0.8) HapticFeedback.lightImpact();
-      else if (_vibrationStrength > 1.2) HapticFeedback.heavyImpact();
-      else HapticFeedback.mediumImpact();
+    if (!_vibrationEnabled) return;
+    HapticFeedback.lightImpact();
   }
-  
+
   void vibratePrismHold() {
-      if (!_vibrationEnabled || _vibrationStrength <= 0) return;
-      HapticFeedback.selectionClick();
+    if (!_vibrationEnabled) return;
+    HapticFeedback.mediumImpact();
   }
-  
+
   void vibrateCorrectTarget() {
-      if (!_vibrationEnabled || _vibrationStrength <= 0) return;
-      if (_vibrationStrength > 1.2) HapticFeedback.heavyImpact();
-      else HapticFeedback.mediumImpact();
+    if (!_vibrationEnabled) return;
+    HapticFeedback.heavyImpact();
   }
-  
+
   void vibrateWrongMove() {
-       if (!_vibrationEnabled || _vibrationStrength <= 0) return;
-       if (_vibrationStrength > 0.5) HapticFeedback.vibrate(); 
+    if (!_vibrationEnabled) return;
+    HapticFeedback.vibrate();
   }
-  
-  Future<void> vibrateLevelComplete() async {
-      if (!_vibrationEnabled || _vibrationStrength <= 0) return;
-      if (_vibrationStrength > 1.2) {
-          await HapticFeedback.heavyImpact();
-          await Future.delayed(const Duration(milliseconds: 100));
-          await HapticFeedback.heavyImpact();
-      } else {
-          await HapticFeedback.mediumImpact();
-          await Future.delayed(const Duration(milliseconds: 100));
-          await HapticFeedback.mediumImpact();
-      }
+
+  void vibrateLevelComplete() {
+    if (!_vibrationEnabled) return;
+    HapticFeedback.heavyImpact();
+    Future.delayed(const Duration(milliseconds: 100), () {
+      HapticFeedback.mediumImpact();
+    });
   }
-  
-  Future<void> vibrateHint() async {
-      if (!_vibrationEnabled || _vibrationStrength <= 0) return;
-      for(int i=0; i<3; i++) {
-          HapticFeedback.lightImpact();
-          await Future.delayed(const Duration(milliseconds: 100));
-      }
+
+  void vibrateHint() {
+    if (!_vibrationEnabled) return;
+    HapticFeedback.selectionClick();
   }
-  
+
   void vibrateStar(int index) {
-      if (!_vibrationEnabled || _vibrationStrength <= 0) return;
-      if (index == 0) HapticFeedback.selectionClick();
-      else if (index == 1) HapticFeedback.lightImpact();
-      else HapticFeedback.mediumImpact();
+    if (!_vibrationEnabled) return;
+    switch (index) {
+      case 0:
+        HapticFeedback.lightImpact();
+        break;
+      case 1:
+        HapticFeedback.mediumImpact();
+        break;
+      case 2:
+        HapticFeedback.heavyImpact();
+        break;
+    }
   }
+
+  // === MUTE TOGGLE ===
+  bool _isMuted = false;
+  bool get isMuted => _isMuted;
 
   void toggleMute() {
     _isMuted = !_isMuted;
     if (_isMuted) {
-      stopBgm();
+      _bgmPlayer?.setVolume(0);
     } else {
-      playMenuBgm();
+      updateBgmVolume();
     }
   }
 }
+
 

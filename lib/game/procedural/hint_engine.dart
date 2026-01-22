@@ -508,3 +508,4 @@ class HintAnimationStep {
     required this.isLastStep,
   });
 }
+

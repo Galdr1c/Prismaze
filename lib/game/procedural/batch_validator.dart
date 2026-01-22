@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'models/models.dart';
 import 'level_generator.dart';
 import 'solver.dart';
+import 'occupancy_grid.dart';
 
 /// Statistics for a batch validation run.
 class BatchValidationReport {
@@ -41,6 +42,10 @@ class BatchValidationReport {
   // Quality metrics
   final int trivialWins; // minMoves <= 2
   final double trivialWinRate;
+  
+  // Validation metrics (should be 0 for accepted levels)
+  final int occupancyFailures;
+  final int solvabilityFailures;
 
   const BatchValidationReport({
     required this.episode,
@@ -62,6 +67,8 @@ class BatchValidationReport {
     required this.averageStatesExplored,
     required this.trivialWins,
     required this.trivialWinRate,
+    this.occupancyFailures = 0,
+    this.solvabilityFailures = 0,
   });
 
   /// Generate a formatted report string.
@@ -98,6 +105,13 @@ class BatchValidationReport {
     buffer.writeln('QUALITY');
     buffer.writeln('-' * 40);
     buffer.writeln('Trivial Wins (≤2 moves): $trivialWins (${(trivialWinRate * 100).toStringAsFixed(1)}%)');
+    if (occupancyFailures > 0 || solvabilityFailures > 0) {
+      buffer.writeln();
+      buffer.writeln('⚠️ VALIDATION FAILURES (CRITICAL)');
+      buffer.writeln('-' * 40);
+      if (occupancyFailures > 0) buffer.writeln('Occupancy Collisions: $occupancyFailures');
+      if (solvabilityFailures > 0) buffer.writeln('Solvability Failures: $solvabilityFailures');
+    }
     buffer.writeln();
 
     // Distribution
@@ -167,6 +181,8 @@ class BatchValidationReport {
         'averageStatesExplored': averageStatesExplored,
         'trivialWins': trivialWins,
         'trivialWinRate': trivialWinRate,
+        'occupancyFailures': occupancyFailures,
+        'solvabilityFailures': solvabilityFailures,
       };
 
   String toJsonString() => const JsonEncoder.withIndent('  ').convert(toJson());
@@ -197,6 +213,8 @@ class BatchValidator {
     int totalSolveTimeMs = 0;
     int totalStatesExplored = 0;
     int attemptsUsed = 0;
+    int occupancyFailures = 0;
+    int solvabilityFailures = 0;
 
     for (int i = 0; i < count; i++) {
       final seed = startSeed + i;
@@ -222,6 +240,20 @@ class BatchValidator {
         final initialState = GameState.fromLevel(level);
         final solution = _solver.solve(level, initialState);
         totalStatesExplored += solution.statesExplored;
+        
+        // Validate occupancy (should never fail for accepted levels)
+        final occupancyResult = OccupancyGrid.validateLevel(level);
+        if (!occupancyResult.valid) {
+          occupancyFailures++;
+          print('[CRITICAL] Occupancy collision in E$episode L${i+1}: ${occupancyResult.collisions}');
+        }
+        
+        // Validate solvability via stored solution (should never fail)
+        final solvable = LevelGenerator.validateLevelSolution(level);
+        if (!solvable) {
+          solvabilityFailures++;
+          print('[CRITICAL] Solvability failure in E$episode L${i+1}');
+        }
       } else {
         rejectionReasons['generation_failed'] =
             (rejectionReasons['generation_failed'] ?? 0) + 1;
@@ -294,6 +326,8 @@ class BatchValidator {
           totalGenerated > 0 ? totalStatesExplored ~/ totalGenerated : 0,
       trivialWins: trivialWins,
       trivialWinRate: totalGenerated > 0 ? trivialWins / totalGenerated : 0,
+      occupancyFailures: occupancyFailures,
+      solvabilityFailures: solvabilityFailures,
     );
   }
 
@@ -444,3 +478,4 @@ class BatchValidator {
     return buffer.toString();
   }
 }
+

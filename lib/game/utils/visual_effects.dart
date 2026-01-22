@@ -218,3 +218,4 @@ class VisualEffects {
     ).createShader(rect);
   }
 }
+

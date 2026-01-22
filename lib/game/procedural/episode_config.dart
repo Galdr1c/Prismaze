@@ -303,3 +303,4 @@ class EpisodeConfig {
       'mirrors:${minMirrors}-${maxMirrors}, prisms:${minPrisms}-${maxPrisms}, '
       'targets:${minTargets}-${maxTargets}, walls:${minWalls}-${maxWalls})';
 }
+

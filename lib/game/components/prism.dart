@@ -60,6 +60,14 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
   // Color of the light hitting this prism (for glow effect)
   Color _hitLightColor = const Color(0xFF88DDFF);
 
+  // === OPTIMIZATION: CACHED PAINTS ===
+  final Paint _basePaint = Paint();
+  final Paint _strokePaint = Paint()..style = PaintingStyle.stroke;
+  final Paint _glowPaint = Paint();
+  
+  // Static MaskFilters
+  static const _blur4 = MaskFilter.blur(BlurStyle.normal, 4);
+
   Prism({
     required Vector2 position,
     double angle = 0,
@@ -206,25 +214,25 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
         ..lineTo(w / 2, h)
         ..lineTo(0, h / 2)
         ..close();
-      canvas.drawPath(path, Paint()..color = Colors.grey.shade700.withOpacity(opacity));
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = Colors.white.withOpacity(opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
-      );
+      _basePaint.color = Colors.grey.shade700.withOpacity(opacity);
+      canvas.drawPath(path, _basePaint);
+      
+      _strokePaint
+        ..color = Colors.white.withOpacity(opacity)
+        ..strokeWidth = 2;
+      canvas.drawPath(path, _strokePaint);
       canvas.restore();
       return;
     }
 
     // === LAYER 1: Subtle Drop Shadow ===
     if (!reducedGlow) {
+      _glowPaint
+        ..color = Colors.black.withOpacity(0.15 * opacity)
+        ..maskFilter = _blur4;
       canvas.drawOval(
         Rect.fromCenter(center: center + const Offset(2, 5), width: w * 0.5, height: h * 0.15),
-        Paint()
-          ..color = Colors.black.withOpacity(0.15 * opacity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        _glowPaint,
       );
     }
 
@@ -233,7 +241,8 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
       // Apply opacity if needed
       Paint? spritePaint;
       if (opacity < 1.0) {
-        spritePaint = Paint()..color = Colors.white.withOpacity(opacity);
+        _basePaint.color = Colors.white.withOpacity(opacity);
+        spritePaint = _basePaint;
       }
       
       _prismSprite!.render(
@@ -246,11 +255,13 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
       // === LAYER 3: Inner Light Reflection (when light is passing through) ===
       if (_lightHitIntensity > 0) {
         // Soft inner glow matching light color - blended on top
+        _glowPaint
+          ..color = glowColor.withOpacity(_lightHitIntensity * 0.35 * opacity)
+          ..blendMode = BlendMode.plus
+          ..maskFilter = null;
         canvas.drawOval(
           Rect.fromCenter(center: center, width: w * 0.4, height: h * 0.5),
-          Paint()
-            ..color = glowColor.withOpacity(_lightHitIntensity * 0.35 * opacity)
-            ..blendMode = BlendMode.plus,
+          _glowPaint,
         );
       }
     } else {
@@ -261,24 +272,19 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
         ..lineTo(w / 2, h - 4)
         ..lineTo(4, h / 2)
         ..close();
-      canvas.drawPath(path, Paint()..color = glowColor.withOpacity(opacity));
+      _basePaint.color = glowColor.withOpacity(opacity);
+      canvas.drawPath(path, _basePaint);
     }
 
     // Draw lock icon if locked
     if (isLocked) {
-      canvas.drawCircle(
-        center,
-        6,
-        Paint()..color = Colors.red.withOpacity(0.8 * opacity),
-      );
-      canvas.drawCircle(
-        center,
-        6,
-        Paint()
-          ..color = Colors.white.withOpacity(opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
-      );
+      _basePaint.color = Colors.red.withOpacity(0.8 * opacity);
+      canvas.drawCircle(center, 6, _basePaint);
+      
+      _strokePaint
+        ..color = Colors.white.withOpacity(opacity)
+        ..strokeWidth = 1.5;
+      canvas.drawCircle(center, 6, _strokePaint);
     }
     
     canvas.restore();
@@ -502,3 +508,4 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
     return super.containsLocalPoint(point);
   }
 }
+

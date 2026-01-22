@@ -352,3 +352,4 @@ class RayTracer {
     return state.withTargetProgress(level.targets, result.arrivalMasks);
   }
 }
+

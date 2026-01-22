@@ -178,3 +178,4 @@ Orientation effects:
 
 /// Maximum number of output rays from a single prism interaction.
 const int maxPrismOutputRays = 3;
+

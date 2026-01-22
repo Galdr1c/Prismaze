@@ -402,3 +402,4 @@ class _FlappyLightMiniGameState extends State<FlappyLightMiniGame> {
     );
   }
 }
+

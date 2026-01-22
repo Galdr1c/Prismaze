@@ -47,3 +47,4 @@ class GlassWall extends PositionComponent {
     );
   }
 }
+

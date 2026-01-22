@@ -31,6 +31,10 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
   
   // Logic Accumulator
   Color _accumulatedColor = const Color(0xFF000000);
+  
+  // Bitmask tracking for mixed colors (R=1, B=2, Y=4, W=8)
+  int _collectedMask = 0;
+  int get collectedMask => _collectedMask;
 
   // Animation State
   double _time = 0;
@@ -40,6 +44,20 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
   // Particles
   final List<TargetParticle> _confetti = [];
   final Random _rng = Random();
+
+  // === OPTIMIZATION: CACHED PAINTS ===
+  // Reuse Paint objects to avoid GC churn in render()
+  final Paint _basePaint = Paint();
+  final Paint _strokePaint = Paint()..style = PaintingStyle.stroke;
+  final Paint _glowPaint = Paint();
+  final Paint _fillPaint = Paint();
+  
+  // Static MaskFilters for reuse
+  static const _blur6 = MaskFilter.blur(BlurStyle.normal, 6);
+  static const _blur8 = MaskFilter.blur(BlurStyle.normal, 8);
+  static const _blur10 = MaskFilter.blur(BlurStyle.normal, 10);
+  static const _blur15 = MaskFilter.blur(BlurStyle.normal, 15);
+  static const _blur4 = MaskFilter.blur(BlurStyle.normal, 4);
 
   bool get isLit => _isLit;
 
@@ -61,11 +79,29 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     // Reject near-transparent beams
     if (color.opacity < 0.1) return;
     _accumulatedColor = _mixColors(_accumulatedColor, color);
+    
+    // Update bitmask for mixed color tracking
+    _collectedMask |= _colorToBitmask(color);
+  }
+  
+  /// Convert Flutter Color to bitmask (R=1, B=2, Y=4, W=8)
+  int _colorToBitmask(Color c) {
+    // Map common game colors to bitmask
+    // Red-ish colors
+    if (c.red > 200 && c.green < 100 && c.blue < 100) return 1; // R
+    // Blue-ish colors
+    if (c.blue > 200 && c.red < 100 && c.green < 150) return 2; // B
+    // Yellow-ish colors
+    if (c.red > 200 && c.green > 200 && c.blue < 100) return 4; // Y
+    // White
+    if (c.red > 200 && c.green > 200 && c.blue > 200) return 8; // W
+    return 0;
   }
   
   // ... (keeping resetHits etc as is)
   void resetHits() {
     _accumulatedColor = const Color(0xFF000000);
+    _collectedMask = 0;
   }
   
   void setLockedState() {
@@ -174,35 +210,30 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
 
     // High contrast mode: simple solid circles
     if (highContrast) {
-      canvas.drawCircle(center, radius, Paint()
+      _basePaint
         ..color = (_isLit ? Colors.white : Colors.grey.shade700).withOpacity(opacity)
         ..style = _isLit ? PaintingStyle.fill : PaintingStyle.stroke
-        ..strokeWidth = 3);
+        ..strokeWidth = 3;
+      canvas.drawCircle(center, radius, _basePaint);
       canvas.restore();
       return;
     }
 
     // === LAYER 1: Drop Shadow ===
     if (!reducedGlow) {
-      canvas.drawCircle(
-        center + const Offset(2, 3),
-        radius + 2,
-        Paint()
-          ..color = Colors.black.withOpacity(0.3 * opacity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-      );
+      _glowPaint
+        ..color = Colors.black.withOpacity(0.3 * opacity)
+        ..maskFilter = _blur6;
+      canvas.drawCircle(center + const Offset(2, 3), radius + 2, _glowPaint);
     }
 
     // === LAYER 2: Outer Halo (Atmospheric Glow) ===
     if (!reducedGlow && _fillProgress < 1.0) {
       final haloAlpha = 0.15 + 0.1 * sin(_time * 2.5);
-      canvas.drawCircle(
-        center,
-        radius + 15,
-        Paint()
-          ..color = safeColor.withOpacity(haloAlpha.clamp(0.0, 0.3) * opacity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15),
-      );
+      _glowPaint
+        ..color = safeColor.withOpacity(haloAlpha.clamp(0.0, 0.3) * opacity)
+        ..maskFilter = _blur15;
+      canvas.drawCircle(center, radius + 15, _glowPaint);
     }
 
     // === LAYER 3: Pulsing Outer Ring (Empty State) ===
@@ -212,36 +243,25 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
       
       // Outer glow ring
       if (!reducedGlow) {
-        canvas.drawCircle(
-          center,
-          radius,
-          Paint()
-            ..color = safeColor.withOpacity(pulseAlpha * 0.4 * opacity)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = pulseWidth + 4
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-        );
+        _strokePaint
+          ..color = safeColor.withOpacity(pulseAlpha * 0.4 * opacity)
+          ..strokeWidth = pulseWidth + 4
+          ..maskFilter = _blur4;
+        canvas.drawCircle(center, radius, _strokePaint);
       }
       
       // Crisp ring
-      canvas.drawCircle(
-        center,
-        radius,
-        Paint()
-          ..color = safeColor.withOpacity(pulseAlpha.clamp(0.3, 0.8) * opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = pulseWidth,
-      );
+      _strokePaint
+        ..color = safeColor.withOpacity(pulseAlpha.clamp(0.3, 0.8) * opacity)
+        ..strokeWidth = pulseWidth
+        ..maskFilter = null;
+      canvas.drawCircle(center, radius, _strokePaint);
       
       // Inner depth ring
-      canvas.drawCircle(
-        center,
-        radius - 4,
-        Paint()
-          ..color = Colors.black.withOpacity(0.15 * opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1,
-      );
+      _strokePaint
+        ..color = Colors.black.withOpacity(0.15 * opacity)
+        ..strokeWidth = 1;
+      canvas.drawCircle(center, radius - 4, _strokePaint);
     }
 
     // === LAYER 4: Orbiting Particles (Empty State) - OPTIMIZED ===
@@ -253,11 +273,8 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
         final particleY = center.dy + sin(angle) * (radius + 5);
         final particleAlpha = 0.4 + 0.2 * sin(_time * 2 + i);
         
-        canvas.drawCircle(
-          Offset(particleX, particleY),
-          2.5, // Smaller
-          Paint()..color = safeColor.withOpacity(particleAlpha * opacity),
-        );
+        _basePaint.color = safeColor.withOpacity(particleAlpha * opacity);
+        canvas.drawCircle(Offset(particleX, particleY), 2.5, _basePaint);
       }
     }
 
@@ -280,13 +297,10 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     if (_fillProgress > 0.01) {
       // Outer fill glow
       if (!reducedGlow) {
-        canvas.drawCircle(
-          center,
-          radius * _fillProgress + 5,
-          Paint()
-            ..color = safeColor.withOpacity(0.3 * _fillProgress * opacity)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-        );
+        _glowPaint
+          ..color = safeColor.withOpacity(0.3 * _fillProgress * opacity)
+          ..maskFilter = _blur8;
+        canvas.drawCircle(center, radius * _fillProgress + 5, _glowPaint);
       }
       
       // Main fill with radial gradient
@@ -299,22 +313,16 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
         stops: const [0.0, 0.4, 1.0],
       );
       
-      canvas.drawCircle(
-        center,
-        radius * _fillProgress,
-        Paint()..shader = fillGradient.createShader(Rect.fromCircle(center: center, radius: radius * _fillProgress)),
-      );
+      _fillPaint.shader = fillGradient.createShader(Rect.fromCircle(center: center, radius: radius * _fillProgress));
+      canvas.drawCircle(center, radius * _fillProgress, _fillPaint);
       
       // Edge highlight ring
       if (_fillProgress > 0.3) {
-        canvas.drawCircle(
-          center,
-          radius * _fillProgress,
-          Paint()
-            ..color = Colors.white.withOpacity(0.6 * opacity)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2,
-        );
+        _strokePaint
+          ..color = Colors.white.withOpacity(0.6 * opacity)
+          ..strokeWidth = 2
+          ..maskFilter = null;
+        canvas.drawCircle(center, radius * _fillProgress, _strokePaint);
       }
     }
 
@@ -322,21 +330,15 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     if (_fillProgress >= 0.95) {
       // Bright halo
       if (!reducedGlow) {
-        canvas.drawCircle(
-          center,
-          radius + 8,
-          Paint()
-            ..color = safeColor.withOpacity(0.5 * opacity)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
-        );
+        _glowPaint
+          ..color = safeColor.withOpacity(0.5 * opacity)
+          ..maskFilter = _blur10;
+        canvas.drawCircle(center, radius + 8, _glowPaint);
       }
       
       // White core
-      canvas.drawCircle(
-        center,
-        radius * 0.6,
-        Paint()..color = Colors.white.withOpacity(0.95 * opacity),
-      );
+      _basePaint.color = Colors.white.withOpacity(0.95 * opacity);
+      canvas.drawCircle(center, radius * 0.6, _basePaint);
       
       // Draw checkmark
       final checkPath = Path();
@@ -348,29 +350,29 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
       checkPath.lineTo(cx - checkSize * 0.1, cy + checkSize * 0.5);
       checkPath.lineTo(cx + checkSize * 0.6, cy - checkSize * 0.4);
       
-      canvas.drawPath(
-        checkPath,
-        Paint()
-          ..color = safeColor.withOpacity(opacity)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round,
-      );
+      _strokePaint
+        ..color = safeColor.withOpacity(opacity)
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..maskFilter = null;
+      canvas.drawPath(checkPath, _strokePaint);
     }
 
-    // === LAYER 8: Accessibility Symbol ===
+    // === LAYER 8: Mixed Color Progress Slots ===
+    if (_fillProgress < 0.95 && _isMixedTarget()) {
+      _drawProgressSlots(canvas, center, radius);
+    }
+
+    // === LAYER 9: Accessibility Symbol ===
     if (_fillProgress < 0.95) {
       ColorBlindnessUtils.drawSymbol(canvas, center, requiredColor, size.x / 2);
     }
 
     // === Render Confetti Particles (OPTIMIZED - no glow) ===
     for (final p in _confetti) {
-      canvas.drawCircle(
-        p.position.toOffset(),
-        p.size * p.life,
-        Paint()..color = Colors.white.withOpacity(p.life.clamp(0.0, 1.0)),
-      );
+      _basePaint.color = Colors.white.withOpacity(p.life.clamp(0.0, 1.0));
+      canvas.drawCircle(p.position.toOffset(), p.size * p.life, _basePaint);
     }
     
     canvas.restore();
@@ -389,5 +391,101 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     int b = (c1.blue + c2.blue).clamp(0, 255);
     return Color.fromARGB(255, r, g, b);
   }
+  
+  /// Check if this target requires a mixed color (purple/orange/green).
+  bool _isMixedTarget() {
+    // Purple = R + B (magenta-ish)
+    if (requiredColor.red > 150 && requiredColor.blue > 150 && requiredColor.green < 100) return true;
+    // Orange = R + Y
+    if (requiredColor.red > 200 && requiredColor.green > 100 && requiredColor.green < 200 && requiredColor.blue < 100) return true;
+    // Green = B + Y
+    if (requiredColor.green > 150 && requiredColor.blue < 150 && requiredColor.red < 150) return true;
+    return false;
+  }
+  
+  /// Get required components for this mixed target.
+  List<int> _getRequiredComponents() {
+    // Purple = R + B
+    if (requiredColor.red > 150 && requiredColor.blue > 150 && requiredColor.green < 100) {
+      return [1, 2]; // R, B
+    }
+    // Orange = R + Y  
+    if (requiredColor.red > 200 && requiredColor.green > 100 && requiredColor.green < 200 && requiredColor.blue < 100) {
+      return [1, 4]; // R, Y
+    }
+    // Green = B + Y
+    if (requiredColor.green > 150 && requiredColor.blue < 150 && requiredColor.red < 150) {
+      return [2, 4]; // B, Y
+    }
+    return [];
+  }
+  
+  /// Draw progress slots showing which color components have been collected.
+  void _drawProgressSlots(Canvas canvas, Offset center, double radius) {
+    final components = _getRequiredComponents();
+    if (components.isEmpty) return;
+    
+    final slotRadius = radius * 0.25;
+    final spacing = slotRadius * 2.5;
+    final startX = center.dx - (spacing * (components.length - 1) / 2);
+    final slotY = center.dy + radius + slotRadius + 4;
+    
+    for (int i = 0; i < components.length; i++) {
+      final mask = components[i];
+      final isCollected = (_collectedMask & mask) != 0;
+      final slotCenter = Offset(startX + i * spacing, slotY);
+      
+      // Draw slot background
+      canvas.drawCircle(
+        slotCenter,
+        slotRadius,
+        Paint()
+          ..color = isCollected 
+              ? _getMaskColor(mask).withOpacity(opacity)
+              : Colors.grey.shade800.withOpacity(opacity * 0.7)
+          ..style = PaintingStyle.fill,
+      );
+      
+      // Draw slot border
+      canvas.drawCircle(
+        slotCenter,
+        slotRadius,
+        Paint()
+          ..color = (isCollected ? Colors.white : Colors.grey.shade600).withOpacity(opacity)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+      
+      // Draw check if collected
+      if (isCollected) {
+        final checkSize = slotRadius * 0.5;
+        final checkPath = Path();
+        checkPath.moveTo(slotCenter.dx - checkSize * 0.5, slotCenter.dy);
+        checkPath.lineTo(slotCenter.dx - checkSize * 0.1, slotCenter.dy + checkSize * 0.4);
+        checkPath.lineTo(slotCenter.dx + checkSize * 0.5, slotCenter.dy - checkSize * 0.3);
+        
+        canvas.drawPath(
+          checkPath,
+          Paint()
+            ..color = Colors.white.withOpacity(opacity)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2
+            ..strokeCap = StrokeCap.round
+            ..strokeJoin = StrokeJoin.round,
+        );
+      }
+    }
+  }
+  
+  /// Get color for a bitmask value.
+  Color _getMaskColor(int mask) {
+    switch (mask) {
+      case 1: return const Color(0xFFFF4444); // Red
+      case 2: return const Color(0xFF4488FF); // Blue
+      case 4: return const Color(0xFFFFDD44); // Yellow
+      default: return Colors.white;
+    }
+  }
 }
+
 

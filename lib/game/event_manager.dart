@@ -2,7 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Manages seasonal events, bonuses, and special content
+/// Manages seasonal events, bonuses, and special content
 class EventManager extends ChangeNotifier {
+  static final EventManager _instance = EventManager._internal();
+  factory EventManager() => _instance;
+  EventManager._internal();
+
   late SharedPreferences _prefs;
   
   // Current active event
@@ -217,6 +222,22 @@ class EventManager extends ChangeNotifier {
     
     return endDate.difference(now).inDays;
   }
+  
+  /// Get precise duration remaining for active event
+  Duration get remainingDuration {
+    if (_activeEvent == null) return Duration.zero;
+    
+    final now = DateTime.now();
+    var endDate = DateTime(now.year, _activeEvent!.endMonth, _activeEvent!.endDay, 23, 59, 59);
+    
+    // Handle year wrap
+    if (_activeEvent!.endMonth < _activeEvent!.startMonth && now.month >= _activeEvent!.startMonth) {
+      endDate = DateTime(now.year + 1, _activeEvent!.endMonth, _activeEvent!.endDay, 23, 59, 59);
+    }
+    
+    final diff = endDate.difference(now);
+    return diff.isNegative ? Duration.zero : diff;
+  }
 }
 
 /// Seasonal Event Data
@@ -264,3 +285,4 @@ class EventMission {
     required this.reward,
   });
 }
+

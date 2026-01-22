@@ -13,6 +13,7 @@ class VideoGuideOverlay extends StatefulWidget {
 
 class _VideoGuideOverlayState extends State<VideoGuideOverlay> {
   bool _isPlaying = false;
+  bool _cancelled = false;
   double _progress = 0.0;
   
   Map<String, dynamic> get _videoInfo {
@@ -22,6 +23,12 @@ class _VideoGuideOverlayState extends State<VideoGuideOverlay> {
           case 'advanced_tactics': return {'title': 'İleri Seviye Taktikler', 'duration': 5}; // 60s real
           default: return {'title': 'Rehber', 'duration': 3};
       }
+  }
+
+  @override
+  void dispose() {
+    _cancelled = true;
+    super.dispose();
   }
 
   @override
@@ -92,8 +99,9 @@ class _VideoGuideOverlayState extends State<VideoGuideOverlay> {
       final dt = (duration * 1000) ~/ steps;
       
       for(int i=0; i<=steps; i++) {
-          if (!mounted) return;
+          if (!mounted || _cancelled) return;
           await Future.delayed(Duration(milliseconds: dt));
+          if (!mounted || _cancelled) return;
           setState(() {
               _progress = i / steps;
           });
@@ -102,3 +110,4 @@ class _VideoGuideOverlayState extends State<VideoGuideOverlay> {
       if(mounted) setState(() => _isPlaying = false);
   }
 }
+

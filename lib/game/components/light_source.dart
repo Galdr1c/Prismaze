@@ -201,3 +201,4 @@ class LightSource extends PositionComponent with HasGameRef<PrismazeGame> {
     ColorBlindnessUtils.drawSymbol(canvas, center, color, size.x / 2);
   }
 }
+

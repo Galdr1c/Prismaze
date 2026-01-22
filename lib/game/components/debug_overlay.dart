@@ -1,7 +1,9 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // for kDebugMode
 import '../prismaze_game.dart';
 import '../game_bounds.dart';
+import '../audio_manager.dart';
 import 'wall.dart';
 import 'mirror.dart';
 import 'prism.dart';
@@ -30,9 +32,20 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
   
   @override
   void update(double dt) {
-    // Check if debug mode changed
-    _debugEnabled = gameRef.settingsManager.debugModeEnabled;
+    // Check if debug mode changed (Force ON in debug builds for verification)
+    _debugEnabled = gameRef.settingsManager.debugModeEnabled || kDebugMode;
+    
+    // Smooth FPS
+    if (dt > 0) {
+      final currentFps = 1.0 / dt;
+      _fps = _fps * 0.9 + currentFps * 0.1; // Simple smoothing
+    }
   }
+  
+  double _fps = 60.0;
+  
+  // Text painters for metrics
+  final TextPainter _fpsPainter = TextPainter(textDirection: TextDirection.ltr);
   
   @override
   void render(Canvas canvas) {
@@ -58,6 +71,42 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
     
     // 7. Draw Intersection Points
     _drawIntersectionPoints(canvas);
+    
+    // 8. Draw Performance Metrics
+    _drawPerformanceMetrics(canvas);
+  }
+  
+  void _drawPerformanceMetrics(Canvas canvas) {
+      final style = TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, shadows: [
+          Shadow(blurRadius: 2, color: Colors.black, offset: Offset(1,1))
+      ]);
+      
+      // Metrics
+      final fps = _fps.toStringAsFixed(1);
+      final beams = gameRef.beamSystem.debugSegmentCount; 
+      final particles = gameRef.beamSystem.debugParticleCount;
+      final sfxPlayers = AudioManager().debugActiveSfxCount;
+      
+      // Build metrics text
+      final metricsBuffer = StringBuffer();
+      metricsBuffer.writeln('FPS: $fps');
+      metricsBuffer.writeln('Beams: $beams');
+      metricsBuffer.writeln('Particles: $particles');
+      metricsBuffer.writeln('SFX Players: $sfxPlayers');
+      
+      _fpsPainter.text = TextSpan(
+          text: metricsBuffer.toString().trimRight(),
+          style: style,
+      );
+      _fpsPainter.layout();
+      
+      // Draw background
+      canvas.drawRect(
+          Rect.fromLTWH(10, 10, _fpsPainter.width + 10, _fpsPainter.height + 10),
+          Paint()..color = Colors.black.withOpacity(0.7)
+      );
+      
+      _fpsPainter.paint(canvas, const Offset(15, 15));
   }
   
   void _drawPlayAreaBounds(Canvas canvas) {
@@ -269,3 +318,4 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
     }
   }
 }
+

@@ -56,3 +56,4 @@ class GridOverlay extends PositionComponent with HasGameRef<PrismazeGame> {
     }
   }
 }
+

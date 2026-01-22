@@ -152,3 +152,4 @@ class IAPManager extends ChangeNotifier {
       return DateTime.now().isBefore(expiry);
   }
 }
+

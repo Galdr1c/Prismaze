@@ -275,3 +275,4 @@ class SettingsManager extends ChangeNotifier {
       notifyListeners();
   }
 }
+

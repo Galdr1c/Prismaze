@@ -15,7 +15,7 @@ class StyledBackButton extends StatelessWidget {
     final loc = LocalizationManager();
     return GestureDetector(
       onTap: () {
-        AudioManager().playSfx('soft_button_click.mp3');
+        AudioManager().playSfxId(SfxId.uiClick);
         if (onTap != null) {
           onTap!();
         } else {
@@ -48,3 +48,4 @@ class StyledBackButton extends StatelessWidget {
     );
   }
 }
+

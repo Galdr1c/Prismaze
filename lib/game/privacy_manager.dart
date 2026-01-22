@@ -520,3 +520,4 @@ Last Updated: January 17, 2026
     _isChildMode = _prefs.getBool(_keyChildMode) ?? false;
   }
 }
+

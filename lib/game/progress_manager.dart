@@ -10,6 +10,7 @@ class ProgressManager extends ChangeNotifier {
   static const String keyLevelsCompleted = 'levels_completed';
   static const String keyConsecutive3Stars = 'consecutive_3_stars';
   static const String keyAchievements = 'achievements';
+  static const String keyLastPlayedLevel = 'last_played_level_id'; // New key
   
   late SharedPreferences _prefs;
   
@@ -22,6 +23,14 @@ class ProgressManager extends ChangeNotifier {
   int get maxLevel => _levelStars.isEmpty ? 1 : _levelStars.keys.reduce((a, b) => a > b ? a : b) + 1;
   
   int getStarsForLevel(int levelId) => _levelStars[levelId] ?? 0;
+  
+  // Last played level (default to next playable if none)
+  int get lastPlayedLevelId => _prefs.getInt(keyLastPlayedLevel) ?? getNextPlayableLevel();
+  
+  Future<void> setLastPlayedLevel(int levelId) async {
+      await _prefs.setInt(keyLastPlayedLevel, levelId);
+      notifyListeners();
+  }
   
   int _sessionLevelsCount = 0;
   
@@ -487,3 +496,4 @@ class ProgressManager extends ChangeNotifier {
       await SecureSaveManager().saveData(keyLevelStars, jsonEncode(jsonMap));
   }
 }
+

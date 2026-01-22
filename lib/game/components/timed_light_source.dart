@@ -59,3 +59,4 @@ class TimedLightSource extends LightSource {
       super.render(canvas);
   }
 }
+

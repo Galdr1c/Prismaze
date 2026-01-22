@@ -9,6 +9,7 @@ import 'models/models.dart';
 import 'episode_config.dart';
 import 'solver.dart';
 import 'ray_tracer.dart';
+import 'occupancy_grid.dart';
 
 /// Rejection reason for failed generation attempts.
 enum RejectionReason {
@@ -538,10 +539,23 @@ class LevelGenerator {
 
   /// Validate planned solution by simulation.
   bool _validatePlannedSolution(GeneratedLevel level, List<PlannedMove> plannedMoves) {
+    return validatePlannedSolutionStatic(level, plannedMoves, _rayTracer);
+  }
+  
+  /// Public static method for external validation of planned solution.
+  /// 
+  /// Applies the planned moves to the level state and checks if all targets
+  /// are satisfied. This is the 100% solvability guarantee mechanism.
+  static bool validatePlannedSolutionStatic(
+    GeneratedLevel level, 
+    List<PlannedMove> plannedMoves, 
+    [RayTracer? tracer]
+  ) {
+    final rayTracer = tracer ?? RayTracer();
     var state = GameState.fromLevel(level);
 
     // Initial trace
-    state = _rayTracer.traceAndUpdateProgress(level, state);
+    state = rayTracer.traceAndUpdateProgress(level, state);
 
     // Apply each planned move
     for (final pm in plannedMoves) {
@@ -552,12 +566,45 @@ class LevelGenerator {
           state = state.rotatePrism(pm.objectIndex);
         }
         // Trace and update after each rotation
-        state = _rayTracer.traceAndUpdateProgress(level, state);
+        state = rayTracer.traceAndUpdateProgress(level, state);
       }
     }
 
     // Check if solved
     return state.allTargetsSatisfied(level.targets);
+  }
+  
+  /// Public method to validate a GeneratedLevel via its stored solution.
+  /// 
+  /// Converts stored SolutionMoves back to PlannedMoves and validates.
+  static bool validateLevelSolution(GeneratedLevel level) {
+    if (level.solution.isEmpty) return false;
+    
+    // Convert SolutionMoves to PlannedMoves (group by object)
+    final plannedMoves = <PlannedMove>[];
+    for (final move in level.solution) {
+      plannedMoves.add(PlannedMove(
+        type: move.type,
+        objectIndex: move.objectIndex,
+        taps: move.taps,
+      ));
+    }
+    
+    return validatePlannedSolutionStatic(level, plannedMoves);
+  }
+  
+  /// Validate both occupancy and solvability for a level.
+  /// 
+  /// Returns true only if level passes both checks.
+  static bool validateLevelComplete(GeneratedLevel level) {
+    // Check occupancy
+    final occupancyResult = OccupancyGrid.validateLevel(level);
+    if (!occupancyResult.valid) {
+      return false;
+    }
+    
+    // Check solvability
+    return validateLevelSolution(level);
   }
 
   GeneratedLevel _updateMeta(GeneratedLevel level, int moves, List<SolutionMove> solution, EpisodeConfig config, int attempt) {
@@ -688,3 +735,4 @@ extension MirrorCopyWith on Mirror {
     );
   }
 }
+

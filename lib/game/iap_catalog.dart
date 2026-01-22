@@ -198,6 +198,40 @@ class IAPCatalog {
     badge: 'badge_limited',
   );
   
+  static IAPProduct halloweenPack = IAPProduct(
+    id: 'seasonal_halloween',
+    name: 'prod_name_halloween',
+    description: 'prod_desc_halloween',
+    price: 6.99,
+    originalPriceValue: 9.99,
+    type: ProductType.bundle,
+    contents: [
+      'cont_skins_halloween',
+      'cont_300_tokens',
+      'cont_theme_halloween',
+    ],
+    isLimited: true,
+    savings: 30,
+    badge: 'badge_limited',
+  );
+  
+  static IAPProduct valentinesPack = IAPProduct(
+    id: 'seasonal_valentines',
+    name: 'prod_name_valentines',
+    description: 'prod_desc_valentines',
+    price: 5.99,
+    originalPriceValue: 8.99,
+    type: ProductType.bundle,
+    contents: [
+      'cont_skins_valentines',
+      'cont_200_tokens',
+      'cont_effect_hearts',
+    ],
+    isLimited: true,
+    savings: 35,
+    badge: 'badge_limited',
+  );
+  
   // === REMOVE ADS ===
   static const removeAds = IAPProduct(
     id: 'remove_ads',
@@ -218,8 +252,12 @@ class IAPCatalog {
     fullBundle,
     monthlyPremium,
     yearlyPremium,
+    monthlyPremium,
+    yearlyPremium,
     winterPack,
     summerPack,
+    halloweenPack,
+    valentinesPack,
     removeAds,
   ];
   
@@ -255,4 +293,25 @@ class StoreUtils {
     if (product.id.contains('yearly')) return '/yıl';
     return '';
   }
+  
+  /// Format event countdown timer
+  static String formatEventTimer(Duration duration) {
+    if (duration.inSeconds <= 0) return "00:00:00";
+    
+    final days = duration.inDays;
+    final hours = duration.inHours % 24;
+    final minutes = duration.inMinutes % 60;
+    final seconds = duration.inSeconds % 60;
+    
+    if (days > 0) {
+      return '${days}g ${hours}s';
+    } else {
+      // < 24h: Show HH:MM:SS format
+      final h = hours.toString().padLeft(2, '0');
+      final m = minutes.toString().padLeft(2, '0');
+      final s = seconds.toString().padLeft(2, '0');
+      return '$h:$m:$s';
+    }
+  }
 }
+

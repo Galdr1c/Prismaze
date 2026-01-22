@@ -26,3 +26,4 @@ extension FastNavigator on NavigatorState {
     return push(FastPageRoute<T>(page: page, settings: settings));
   }
 }
+

@@ -53,13 +53,22 @@ class LocalizationManager {
       'last_played': {'tr': 'SON OYNANAN', 'en': 'LAST PLAYED'},
       'splash_subtitle': {'tr': 'Işığı yönlendir, hedefi aydınlat!', 'en': 'Guide the light, illuminate the target!'},
       'tap_to_start': {'tr': 'Başlamak için dokun', 'en': 'Tap to start'},
+            
+      // --- CAMPAIGN EPISODES ---
+      'ep_1_title': {'tr': 'Başlangıç Işıkları', 'en': 'Beginning Lights'},
+      'ep_1_desc': {'tr': 'Temel mekanikler', 'en': 'Learn the basics'},
       
-      // --- WORLDS ---
-      'world_1': {'tr': 'Başlangıç Işıkları', 'en': 'Beginning Lights'},
-      'world_2': {'tr': 'Renk Spektrumu', 'en': 'Color Spectrum'},
-      'world_3': {'tr': 'Karışım Ustası', 'en': 'Mix Master'},
-      'world_4': {'tr': 'Kristal Labirent', 'en': 'Crystal Labyrinth'},
-      'world_5': {'tr': 'Zamanın Ötesi', 'en': 'Beyond Time'},
+      'ep_2_title': {'tr': 'Renk Spektrumu', 'en': 'Color Spectrum'},
+      'ep_2_desc': {'tr': 'Basit bulmacalar', 'en': 'Simple puzzles'},
+      
+      'ep_3_title': {'tr': 'Karışım Ustası', 'en': 'Mix Master'},
+      'ep_3_desc': {'tr': 'Renk karıştırma', 'en': 'Color mixing'},
+      
+      'ep_4_title': {'tr': 'Kristal Labirent', 'en': 'Crystal Labyrinth'},
+      'ep_4_desc': {'tr': 'Karmaşık yollar', 'en': 'Complex routing'},
+      
+      'ep_5_title': {'tr': 'Zamanın Ötesi', 'en': 'Beyond Time'},
+      'ep_5_desc': {'tr': 'Usta işi bulmacalar', 'en': 'Master puzzles'},
       
       // --- MENU BOTTOM ---
       'menu_customize': {'tr': 'KİŞİSEL', 'en': 'CUSTOMIZE'},
@@ -294,28 +303,41 @@ class LocalizationManager {
       'btn_start': {'tr': 'BAŞLA', 'en': 'START'},
       
       // --- DAILY LOGIN ---
-      'daily_login_title': {'tr': 'GÜNLÜK GİRİŞ', 'en': 'DAILY LOGIN'},
+      'daily_login_title': {'tr': 'Günlük Giriş', 'en': 'Daily Login'},
       'daily_login_subtitle': {'tr': 'Her gün gir, ödülleri kap!', 'en': 'Log in daily, claim rewards!'},
       'btn_claim': {'tr': 'TOPLA', 'en': 'CLAIM'},
       'msg_claimed': {'tr': 'Toplandı!', 'en': 'Claimed!'},
-      
-      // Daily Reward Popup
-      'daily_reward': {'tr': 'GÜNLÜK ÖDÜL', 'en': 'DAILY REWARD'},
-      'claim_reward': {'tr': 'ÖDÜLÜ AL', 'en': 'CLAIM REWARD'},
-      'streak_lost': {'tr': 'SERİ KIRILDI!', 'en': 'STREAK LOST!'},
-      'previous_streak': {'tr': 'Önceki seri', 'en': 'Previous streak'},
-      'days': {'tr': 'gün', 'en': 'days'},
-      'restore_streak_question': {'tr': 'Serinizi geri yüklemek ister misiniz?', 'en': 'Would you like to restore your streak?'},
-      'watch_ad': {'tr': 'REKLAM İZLE', 'en': 'WATCH AD'},
-      'tokens': {'tr': 'JETON', 'en': 'TOKENS'},
-      'start_new_streak': {'tr': 'Yeni seri başlat', 'en': 'Start new streak'},
-      'not_enough_tokens': {'tr': 'Yeterli jeton yok', 'en': 'Not enough tokens'},
-      'tomorrow': {'tr': 'Yarın', 'en': 'Tomorrow'},
       'claimed_today': {'tr': 'Bugün alındı', 'en': 'Claimed today'},
-      'skin_reward': {'tr': 'Skin', 'en': 'Skin'},
-      'effect_reward': {'tr': 'Efekt', 'en': 'Effect'},
-      'background_reward': {'tr': 'Arka Plan', 'en': 'Background'},
+      'streak_lost': {'tr': 'SERİ KIRILDI!', 'en': 'STREAK LOST!'},
+      'watch_ad': {'tr': 'REKLAM İZLE', 'en': 'WATCH AD'},
+      'days': {'tr': 'gün', 'en': 'days'},
+      'not_enough_tokens': {'tr': 'Yeterli jeton yok', 'en': 'Not enough tokens'},
+      'daily_reward': {'tr': 'GÜNLÜK ÖDÜL', 'en': 'DAILY REWARD'},
       
+      // --- DAILY QUESTS SCREEN ---
+      'daily_quests_title': {'tr': 'Günlük Görevler', 'en': 'Daily Quests'},
+      'refresh_in': {'tr': 'Yenilenme: {hours}s {minutes}dk', 'en': 'Refresh: {hours}h {minutes}m'},
+      'section_daily_missions': {'tr': 'GÜNLÜK GÖREVLER', 'en': 'DAILY MISSIONS'},
+      'section_limited_event': {'tr': 'SINIRLI SÜRE ETKİNLİK', 'en': 'LIMITED TIME EVENT'},
+      'no_active_event': {'tr': 'Şu anda aktif etkinlik yok', 'en': 'No active event right now'},
+      'new_events_soon': {'tr': 'Yakında yeni etkinlikler!', 'en': 'New events coming soon!'},
+      'days_left': {'tr': '{days} gün kaldı', 'en': '{days} days left'},
+      'all_completed': {'tr': 'Tümü Tamamlandı!', 'en': 'All Completed!'},
+      'bonus_claimed': {'tr': 'Bonus alındı!', 'en': 'Bonus claimed!'},
+      'bonus_reward': {'tr': '+{amount} Bonus', 'en': '+{amount} Bonus'},
+      'btn_collect': {'tr': 'AL', 'en': 'COLLECT'},
+      
+      // Mission Descriptions (Dynamic)
+      'mission_playLevels': {'tr': '{target} seviye tamamla', 'en': 'Complete {target} levels'},
+      'mission_stars3': {'tr': '{target} seviye 3 yıldızla bitir', 'en': 'Finish {target} levels with 3 stars'},
+      'mission_perfectFinish': {'tr': '{target} seviye mükemmel çöz', 'en': 'Solve {target} levels perfectly'},
+      'mission_noHint': {'tr': '{target} seviye ipucu kullanmadan bitir', 'en': 'Complete {target} levels without hints'},
+      'mission_watchAd': {'tr': '{target} reklam izle', 'en': 'Watch {target} ads'},
+      'mission_playTime': {'tr': '{target} dakika oyna', 'en': 'Play for {target} minutes'},
+      'mission_undoFree': {'tr': '{target} seviye geri alma kullanmadan bitir', 'en': 'Complete {target} levels without undo'},
+      'mission_fastComplete': {'tr': '{target} seviye 30 saniyede bitir', 'en': 'Complete {target} levels under 30s'},
+      'mission_exactMoves': {'tr': '{target} seviye tam hamleyle bitir', 'en': 'Finst {target} levels with exact moves'},
+
       // --- STORE SCREEN ---
       'store_title': {'tr': 'MAĞAZA', 'en': 'STORE'},
       'store_tab_bundles': {'tr': 'Paketler', 'en': 'Bundles'},
@@ -342,6 +364,8 @@ class LocalizationManager {
       'prod_name_yearly': {'tr': 'Premium Yıllık', 'en': 'Premium Yearly'},
       'prod_name_winter': {'tr': 'Kış Paketi', 'en': 'Winter Pack'},
       'prod_name_summer': {'tr': 'Yaz Paketi', 'en': 'Summer Pack'},
+      'prod_name_halloween': {'tr': 'Cadılar Bayramı', 'en': 'Halloween Pack'},
+      'prod_name_valentines': {'tr': 'Sevgililer Günü', 'en': 'Valentines Pack'},
       'prod_name_remove_ads': {'tr': 'Reklamları Kaldır', 'en': 'Remove Ads'},
       
       // Descriptions
@@ -355,6 +379,8 @@ class LocalizationManager {
       'prod_desc_yearly': {'tr': '12 ay boyunca. 2 ay bedava!', 'en': 'For 12 months. 2 months free!'},
       'prod_desc_winter': {'tr': 'Sınırlı süre! Kış temasıyla don!', 'en': 'Limited time! Freeze with winter theme!'},
       'prod_desc_summer': {'tr': 'Sınırlı süre! Yaz enerjisi!', 'en': 'Limited time! Summer energy!'},
+      'prod_desc_halloween': {'tr': 'Korkunç indirimler! 🎃', 'en': 'Spooky discounts! 🎃'},
+      'prod_desc_valentines': {'tr': 'Aşkına prizma hediye et! 💝', 'en': 'Gift a prism to your love! 💝'},
       'prod_desc_remove_ads': {'tr': 'Bir kez satın al, sonsuza dek reklamsız!', 'en': 'Buy once, no ads forever!'},
       
       // Contents (Reusable)
@@ -367,6 +393,10 @@ class LocalizationManager {
       'cont_3_skins': {'tr': '3 özel skin', 'en': '3 special skins'},
       'cont_5_skins_winter': {'tr': '5 kış temalı skin', 'en': '5 winter themed skins'},
       'cont_5_skins_summer': {'tr': '5 yaz temalı skin', 'en': '5 summer themed skins'},
+      'cont_skins_halloween': {'tr': 'Hayalet ve Kabak skinleri', 'en': 'Ghost & Pumpkin skins'},
+      'cont_skins_valentines': {'tr': 'Kalp temalı skinler', 'en': 'Heart themed skins'},
+      'cont_theme_halloween': {'tr': 'Karanlık Mod Teması', 'en': 'Dark Mode Theme'},
+      'cont_effect_hearts': {'tr': 'Kalp Efekti', 'en': 'Hearts Effect'},
       'cont_no_ads_1w': {'tr': 'Reklamsız 1 hafta', 'en': 'No ads for 1 week'},
       'cont_no_ads_forever': {'tr': 'Reklamsız (sürekli)', 'en': 'No ads (forever)'},
       'cont_unlimited_hints': {'tr': 'Sınırsız ipucu (sürekli)', 'en': 'Unlimited hints (forever)'},
@@ -446,3 +476,4 @@ class LocalizationManager {
       'privacy_decline': {'tr': 'Reddet', 'en': 'Decline'},
   };
 }
+

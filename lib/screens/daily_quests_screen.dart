@@ -61,51 +61,50 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
     
     return Scaffold(
       backgroundColor: PrismazeTheme.backgroundDark,
+      appBar: AppBar(
+        title: Text(LocalizationManager().getString('daily_quests_title'), style: PrismazeTheme.headingMedium),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: false,
+        leadingWidth: 100,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
+          child: StyledBackButton(),
+        ),
+        actions: [
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: PrismazeTheme.backgroundCard,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: PrismazeTheme.warningYellow.withOpacity(0.5)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${widget.economyManager.tokens}',
+                    style: GoogleFonts.dynaPuff(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
       body: Container(
         decoration: BoxDecoration(gradient: PrismazeTheme.backgroundGradient),
         child: SafeArea(
           child: Column(
             children: [
-              // Top Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    StyledBackButton(),
-                    Text(
-                      'Günlük Görevler',
-                      style: GoogleFonts.dynaPuff(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    // Token display
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: PrismazeTheme.backgroundCard,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${widget.economyManager.tokens}',
-                            style: GoogleFonts.dynaPuff(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               
               // Countdown Timer
               Container(
@@ -122,7 +121,10 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
                     Icon(Icons.timer, color: PrismazeTheme.accentCyan, size: 18),
                     const SizedBox(width: 8),
                     Text(
-                      'Yenilenme: ${hours}s ${minutes.toString().padLeft(2, '0')}dk',
+                      LocalizationManager().getStringParam('refresh_in', {
+                        'hours': '$hours', 
+                        'minutes': minutes.toString().padLeft(2, '0')
+                      }),
                       style: GoogleFonts.dynaPuff(
                         color: Colors.white70,
                         fontSize: 12,
@@ -156,7 +158,11 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildSectionHeader('GÜNLÜK GÖREVLER', Icons.assignment, Colors.orange),
+                                _buildSectionHeader(
+                                  LocalizationManager().getString('section_daily_missions'), 
+                                  Icons.assignment, 
+                                  Colors.orange
+                                ),
                                 const SizedBox(height: 8),
                                 ...missions.map((m) => _buildMissionCard(m)),
                                 
@@ -176,7 +182,11 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildSectionHeader('SINIRLI SÜRE ETKİNLİK', Icons.celebration, PrismazeTheme.accentPink),
+                                _buildSectionHeader(
+                                  LocalizationManager().getString('section_limited_event'), 
+                                  Icons.celebration, 
+                                  PrismazeTheme.accentPink
+                                ),
                                 const SizedBox(height: 8),
                                 _buildEventSection(),
                               ],
@@ -251,13 +261,13 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
           Icon(Icons.event_busy, color: Colors.white30, size: 32),
           const SizedBox(height: 8, width: 1000),
           Text(
-            'Şu anda aktif etkinlik yok',
+            LocalizationManager().getString('no_active_event'),
             textAlign: TextAlign.center,
             style: GoogleFonts.dynaPuff(color: Colors.white54, fontSize: 11),
           ),
           const SizedBox(height: 8),
           Text(
-            'Yakında yeni etkinlikler!',
+            LocalizationManager().getString('new_events_soon'),
             textAlign: TextAlign.center,
             style: GoogleFonts.dynaPuff(color: PrismazeTheme.accentCyan, fontSize: 10),
           ),
@@ -301,7 +311,7 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
                       ),
                     ),
                     Text(
-                      '$daysLeft gün kaldı',
+                      LocalizationManager().getStringParam('days_left', {'days': '$daysLeft'}),
                       style: GoogleFonts.dynaPuff(
                         color: _getEventColor(event.id),
                         fontSize: 10,
@@ -471,11 +481,13 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Tümü Tamamlandı!',
+                  LocalizationManager().getString('all_completed'),
                   style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  bonusClaimed ? 'Bonus alındı!' : '+${MissionManager.bonusReward} Bonus',
+                  bonusClaimed 
+                    ? LocalizationManager().getString('bonus_claimed') 
+                    : LocalizationManager().getStringParam('bonus_reward', {'amount': '${MissionManager.bonusReward}'}),
                   style: GoogleFonts.dynaPuff(
                     color: bonusClaimed ? Colors.green : Colors.amber,
                     fontSize: 10,
@@ -487,7 +499,7 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
           if (widget.missionManager.bonusAvailable)
             GestureDetector(
               onTap: () async {
-                AudioManager().playSfx('coin_collect.mp3');
+                AudioManager().playSfxId(SfxId.coin);
                 await widget.missionManager.claimBonusReward();
               },
               child: Container(
@@ -496,7 +508,10 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
                   gradient: PrismazeTheme.buttonGradient,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text('AL', style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: Text(
+                  LocalizationManager().getString('btn_collect'), 
+                  style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)
+                ),
               ),
             ),
         ],
@@ -571,7 +586,7 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      mission.description,
+                      _getLocalizedDescription(mission),
                       style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -585,7 +600,7 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
               else if (isCompleted)
                 GestureDetector(
                   onTap: () async {
-                    AudioManager().playSfx('coin_collect.mp3');
+                    AudioManager().playSfxId(SfxId.coin);
                     await widget.missionManager.claimReward(mission);
                   },
                   child: Container(
@@ -668,4 +683,10 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
       case MissionType.exactMoves: return Icons.control_camera;
     }
   }
+
+  String _getLocalizedDescription(Mission mission) {
+    final key = 'mission_${mission.type.name}';
+    return LocalizationManager().getStringParam(key, {'target': '${mission.target}'});
+  }
 }
+

@@ -603,3 +603,4 @@ class _AStarNode {
 
   int get f => g + h;
 }
+

@@ -59,6 +59,13 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   /// When true, BeamSystem only renders; it does not compute physics.
   bool useRayTracerMode = false;
   
+  // Debug getters
+  int get debugParticleCount => _particles.length;
+  
+  // Debug getters
+  int get debugSegmentCount => _segments.length; // Still useful count
+  int get debugDrawCalls => _cachedPaths.length; // New metric: reduced draw calls
+  
   /// Debug: show ray segments from RayTracer even when not in RayTracer mode.
   bool debugShowRayTracerSegments = false;
   
@@ -66,8 +73,61 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   double _pulseIntensity = 0.0;
   double _time = 0.0; // For energy pulse animation
   
+  // === OPTIMIZATION: CACHED COMPONENTS ===
+  // We cache these lists to avoid querying the world 8+ times per frame.
+  final List<Mirror> _cachedMirrors = [];
+  final List<Wall> _cachedWalls = [];
+  final List<Prism> _cachedPrisms = [];
+  final List<Target> _cachedTargets = [];
+  final List<Filter> _cachedFilters = [];
+  final List<GlassWall> _cachedGlassWalls = [];
+  final List<Splitter> _cachedSplitters = [];
+  final List<Portal> _cachedPortals = [];
+  final List<AbsorbingWall> _cachedAbsorbingWalls = [];
+  final List<LightSource> _cachedSources = [];
+  
+  // === OPTIMIZATION: CACHED PAINTS ===
+  // Reuse Paint objects to prevent GC churn (creating ~1000 objects per second)
+  final Paint _hazePaint = Paint()..strokeCap = StrokeCap.round; // blur updated dynamically or pre-set if const
+  final Paint _outerGlowPaint = Paint()..strokeCap = StrokeCap.round;
+  final Paint _corePaint = Paint()..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..isAntiAlias = true;
+  final Paint _innerPaint = Paint()..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..isAntiAlias = true;
+  final Paint _pulsePaint = Paint()..style = PaintingStyle.fill..color = Colors.white.withOpacity(0.6)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+  
+  // Static MaskFilters to reuse
+  static const _blur15 = MaskFilter.blur(BlurStyle.normal, 15);
+  static const _blur5 = MaskFilter.blur(BlurStyle.normal, 5);
+  static const _blur18 = MaskFilter.blur(BlurStyle.normal, 18);
+  static const _blur8 = MaskFilter.blur(BlurStyle.normal, 8);
+  static const _blur6 = MaskFilter.blur(BlurStyle.normal, 6);
+  static const _blur3 = MaskFilter.blur(BlurStyle.normal, 3);
+  
+  // === OPTIMIZATION: BATCH RENDERER ===
+  // Group segments by color to allow batch drawing (drawPath)
+  // This reduces draw calls from ~50-100 to ~3-5 per frame.
+  final Map<Color, Path> _cachedPaths = {};
+  
   void pulseBeams() {
       _pulseIntensity = 1.0;
+  }
+  
+  /// Call this when the level loads or components change significantly (not on move)
+  void refreshCache() {
+     _cachedMirrors.clear(); _cachedMirrors.addAll(gameRef.world.children.whereType<Mirror>());
+     _cachedWalls.clear(); _cachedWalls.addAll(gameRef.world.children.whereType<Wall>());
+     _cachedPrisms.clear(); _cachedPrisms.addAll(gameRef.world.children.whereType<Prism>());
+     _cachedTargets.clear(); _cachedTargets.addAll(gameRef.world.children.whereType<Target>());
+     _cachedFilters.clear(); _cachedFilters.addAll(gameRef.world.children.whereType<Filter>());
+     _cachedGlassWalls.clear(); _cachedGlassWalls.addAll(gameRef.world.children.whereType<GlassWall>());
+     _cachedSplitters.clear(); _cachedSplitters.addAll(gameRef.world.children.whereType<Splitter>());
+     _cachedPortals.clear(); _cachedPortals.addAll(gameRef.world.children.whereType<Portal>());
+     _cachedAbsorbingWalls.clear(); _cachedAbsorbingWalls.addAll(gameRef.world.children.whereType<AbsorbingWall>());
+     _cachedSources.clear(); _cachedSources.addAll(gameRef.world.children.whereType<LightSource>());
+     
+     // Sort targets for sequencing logic
+     _cachedTargets.sort((a, b) => a.sequenceIndex.compareTo(b.sequenceIndex));
+     
+     requestUpdate();
   }
   
   @override
@@ -176,42 +236,35 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
     
     _segments.clear(); 
 
-    // Reset Targets - NOW QUERY FROM WORLD
-    final targets = gameRef.world.children.whereType<Target>().toList();
-    for (var t in targets) t.resetHits();
+    
+    // Use CACHED lists (O(1) access instead of O(N) query)
+    if (_cachedMirrors.isEmpty && _cachedWalls.isEmpty && _cachedTargets.isEmpty) {
+        // Fallback or auto-init if empty
+        refreshCache();
+    }
 
-    // Query interactables FROM WORLD (where level components are added)
-    final mirrors = gameRef.world.children.whereType<Mirror>().toList();
-    final walls = gameRef.world.children.whereType<Wall>().toList();
-    final prisms = gameRef.world.children.whereType<Prism>().toList();
-    final filters = gameRef.world.children.whereType<Filter>().toList();
-    final glassWalls = gameRef.world.children.whereType<GlassWall>().toList();
-    final splitters = gameRef.world.children.whereType<Splitter>().toList();
-    final portals = gameRef.world.children.whereType<Portal>().toList();
-    final absorbingWalls = gameRef.world.children.whereType<AbsorbingWall>().toList();
+    for (var t in _cachedTargets) t.resetHits();
     
-    final sources = gameRef.world.children.whereType<LightSource>().toList();
-    
-    for (final source in sources) {
+    for (final source in _cachedSources) {
       if (!source.isActive) continue;
       
       _castBeam(
           source.color, 
           source.position, 
           Vector2(1, 0)..rotate(source.beamAngle), 
-          mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls,
+          _cachedMirrors, _cachedWalls, _cachedPrisms, _cachedTargets, _cachedFilters, _cachedGlassWalls, _cachedSplitters, _cachedPortals, _cachedAbsorbingWalls,
           0
       );
     }
     
-    // Check Targets
-    targets.sort((a, b) => a.sequenceIndex.compareTo(b.sequenceIndex));
-    for (var t in targets) t.checkStatus();
     
-     // Sequence Logic
-    for (var t in targets) {
+    // Check Targets (using cached)
+    for (var t in _cachedTargets) t.checkStatus();
+    
+    // Sequence Logic
+    for (var t in _cachedTargets) {
         if (t.isLit && t.sequenceIndex > 0) {
-             bool predecessorsLit = targets.where((other) => 
+             bool predecessorsLit = _cachedTargets.where((other) => 
                 other.sequenceIndex > 0 && 
                 other.sequenceIndex < t.sequenceIndex
              ).every((other) => other.isLit);
@@ -221,6 +274,22 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
              }
         }
     }
+    
+    // BUILD BATCHES
+    _buildBatchedPaths();
+  }
+  
+  void _buildBatchedPaths() {
+      _cachedPaths.clear();
+      
+      for (final seg in _segments) {
+          // Optimization: Skip invisible segments
+          if (seg.color.opacity < 0.05) continue;
+          
+          _cachedPaths.putIfAbsent(seg.color, () => Path())
+            ..moveTo(seg.start.x, seg.start.y) // Move to start of every segment (assuming disjoint)
+            ..lineTo(seg.end.x, seg.end.y);
+      }
   }
 
   void _castBeam(
@@ -420,7 +489,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
         }
     }
 
-    // Add Segment
+     // Add Segment (Legacy list kept for logic/particles, but rendering uses paths)
     _segments.add(BeamSegment(start, closestPoint, beamColor));
 
     // Recursion
@@ -492,97 +561,91 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   }
   
   /// Render external segments from RayTracer.
+  /// OPTIMIZED: Batches segments by color and reuses Paint objects.
   void _renderExternalSegments(
     Canvas canvas,
     List<RenderSegment> segments,
     bool reducedGlow,
     bool highContrast,
   ) {
+    if (segments.isEmpty) return;
+    
+    // High contrast mode: simple solid white lines
     if (highContrast) {
+      _corePaint
+        ..color = Colors.white
+        ..strokeWidth = 6
+        ..maskFilter = null;
+      
       for (final seg in segments) {
         canvas.drawLine(
-          seg.start.toOffset(),
-          seg.end.toOffset(),
-          Paint()
-            ..color = Colors.white
-            ..strokeWidth = 6
-            ..strokeCap = StrokeCap.round,
+          Offset(seg.start.x, seg.start.y),
+          Offset(seg.end.x, seg.end.y),
+          _corePaint,
         );
       }
       return;
     }
     
-    // Layer 1: Wide outer glow
+    // Build batched paths by color (reduces draw calls significantly)
+    final batchedPaths = <Color, Path>{};
+    for (final seg in segments) {
+      final safeColor = ColorBlindnessUtils.getSafeColor(seg.color);
+      batchedPaths.putIfAbsent(safeColor, () => Path())
+        ..moveTo(seg.start.x, seg.start.y)
+        ..lineTo(seg.end.x, seg.end.y);
+    }
+    
+    // === LAYER 0: Wide outer glow ===
     if (!reducedGlow) {
-      for (final seg in segments) {
-        final safeColor = ColorBlindnessUtils.getSafeColor(seg.color);
-        canvas.drawLine(
-          seg.start.toOffset(),
-          seg.end.toOffset(),
-          Paint()
-            ..color = safeColor.withOpacity(0.15)
-            ..strokeWidth = 40
-            ..strokeCap = StrokeCap.round
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15),
-        );
+      _hazePaint.maskFilter = _blur15;
+      _hazePaint.strokeWidth = 40;
+      
+      for (final entry in batchedPaths.entries) {
+        _hazePaint.color = entry.key.withOpacity(0.15);
+        canvas.drawPath(entry.value, _hazePaint);
       }
     }
     
-    // Layer 2: Medium glow
-    for (final seg in segments) {
-      final safeColor = ColorBlindnessUtils.getSafeColor(seg.color);
-      canvas.drawLine(
-        seg.start.toOffset(),
-        seg.end.toOffset(),
-        Paint()
-          ..color = safeColor.withOpacity(reducedGlow ? 0.4 : 0.35)
-          ..strokeWidth = reducedGlow ? 14 : 22
-          ..strokeCap = StrokeCap.round
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, reducedGlow ? 5 : 10),
-      );
+    // === LAYER 1: Medium glow ===
+    _outerGlowPaint.maskFilter = reducedGlow ? _blur5 : const MaskFilter.blur(BlurStyle.normal, 10);
+    _outerGlowPaint.strokeWidth = reducedGlow ? 14 : 22;
+    
+    for (final entry in batchedPaths.entries) {
+      _outerGlowPaint.color = entry.key.withOpacity(reducedGlow ? 0.4 : 0.35);
+      canvas.drawPath(entry.value, _outerGlowPaint);
     }
     
-    // Layer 3: Solid core
-    for (final seg in segments) {
-      final safeColor = ColorBlindnessUtils.getSafeColor(seg.color);
-      canvas.drawLine(
-        seg.start.toOffset(),
-        seg.end.toOffset(),
-        Paint()
-          ..color = safeColor.withOpacity(0.95)
-          ..strokeWidth = 10
-          ..strokeCap = StrokeCap.round,
-      );
+    // === LAYER 2: Solid core beam ===
+    _corePaint.maskFilter = null;
+    _corePaint.strokeWidth = 10;
+    
+    for (final entry in batchedPaths.entries) {
+      _corePaint.color = entry.key.withOpacity(0.95);
+      canvas.drawPath(entry.value, _corePaint);
     }
     
-    // Layer 4: White hot core
-    for (final seg in segments) {
-      canvas.drawLine(
-        seg.start.toOffset(),
-        seg.end.toOffset(),
-        Paint()
-          ..color = Colors.white.withOpacity(0.95)
-          ..strokeWidth = 4
-          ..strokeCap = StrokeCap.round,
-      );
+    // === LAYER 3: White hot inner core ===
+    _innerPaint.color = Colors.white.withOpacity(0.95);
+    _innerPaint.strokeWidth = 4;
+    _innerPaint.maskFilter = null;
+    
+    for (final path in batchedPaths.values) {
+      canvas.drawPath(path, _innerPaint);
     }
     
-    // Layer 5: Energy pulse
+    // === LAYER 4: Energy pulse (skip in reduced glow mode) ===
     if (!reducedGlow) {
       final pulsePhase = (_time * 1.2) % 1.0;
       for (final seg in segments) {
-        final beamDir = seg.end - seg.start;
-        final beamLength = beamDir.length;
-        if (beamLength < 20) continue;
+        final dx = seg.end.x - seg.start.x;
+        final dy = seg.end.y - seg.start.y;
+        final beamLength = (dx * dx + dy * dy);
+        if (beamLength < 400) continue; // Skip short segments (20*20 = 400)
         
-        final pulsePos = seg.start + beamDir * pulsePhase;
-        canvas.drawCircle(
-          pulsePos.toOffset(),
-          8,
-          Paint()
-            ..color = Colors.white.withOpacity(0.6)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-        );
+        final pulseX = seg.start.x + dx * pulsePhase;
+        final pulseY = seg.start.y + dy * pulsePhase;
+        canvas.drawCircle(Offset(pulseX, pulseY), 8, _pulsePaint);
       }
     }
   }
@@ -595,158 +658,115 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   ) {
       // High contrast mode: simple solid lines
       if (highContrast) {
-        for (final segment in _segments) {
-          if (segment.color.opacity < 0.05) continue;
-          canvas.drawLine(
-            segment.start.toOffset(),
-            segment.end.toOffset(),
-            Paint()
-              ..color = Colors.white
-              ..strokeWidth = 6
-              ..strokeCap = StrokeCap.round,
-          );
+        _corePaint
+            ..color = Colors.white
+            ..strokeWidth = 6
+            ..maskFilter = null;
+            
+        for (final path in _cachedPaths.values) {
+             canvas.drawPath(path, _corePaint);
         }
         return;
       }
       
-      // === LAYER 0: Ultra-wide atmospheric haze (OPTIMIZED - reduced blur) ===
+      // === LAYER 0: Ultra-wide atmospheric haze (OPTIMIZED) ===
       if (!reducedGlow) {
-        for (final segment in _segments) {
-          if (segment.color.opacity < 0.05) continue;
-          final safeColor = ColorBlindnessUtils.getSafeColor(segment.color);
-          
-          canvas.drawLine(
-            segment.start.toOffset(),
-            segment.end.toOffset(),
-            Paint()
-              ..color = safeColor.withOpacity(0.1)
-              ..strokeWidth = 40 // Reduced from 60
-              ..strokeCap = StrokeCap.round
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15), // Reduced from 30
-          );
+        _hazePaint.maskFilter = _blur15;
+        _hazePaint.strokeWidth = 40;
+        
+        for (final entry in _cachedPaths.entries) {
+          final safeColor = ColorBlindnessUtils.getSafeColor(entry.key);
+          _hazePaint.color = safeColor.withOpacity(0.1);
+          canvas.drawPath(entry.value, _hazePaint);
         }
       }
       
       // === LAYER 1: Wide outer glow ===
-      for (final segment in _segments) {
-        if (segment.color.opacity < 0.05) continue;
-        final safeColor = ColorBlindnessUtils.getSafeColor(segment.color);
+      // Setup paint once (mask filter changes per mode)
+      _outerGlowPaint.maskFilter = reducedGlow ? _blur5 : _blur18;
+      
+      for (final entry in _cachedPaths.entries) {
+        final safeColor = ColorBlindnessUtils.getSafeColor(entry.key);
+        final path = entry.value;
         
         if (reducedGlow) {
           // Reduced: Single efficient glow layer
-          canvas.drawLine(
-            segment.start.toOffset(),
-            segment.end.toOffset(),
-            Paint()
-              ..color = safeColor.withOpacity(0.4)
-              ..strokeWidth = 14
-              ..strokeCap = StrokeCap.round
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-          );
+          _outerGlowPaint.color = safeColor.withOpacity(0.4);
+          _outerGlowPaint.strokeWidth = 14;
+          canvas.drawPath(path, _outerGlowPaint);
         } else {
           // Full quality: Wide atmospheric haze
-          canvas.drawLine(
-            segment.start.toOffset(),
-            segment.end.toOffset(),
-            Paint()
-              ..color = safeColor.withOpacity(0.2)
-              ..strokeWidth = 36
-              ..strokeCap = StrokeCap.round
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 18),
-          );
+          _outerGlowPaint.color = safeColor.withOpacity(0.2);
+          _outerGlowPaint.strokeWidth = 36;
+          canvas.drawPath(path, _outerGlowPaint);
           
-          // Medium intense glow
-          canvas.drawLine(
-            segment.start.toOffset(),
-            segment.end.toOffset(),
-            Paint()
-              ..color = safeColor.withOpacity(0.45)
-              ..strokeWidth = 18
-              ..strokeCap = StrokeCap.round
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-          );
+          // Medium intense glow (Using same paint, reused)
+          _hazePaint.maskFilter = _blur8;
+          _hazePaint.color = safeColor.withOpacity(0.45);
+          _hazePaint.strokeWidth = 18;
+          canvas.drawPath(path, _hazePaint);
         }
       }
       
       // === LAYER 2: Solid core beam ===
-      for (final segment in _segments) {
-        if (segment.color.opacity < 0.05) continue;
-        final safeColor = ColorBlindnessUtils.getSafeColor(segment.color);
+      _corePaint.maskFilter = null; // No blur for core
+      
+      for (final entry in _cachedPaths.entries) {
+        final safeColor = ColorBlindnessUtils.getSafeColor(entry.key);
+        final path = entry.value;
         double boost = _pulseIntensity * 4.0;
         
-        canvas.drawLine(
-          segment.start.toOffset(),
-          segment.end.toOffset(),
-          Paint()
-            ..color = safeColor.withOpacity((0.95 + _pulseIntensity * 0.05).clamp(0.0, 1.0))
-            ..strokeWidth = 10 + boost
-            ..strokeCap = StrokeCap.round
-            ..isAntiAlias = true,
-        );
+        _corePaint.color = safeColor.withOpacity((0.95 + _pulseIntensity * 0.05).clamp(0.0, 1.0));
+        _corePaint.strokeWidth = 10 + boost;
+        canvas.drawPath(path, _corePaint);
       }
       
       // === LAYER 3: White hot inner core ===
-      for (final segment in _segments) {
-        if (segment.color.opacity < 0.05) continue;
-        
-        canvas.drawLine(
-          segment.start.toOffset(),
-          segment.end.toOffset(),
-          Paint()
-            ..color = Colors.white.withOpacity(0.95)
-            ..strokeWidth = 4
-            ..strokeCap = StrokeCap.round
-            ..isAntiAlias = true,
-        );
+      _innerPaint.color = Colors.white.withOpacity(0.95);
+      _innerPaint.strokeWidth = 4;
+      _innerPaint.maskFilter = null;
+      
+      // Combine all paths for white core since color doesn't matter?
+      // Actually yes, all cores are white. We can draw them all in one go if we had a unified path.
+      // But _cachedPaths is by color. Iterating is fine.
+      for (final path in _cachedPaths.values) {
+        canvas.drawPath(path, _innerPaint);
       }
       
-      // === LAYER 4: Energy pulse traveling along beam (OPTIMIZED - single pulse) ===
+      // === LAYER 4: Energy pulse traveling along beam ===
       if (!reducedGlow) {
-        final pulsePhase = (_time * 1.2) % 1.0; // Slower
+        final pulsePhase = (_time * 1.2) % 1.0; 
         
         for (final segment in _segments) {
           if (segment.color.opacity < 0.1) continue;
-          
           final beamDir = segment.end - segment.start;
           final beamLength = beamDir.length;
-          if (beamLength < 20) continue; // Skip short segments
+          if (beamLength < 20) continue; 
           
-          // Single pulse only
           final pulsePos = segment.start + beamDir * pulsePhase;
-          canvas.drawCircle(
-            pulsePos.toOffset(),
-            8, // Smaller
-            Paint()
-              ..color = Colors.white.withOpacity(0.6)
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4), // Reduced blur
-          );
+          canvas.drawCircle(pulsePos.toOffset(), 8, _pulsePaint);
         }
       }
       
-      // === LAYER 5: Render particles with enhanced glow ===
+      // === LAYER 5: Render particles ===
+      // Reuse paints for particles
+      _hazePaint.maskFilter = _blur6;
+      _outerGlowPaint.maskFilter = _blur3;
+      _innerPaint.color = Colors.white; // Reuse inner paint for core
+      
       for (final p in _particles) {
-        // Outer particle glow
-        canvas.drawCircle(
-          p.position.toOffset(),
-          p.size * 3,
-          Paint()
-            ..color = p.color.withOpacity(p.life * 0.2)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
-        );
-        // Inner particle glow
-        canvas.drawCircle(
-          p.position.toOffset(),
-          p.size * 1.5,
-          Paint()
-            ..color = p.color.withOpacity(p.life * 0.5)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
-        );
-        // Particle core
-        canvas.drawCircle(
-          p.position.toOffset(),
-          p.size,
-          Paint()..color = Colors.white.withOpacity(p.life * 0.9),
-        );
+        // Outer
+        _hazePaint.color = p.color.withOpacity(p.life * 0.2);
+        canvas.drawCircle(p.position.toOffset(), p.size * 3, _hazePaint);
+        
+        // Inner
+        _outerGlowPaint.color = p.color.withOpacity(p.life * 0.5);
+        canvas.drawCircle(p.position.toOffset(), p.size * 1.5, _outerGlowPaint);
+        
+        // Core
+        _innerPaint.color = Colors.white.withOpacity(p.life * 0.9);
+        canvas.drawCircle(p.position.toOffset(), p.size, _innerPaint);
       }
   }
 }
+

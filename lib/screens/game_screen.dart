@@ -2,6 +2,7 @@ import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../game/prismaze_game.dart';
+import '../game/procedural/models/models.dart' as proc;
 import 'level_complete_overlay.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../game/settings_manager.dart';
@@ -13,6 +14,8 @@ class GameScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic>? levelData;
   final int? episode;      // Episode number (1-5)
   final int? levelIndex;   // 0-based index within episode
+  final proc.GeneratedLevel? generatedLevel; // For endless mode
+  final bool isEndlessMode;
   
   const GameScreen({
     super.key, 
@@ -20,6 +23,8 @@ class GameScreen extends ConsumerStatefulWidget {
     this.levelData,
     this.episode,
     this.levelIndex,
+    this.generatedLevel,
+    this.isEndlessMode = false,
   });
 
   @override
@@ -28,6 +33,9 @@ class GameScreen extends ConsumerStatefulWidget {
 
 class _GameScreenState extends ConsumerState<GameScreen> {
   late PrismazeGame _game;
+  bool _hintPanelExpanded = false;
+  bool _hintAnimating = false;
+  String _hintStepText = '';
 
   @override
   void initState() {
@@ -37,22 +45,23 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       levelData: widget.levelData,
       episode: widget.episode,
       levelIndex: widget.levelIndex,
+      generatedLevel: widget.generatedLevel,
     );
     
     // Explicitly set ID for display if not campaign (fallback)
-    if (widget.episode == null) {
+    if (widget.episode == null && widget.generatedLevel == null) {
       _game.currentLevelId = widget.levelId;
       _game.levelNotifier.value = widget.levelId;
     }
     
     // Start Gameplay Music
-    AudioManager().playGameplayMusic(widget.levelId);
+    AudioManager().setContext(AudioContext.gameplay, levelId: widget.levelId);
   }
 
   @override
   void dispose() {
     // Restore Menu Music logic handled here for safety (User Request)
-    AudioManager().playMenuMusic();
+    AudioManager().setContext(AudioContext.menu);
     super.dispose();
   }
 
@@ -168,13 +177,8 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                       
                       const SizedBox(height: 24),
                       
-                      // HINT
-                      _buildActionButton(
-                        icon: Icons.lightbulb_outline,
-                        label: LocalizationManager().getString('btn_hint'),
-                        color: Colors.amber,
-                        onTap: () => _game.hintManager.showLightHint(),
-                      ),
+                      // HINT PANEL
+                      _buildHintPanel(),
                     ],
                   ),
                 ),
@@ -191,7 +195,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 result: result,
                 onNext: () {
                   _game.nextLevel();
-                  setState(() {});
                 },
                 onReplay: () => _game.restartLevel(),
                 onMenu: () => Navigator.pop(context),
@@ -381,7 +384,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                        child: TextButton(
                          onPressed: () {
                            Navigator.pop(ctx);
-                           AudioManager().playMenuBgm();
+                           AudioManager().setContext(AudioContext.menu);
                            Navigator.of(context).popUntil((route) => route.isFirst);
                          },
                          style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 30)),
@@ -398,4 +401,179 @@ class _GameScreenState extends ConsumerState<GameScreen> {
          if (_game.paused) _game.paused = false;
     });
   }
+
+  /// Build expandable hint panel with Light/Medium/Full options
+  Widget _buildHintPanel() {
+    const int lightCost = 5;
+    const int mediumCost = 15;
+    const int fullCost = 30;
+    
+    if (_hintAnimating) {
+      // Show step counter during animation
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.amber.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.amber.withOpacity(0.5)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lightbulb, color: Colors.amber, size: 24),
+            const SizedBox(height: 4),
+            Text(
+              _hintStepText,
+              style: GoogleFonts.dynaPuff(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    if (!_hintPanelExpanded) {
+      // Collapsed: single hint button
+      return GestureDetector(
+        onTap: () => setState(() => _hintPanelExpanded = true),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A2E),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.amber.withOpacity(0.5), width: 1.5),
+            boxShadow: [
+              BoxShadow(color: Colors.amber.withOpacity(0.2), blurRadius: 8, spreadRadius: 1),
+            ],
+          ),
+          child: Icon(Icons.lightbulb_outline, color: Colors.amber, size: 24),
+        ),
+      );
+    }
+    
+    // Expanded: show 3 hint options
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.amber.withOpacity(0.3)),
+        boxShadow: [
+          BoxShadow(color: Colors.black54, blurRadius: 12),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Close button
+          Align(
+            alignment: Alignment.topRight,
+            child: GestureDetector(
+              onTap: () => setState(() => _hintPanelExpanded = false),
+              child: Icon(Icons.close, color: Colors.white38, size: 16),
+            ),
+          ),
+          
+          // Light Hint
+          _buildHintOption(
+            icon: Icons.lightbulb_outline,
+            label: 'Light',
+            cost: lightCost,
+            color: Colors.greenAccent,
+            onTap: () => _useHint('light', lightCost),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Medium Hint
+          _buildHintOption(
+            icon: Icons.play_arrow,
+            label: 'Medium',
+            cost: mediumCost,
+            color: Colors.amber,
+            onTap: () => _useHint('medium', mediumCost),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Full Hint
+          _buildHintOption(
+            icon: Icons.play_circle_filled,
+            label: 'Full',
+            cost: fullCost,
+            color: Colors.orangeAccent,
+            onTap: () => _useHint('full', fullCost),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildHintOption({
+    required IconData icon,
+    required String label,
+    required int cost,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: GoogleFonts.dynaPuff(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+                Text('$cost tokens', style: GoogleFonts.dynaPuff(color: color.withOpacity(0.7), fontSize: 9)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _useHint(String type, int cost) async {
+    setState(() {
+      _hintPanelExpanded = false;
+      _hintAnimating = true;
+      _hintStepText = 'Analyzing...';
+    });
+    
+    switch (type) {
+      case 'light':
+        _game.hintManager.showLightHint(onComplete: () {
+          if (mounted) setState(() => _hintAnimating = false);
+        });
+        break;
+      case 'medium':
+        _game.hintManager.showMediumHint(onComplete: () {
+          if (mounted) setState(() => _hintAnimating = false);
+        });
+        break;
+      case 'full':
+        _game.hintManager.showFullHint(onComplete: () {
+          if (mounted) setState(() => _hintAnimating = false);
+        });
+        break;
+    }
+    
+    // Set timeout fallback
+    Future.delayed(const Duration(seconds: 10), () {
+      if (mounted && _hintAnimating) {
+        setState(() => _hintAnimating = false);
+      }
+    });
+  }
 }
+
+

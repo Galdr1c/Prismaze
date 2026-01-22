@@ -1141,3 +1141,4 @@ class _ShootingStar {
     required this.life
   }) : position = start.clone();
 }
+

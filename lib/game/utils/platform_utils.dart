@@ -113,3 +113,4 @@ class ResponsiveLayout {
   double scaledIconSize(double base) => base * uiScale;
   double scaledPadding(double base) => base * uiScale;
 }
+

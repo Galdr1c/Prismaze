@@ -165,6 +165,19 @@ class GameState {
     return hash;
   }
 
+  /// Fast hash for orientation-only comparison (for render caching).
+  /// Excludes targetCollected since beam rendering only depends on mirror/prism orientations.
+  int get orientationHash {
+    int hash = 17;
+    for (int i = 0; i < mirrorOrientations.length; i++) {
+      hash = hash * 31 + mirrorOrientations[i];
+    }
+    for (int i = 0; i < prismOrientations.length; i++) {
+      hash = hash * 31 + prismOrientations[i];
+    }
+    return hash;
+  }
+
   /// Encode state to a compact string for debugging.
   String encode() {
     final buffer = StringBuffer();
@@ -233,3 +246,4 @@ class SearchNode {
     );
   }
 }
+

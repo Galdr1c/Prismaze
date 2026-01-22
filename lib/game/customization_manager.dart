@@ -275,3 +275,4 @@ class CustomizationManager extends ChangeNotifier {
       notifyListeners();
   }
 }
+

@@ -186,3 +186,4 @@ class GeneratedLevel {
     return GeneratedLevel.fromJson(jsonDecode(jsonString) as Map<String, dynamic>);
   }
 }
+

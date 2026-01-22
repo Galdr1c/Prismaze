@@ -44,3 +44,4 @@ class UndoSystem extends ChangeNotifier {
   // Legacy alias
   String getCounterText() => getUndoText();
 }
+

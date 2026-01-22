@@ -337,3 +337,4 @@ class PlacementEngine {
     return visited.length != nonBlockedCount;
   }
 }
+

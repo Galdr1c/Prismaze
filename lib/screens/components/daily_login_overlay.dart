@@ -27,6 +27,7 @@ class DailyLoginOverlay extends StatefulWidget {
 class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
   bool _claimed = false;
   bool _isRestoring = false;
+  bool _cancelled = false;
   late int _currentDay;
   DailyReward? _claimedReward;
   
@@ -43,8 +44,14 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
     // If streak is broken, user will see streak restore option first
   }
 
+  @override
+  void dispose() {
+    _cancelled = true;
+    super.dispose();
+  }
+
   Future<void> _handleClaim() async {
-    AudioManager().playSfx('success.mp3');
+    AudioManager().playSfxId(SfxId.achievementUnlocked);
     final reward = await widget.economyManager.claimDailyLoginReward();
     
     if (reward != null) {
@@ -68,7 +75,9 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
     }
     
     // Auto close after delay
-    Future.delayed(const Duration(seconds: 2), widget.onClose);
+    Future.delayed(const Duration(seconds: 2), () {
+        if (mounted && !_cancelled) widget.onClose();
+    });
   }
 
   Future<void> _restoreStreakWithTokens() async {
@@ -83,7 +92,7 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
     final success = await widget.economyManager.restoreStreakWithTokens();
     
     if (success) {
-      AudioManager().playSfx('ding.mp3');
+      AudioManager().playSfxId(SfxId.starEarned);
       setState(() {
         _currentDay = widget.economyManager.dailyStreak + 1;
         if (_currentDay > 7) _currentDay = 1;
@@ -102,7 +111,7 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
     
     if (success) {
       await widget.economyManager.restoreStreakWithAd();
-      AudioManager().playSfx('ding.mp3');
+      AudioManager().playSfxId(SfxId.starEarned);
       setState(() {
         _currentDay = widget.economyManager.dailyStreak + 1;
         if (_currentDay > 7) _currentDay = 1;
@@ -418,3 +427,4 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
     );
   }
 }
+
