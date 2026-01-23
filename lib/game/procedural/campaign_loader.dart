@@ -190,8 +190,10 @@ class CampaignLevelLoader {
     final episodeEntry = (manifest['episodes'] as Map<String, dynamic>)[episode.toString()] as Map<String, dynamic>;
     final expectedCount = episodeEntry['count'] as int;
     final fileName = episodeEntry['file'] as String;
-    final assetPath = 'assets/generated/$fileName';
-
+    final assetPath = fileName.startsWith('assets/')
+        ? fileName
+        : 'assets/generated/$fileName';
+        
     try {
       final jsonString = await rootBundle.loadString(assetPath);
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -232,9 +234,20 @@ class CampaignLevelLoader {
       debugPrint('CampaignLoader: Episode $episode loaded - ${levels.length} levels (occupancy validated)');
       return levels;
       
-    } on FlutterError {
+    } on CampaignValidationError {
+       rethrow;
+    } catch (e, st) {
+      if (e is FlutterError && e.message.contains('Asset manifest does not contain')) {
+         throw CampaignValidationError(
+          'Episode asset file not found in manifest',
+          episode: episode,
+          filePath: assetPath,
+        );
+      }
+      debugPrint('CampaignLoader: UNEXPECTED ERROR loading episode $episode: $e');
+      debugPrint('$st');
       throw CampaignValidationError(
-        'Episode asset file not found',
+        'Unexpected error loading episode asset file: $e',
         episode: episode,
         filePath: assetPath,
       );

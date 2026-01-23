@@ -34,110 +34,40 @@ class EpisodeConfig {
 const List<EpisodeConfig> episodeConfigs = [
   EpisodeConfig(
     episode: 1,
-    title: 'ep_1_title',
-    subtitle: 'ep_1_desc',
+    title: 'Tutorial',
+    subtitle: 'Learn the basics',
     themeColor: Color(0xFF9B59B6),
     icon: Icons.school,
   ),
   EpisodeConfig(
     episode: 2,
-    title: 'ep_2_title',
-    subtitle: 'ep_2_desc',
+    title: 'Easy',
+    subtitle: 'Simple puzzles',
     themeColor: Color(0xFF3498DB),
     icon: Icons.star_outline,
   ),
   EpisodeConfig(
     episode: 3,
-    title: 'ep_3_title',
-    subtitle: 'ep_3_desc',
+    title: 'Medium',
+    subtitle: 'Color mixing',
     themeColor: Color(0xFF27AE60),
     icon: Icons.palette,
   ),
   EpisodeConfig(
     episode: 4,
-    title: 'ep_4_title',
-    subtitle: 'ep_4_desc',
+    title: 'Hard',
+    subtitle: 'Complex routing',
     themeColor: Color(0xFFE67E22),
     icon: Icons.auto_awesome,
   ),
   EpisodeConfig(
     episode: 5,
-    title: 'ep_5_title',
-    subtitle: 'ep_5_desc',
+    title: 'Expert',
+    subtitle: 'Master puzzles',
     themeColor: Color(0xFFE74C3C),
     icon: Icons.diamond,
   ),
 ];
-
-class EpisodePatternPainter extends CustomPainter {
-  final int episodeIndex;
-  final Color color;
-
-  EpisodePatternPainter({required this.episodeIndex, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withOpacity(0.1)
-      ..style = PaintingStyle.fill;
-
-    switch (episodeIndex) {
-      case 1: // Circles (Tutorial)
-        for (double i = 5; i < size.width; i += 15) {
-          for (double j = 5; j < size.height; j += 15) {
-            canvas.drawCircle(Offset(i, j), 3, paint);
-          }
-        }
-        break;
-      case 2: // Stripes (Easy)
-        paint.strokeWidth = 2;
-        paint.style = PaintingStyle.stroke;
-        for (double i = -size.height; i < size.width; i += 10) {
-          canvas.drawLine(Offset(i, size.height), Offset(i + size.height, 0), paint);
-        }
-        break;
-      case 3: // Grid (Medium)
-        paint.strokeWidth = 1;
-        paint.style = PaintingStyle.stroke;
-        for (double i = 0; i <= size.width; i += 15) {
-          canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-        }
-        for (double i = 0; i <= size.height; i += 15) {
-          canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-        }
-        break;
-      case 4: // Triangles/Diamonds (Hard)
-        final path = Path();
-        for (double i = 0; i < size.width; i += 20) {
-          for (double j = 0; j < size.height; j += 20) {
-            path.moveTo(i + 10, j);     // Top
-            path.lineTo(i + 20, j + 10); // Right
-            path.lineTo(i + 10, j + 20); // Bottom
-            path.lineTo(i, j + 10);      // Left
-            path.close();
-          }
-        }
-        canvas.drawPath(path, paint);
-        break;
-      case 5: // Curves (Expert)
-        paint.style = PaintingStyle.stroke;
-        paint.strokeWidth = 1.5;
-        for (double j = 0; j < size.height + 20; j += 15) {
-           final path = Path();
-           path.moveTo(0, j);
-            for (double i = 0; i <= size.width; i += 20) {
-             path.quadraticBezierTo(i + 10, j - 10, i + 20, j);
-           }
-           canvas.drawPath(path, paint);
-        }
-        break;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
 
 class CampaignScreen extends StatefulWidget {
   const CampaignScreen({super.key});
@@ -259,7 +189,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
 
   Widget _buildEpisodeSelector() {
     return SizedBox(
-      height: 80, // Reduced from 100
+      height: 100,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -279,7 +209,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
 
     return GestureDetector(
       onTap: () {
-        AudioManager().playSfxId(SfxId.uiClick);
+        AudioManager().playSfx('soft_button_click.mp3');
         if (isUnlocked) {
           setState(() => _selectedEpisode = config.episode);
         } else {
@@ -288,9 +218,9 @@ class _CampaignScreenState extends State<CampaignScreen> {
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        width: 110, 
+        width: 130,
         margin: const EdgeInsets.symmetric(horizontal: 4),
-        // Padding moved to inner content
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           gradient: isUnlocked
               ? LinearGradient(
@@ -314,61 +244,35 @@ class _CampaignScreenState extends State<CampaignScreen> {
               ? [BoxShadow(color: config.themeColor.withOpacity(0.3), blurRadius: 10)]
               : null,
         ),
-        child: Stack(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Pattern Background
-             if (isUnlocked)
-               Positioned.fill(
-                 child: ClipRRect(
-                   borderRadius: BorderRadius.circular(16),
-                   child: CustomPaint(
-                     painter: EpisodePatternPainter(
-                       episodeIndex: config.episode, 
-                       color: config.themeColor
-                     ),
-                   ),
-                 ),
-               ),
-               
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center, // Center vertically
-                children: [
-                  Row(
-                    children: [
-                      // No Icon for unlocked, Lock icon for locked
-                      if (!isUnlocked)
-                        Icon(
-                          Icons.lock,
-                          color: Colors.white30,
-                          size: 18, 
-                        ),
-                      const Spacer(),
-                      if (isUnlocked)
-                        Text(
-                          'E${config.episode}',
-                          style: GoogleFonts.dynaPuff(
-                            color: config.themeColor.withOpacity(0.7),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-            Flexible( // Use Flexible to allow text to take available space
-              child: Text(
-                LocalizationManager().getString(config.title),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.dynaPuff(
-                  color: isUnlocked ? Colors.white : Colors.white30,
-                  fontSize: 11, // Reduced slightly
-                  fontWeight: FontWeight.w800,
-                  height: 1.1,
+            Row(
+              children: [
+                Icon(
+                  isUnlocked ? config.icon : Icons.lock,
+                  color: isUnlocked ? config.themeColor : Colors.white30,
+                  size: 20,
                 ),
+                const Spacer(),
+                if (isUnlocked)
+                  Text(
+                    'E${config.episode}',
+                    style: GoogleFonts.dynaPuff(
+                      color: config.themeColor.withOpacity(0.7),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              config.title,
+              style: GoogleFonts.dynaPuff(
+                color: isUnlocked ? Colors.white : Colors.white30,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 2),
@@ -388,13 +292,10 @@ class _CampaignScreenState extends State<CampaignScreen> {
                   fontSize: 10,
                 ),
               ),
-            ],
-          ),
+          ],
         ),
-      ],
-    ),
-  ),
-);
+      ),
+    );
   }
 
   Widget _buildSelectedEpisodePanel() {
@@ -407,33 +308,15 @@ class _CampaignScreenState extends State<CampaignScreen> {
         children: [
           // Episode header card
           _buildEpisodeHeader(config, ep),
-          const SizedBox(height: 12),
-          
-          // Two Column Bottom Layout
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Left: Continue Button
-                Expanded(
-                  flex: 5,
-                  child: _buildContinueButton(config, ep),
-                ),
-                const SizedBox(width: 12),
-                // Right: Progress & Actions
-                Expanded(
-                  flex: 4,
-                  child: Column(
-                    children: [
-                        _buildProgressBar(config, ep),
-                        const SizedBox(height: 8),
-                         _buildActionButtons(config, ep),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          const SizedBox(height: 20),
+          // Continue button
+          _buildContinueButton(config, ep),
+          const SizedBox(height: 16),
+          // Progress bar
+          _buildProgressBar(config, ep),
+          const SizedBox(height: 20),
+          // Action buttons
+          _buildActionButtons(config, ep),
         ],
       ),
     );
@@ -441,6 +324,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
 
   Widget _buildEpisodeHeader(EpisodeConfig config, EpisodeProgress ep) {
     return Container(
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -448,94 +332,81 @@ class _CampaignScreenState extends State<CampaignScreen> {
             config.themeColor.withOpacity(0.1),
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: config.themeColor.withOpacity(0.3)),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            // Full Background Pattern
-            Positioned.fill(
-              child: CustomPaint(
-                painter: EpisodePatternPainter(
-                  episodeIndex: config.episode, 
-                  color: config.themeColor
-                ),
-              ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: config.themeColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
             ),
-            
-            // Content
-            Padding(
-              padding: const EdgeInsets.all(16), // Increased padding layout
-              child: Row(
-                children: [
-                  // Icon container removed completely
-                  
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'EPISODE ${config.episode}',
-                          style: GoogleFonts.dynaPuff(
-                            color: config.themeColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        Text(
-                          LocalizationManager().getString(config.title).toUpperCase(),
-                          style: GoogleFonts.dynaPuff(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          LocalizationManager().getString(config.subtitle),
-                          style: GoogleFonts.dynaPuff(
-                            color: Colors.white60,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
+            child: Icon(config.icon, color: config.themeColor, size: 32),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'EPISODE ${config.episode}',
+                  style: GoogleFonts.dynaPuff(
+                    color: config.themeColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.star, color: PrismazeTheme.starGold, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${ep.totalStars}',
-                            style: GoogleFonts.dynaPuff(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${(ep.progressPercent * 100).toStringAsFixed(0)}%',
-                        style: GoogleFonts.dynaPuff(
-                          color: config.themeColor,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                ),
+                Text(
+                  config.title.toUpperCase(),
+                  style: GoogleFonts.dynaPuff(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  config.subtitle,
+                  style: GoogleFonts.dynaPuff(
+                    color: Colors.white60,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.star, color: PrismazeTheme.starGold, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${ep.totalStars}',
+                    style: GoogleFonts.dynaPuff(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 4),
+              Text(
+                '${(ep.progressPercent * 100).toStringAsFixed(0)}%',
+                style: GoogleFonts.dynaPuff(
+                  color: config.themeColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -547,53 +418,60 @@ class _CampaignScreenState extends State<CampaignScreen> {
     return GestureDetector(
       onTap: isComplete ? null : () => _playLevel(ep.currentLevelIndex),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20), // More vertical padding for height
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: isComplete 
               ? null 
-              : LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [config.themeColor, config.themeColor.withOpacity(0.7)]
-                ),
+              : LinearGradient(colors: [config.themeColor, config.themeColor.withOpacity(0.7)]),
           color: isComplete ? Colors.white.withOpacity(0.1) : null,
           borderRadius: BorderRadius.circular(16),
           boxShadow: isComplete
               ? null
               : [BoxShadow(color: config.themeColor.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 50,
+              height: 50,
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 isComplete ? Icons.check : Icons.play_arrow,
                 color: Colors.white,
-                size: 24,
+                size: 28,
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              isComplete ? 'COMPLETED' : LocalizationManager().getString('continue').toUpperCase(),
-              style: GoogleFonts.dynaPuff(
-                color: Colors.white.withOpacity(0.8),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isComplete ? 'COMPLETED' : 'CONTINUE',
+                    style: GoogleFonts.dynaPuff(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    isComplete ? 'All levels done!' : 'Level $currentLevel',
+                    style: GoogleFonts.dynaPuff(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
-            Text(
-              isComplete ? 'Done!' : 'Level $currentLevel',
-              style: GoogleFonts.dynaPuff(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white.withOpacity(0.6),
+              size: 20,
             ),
           ],
         ),
@@ -608,7 +486,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: PrismazeTheme.backgroundCard,
         borderRadius: BorderRadius.circular(12),
@@ -623,20 +501,20 @@ class _CampaignScreenState extends State<CampaignScreen> {
                 'Progress',
                 style: GoogleFonts.dynaPuff(
                   color: Colors.white60,
-                  fontSize: 10,
+                  fontSize: 12,
                 ),
               ),
               Text(
-                '${(ep.progressPercent * 100).toInt()}%',
+                '${ep.completedLevels} / ${ep.totalLevels} levels',
                 style: GoogleFonts.dynaPuff(
                   color: Colors.white,
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Stack(
             children: [
               // Background
@@ -700,30 +578,54 @@ class _CampaignScreenState extends State<CampaignScreen> {
           child: GestureDetector(
             onTap: () => _showJumpDialog(config, ep),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: PrismazeTheme.backgroundCard,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: config.themeColor.withOpacity(0.3)),
               ),
-              child: Center(
-                  child: Icon(Icons.skip_next, color: config.themeColor, size: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.skip_next, color: config.themeColor, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Jump to Level',
+                    style: GoogleFonts.dynaPuff(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         Expanded(
           child: GestureDetector(
             onTap: () => _showStatsDialog(config, ep),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 10),
+              padding: const EdgeInsets.symmetric(vertical: 14),
               decoration: BoxDecoration(
                 color: PrismazeTheme.backgroundCard,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Center(
-                  child: Icon(Icons.bar_chart, color: Colors.white60, size: 20),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.bar_chart, color: Colors.white60, size: 20),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Statistics',
+                    style: GoogleFonts.dynaPuff(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -941,7 +843,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
   }
 
   void _showLockedDialog(EpisodeConfig config) {
-    AudioManager().playSfxId(SfxId.error);
+    AudioManager().playSfx('error_sound.mp3');
     showDialog(
       context: context,
       barrierColor: Colors.black54,
@@ -999,7 +901,7 @@ class _CampaignScreenState extends State<CampaignScreen> {
   }
 
   void _playLevel(int levelIndex) async {
-    AudioManager().playSfxId(SfxId.uiClick);
+    AudioManager().playSfx('soft_button_click.mp3');
     
     // Set current level
     await _progress.setCurrentLevel(_selectedEpisode, levelIndex);
@@ -1020,4 +922,3 @@ class _CampaignScreenState extends State<CampaignScreen> {
     }
   }
 }
-

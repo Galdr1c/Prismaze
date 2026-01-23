@@ -14,14 +14,13 @@ import 'economy_manager.dart';
 import 'progress_manager.dart';
 import 'mission_manager.dart';
 import 'procedural/models/models.dart' as proc;
-import 'procedural/campaign_loader.dart';
 import 'progress/campaign_progress.dart';
 import 'customization_manager.dart';
 import 'ad_manager.dart';
 import 'settings_manager.dart';
 import 'cloud_save_manager.dart';
 import 'analytics_manager.dart';
-import 'endless_run_manager.dart';
+import 'procedural_level_generator.dart';
 import 'components/target.dart';
 import 'components/prism.dart';
 import 'components/mirror.dart';
@@ -65,31 +64,6 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
   late DebugOverlay debugOverlay;
   final UndoSystem undoSystem = UndoSystem();
   
-  // === ASYNC SAFETY ===
-  bool _isUnmounted = false;
-  
-  @override
-  void onRemove() {
-      _isUnmounted = true;
-      super.onRemove();
-  }
-  
-  // === OPTIMIZATION: CACHED TARGETS ===
-  // Cache targets to avoid O(N) query every frame in update()
-  List<Target> _cachedTargets = [];
-  
-  void refreshLevelCache() {
-      // 1. Cache local targets
-      _cachedTargets = world.children.whereType<Target>().toList();
-      
-      // 2. Force BeamSystem physics cache refresh
-      beamSystem.refreshCache();
-      
-      // 3. Mark update needed
-      requestBeamUpdate();
-      print("DEBUG: Level Cache Refreshed (Targets: ${_cachedTargets.length})");
-  }
-  
   int moves = 0;
   double levelTime = 0;
   bool usedHint = false; // logic needed to set this
@@ -119,12 +93,10 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
   int? currentLevelIdx;
 
   Map<String, dynamic>? currentLevelJson; // To store current level data for restart
-  proc.GeneratedLevel? _pendingGeneratedLevel; // For endless mode
+  ProceduralLevelGenerator? proceduralGenerator;
   proc.LevelMeta? currentLevelMeta;
 
-  final proc.GeneratedLevel? generatedLevel;
-
-  PrismazeGame(this.ref, {this.levelData, this.episode, this.levelIndex, this.generatedLevel}) : super(
+  PrismazeGame(this.ref, {this.levelData, this.episode, this.levelIndex}) : super(
     camera: CameraComponent.withFixedResolution(
         width: 1344, // 5% zoom out (1280 * 1.05)
         height: 756, // 5% zoom out (720 * 1.05)
@@ -135,9 +107,6 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       currentEpisode = episode;
       currentLevelIdx = levelIndex;
       currentLevelId = (episode! - 1) * 1000 + (levelIndex! + 1); // For display/IDs
-    } else if (generatedLevel != null) {
-      isEndlessMode = true;
-      _pendingGeneratedLevel = generatedLevel;
     }
   }
 
@@ -175,29 +144,20 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
           levelTime += dt * timeScale;
           levelTimeNotifier.value = levelTime; // Update UI
           
-          // FIX: Only update beams if requested (Dirty Flag Pattern)
-          if (_needsBeamUpdate) {
+          // FIX: Always update beams when level has started (ensures beams render after intro)
+          if (hasStartedLevel.value || _needsBeamUpdate) {
              beamSystem.updateBeams();
-             // Important: BeamSystem resets its own internal needsUpdate flag, 
-             // but we also reset our request flag here.
              _needsBeamUpdate = false;
           }
           
-          // Fix: Check targets every frame (Optimized with Cached List)
+          // Fix: Check targets every frame to catch win condition
+          // (BeamSystem updates in super.update(), so status might change after our flag check)
+          final targets = world.children.query<Target>();
           // All targets must be lit AND have received actual color (not black)
-          if (_cachedTargets.isNotEmpty) {
-               bool allLit = true;
-               bool allHaveColor = true;
-               
-               // Manual loop is faster than .every() closure overhead in hot path
-               for (final t in _cachedTargets) {
-                   if (!t.isLit) { allLit = false; break; }
-                   if (t.accumulatedColor == const Color(0xFF000000)) { allHaveColor = false; break; }
-               }
-               
-               if (allLit && allHaveColor) {
-                  _onLevelWin();
-               }
+          final allLit = targets.isNotEmpty && targets.every((t) => t.isLit);
+          final allHaveColor = targets.every((t) => t.accumulatedColor != const Color(0xFF000000));
+          if (allLit && allHaveColor) {
+              _onLevelWin();
           }
       
       // Tutorial Level 2 Adaptive Hint
@@ -228,7 +188,6 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       
       // Wait for target fill animation to complete (~1.5s fill time)
       await Future.delayed(const Duration(milliseconds: 1000));
-      if (_isUnmounted) return;
       
       // Beam Pulse Effect (Visual Feedback before overlay)
       beamSystem.pulseBeams(); 
@@ -236,7 +195,6 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       
       // Wait another 1s for pulse effect + celebration moment
       await Future.delayed(const Duration(milliseconds: 700));
-      if (_isUnmounted) return;
       
       print("Level Complete!");
       AudioManager().vibrateLevelComplete(); // Double pulse
@@ -247,8 +205,6 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
           // Endless Mode Reward Logic
           earned = 10 + (currentLevelId / 5).floor(); // Base 10 + scaling
           economyManager.addTokens(earned);
-          // Save endless progress
-          await EndlessRunManager().onLevelComplete();
       } else {
           // Standard Campaign
           earned = await economyManager.onLevelComplete(currentLevelId, moves, currentLevelPar);
@@ -344,7 +300,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
           vibrationOn: sm.vibrationEnabled,
           onTokenReward: (amount) {
               economyManager.addTokens(amount);
-              AudioManager().playSfxId(SfxId.coin);
+              AudioManager().playSfx('coin_collect.mp3');
               // Show notification?
           },
           onSkinReward: (skinId) {
@@ -368,23 +324,9 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       if (currentLevelId == 4) {
            // Delay slightly then show Onboarding Complete
            Future.delayed(const Duration(milliseconds: 1500), () {
-               if (_isUnmounted) return;
                onboardingCompleteNotifier.value = true;
                economyManager.addTokens(10); // Graduation Gift
            });
-      }
-      
-      // === OPTIMIZATION: Preload next episode if completing last level ===
-      if (isCampaignMode && currentEpisode != null && currentLevelIdx != null) {
-        final levelCount = CampaignProgress().getLevelCount(currentEpisode!);
-        if (currentLevelIdx! + 1 >= levelCount) {
-          // Last level of episode - preload next episode in background
-          final nextEpisode = currentEpisode! + 1;
-          CampaignLevelLoader.loadEpisode(nextEpisode).catchError((_) {
-            // Silently ignore if next episode doesn't exist
-          });
-          debugPrint('PRELOAD: Triggered background load of Episode $nextEpisode');
-        }
       }
   }
   
@@ -429,8 +371,12 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       
     if (isCampaignMode && currentEpisode != null && currentLevelIdx != null) {
           levelLoader.loadCampaignLevel(currentEpisode!, currentLevelIdx!);
+      } else if (isEndlessMode && proceduralGenerator != null) {
+          // Endless mode: Generate and load via standard path
+          // The proceduralGenerator creates JSON data - for now use loadLevel fallback
+          levelLoader.loadLevel(currentLevelId);
       } else {
-          print("ERROR: goToNextLevel called but not in campaign mode");
+          levelLoader.loadLevel(currentLevelId);
       }
       
       _updateNotifiers();
@@ -443,10 +389,8 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       introActiveNotifier.value = true;
       hasStartedLevel.value = false;
       
-      
       // FIX: Force beam update after components are loaded (regardless of intro)
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (_isUnmounted) return; // Safety Check
         if (currentLevelId == currentLevelId) { // Still on same level
           requestBeamUpdate();
           hasStartedLevel.value = true; // Enable beam rendering
@@ -459,7 +403,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       analyticsManager.logLevelStart(currentLevelId);
       
       // Update BGM
-      AudioManager().setContext(AudioContext.gameplay, levelId: currentLevelId);
+      AudioManager().playGameBgm(currentLevelId);
       
       // Tutorial Check
       if (currentLevelId == 1) {
@@ -468,14 +412,12 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
           tutorialActiveNotifier.value = true;
           // Auto-hide text after 3 seconds for Level 2 so they can play
           Future.delayed(const Duration(seconds: 3), () {
-              if (_isUnmounted) return;
               if (currentLevelId == 2) tutorialActiveNotifier.value = false;
           });
       } else if (currentLevelId == 3) {
           tutorialActiveNotifier.value = true;
           // Auto-hide text after 4 seconds for Level 3
           Future.delayed(const Duration(seconds: 4), () {
-              if (_isUnmounted) return;
               if (currentLevelId == 3) tutorialActiveNotifier.value = false;
           });
       } else if (currentLevelId == 4) {
@@ -504,13 +446,11 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       _isLevelCompleted = false;
       levelCompleteNotifier.value = null;
       
-      // Restart: Use Campaign path (endless would need to store the original level)
+      // Restart: Use Campaign or standard path
       if (isCampaignMode && currentEpisode != null && currentLevelIdx != null) {
           levelLoader.loadCampaignLevel(currentEpisode!, currentLevelIdx!);
-      } else if (isEndlessMode && _pendingGeneratedLevel != null) {
-          levelLoader.loadGeneratedLevel(_pendingGeneratedLevel!);
       } else {
-          print("ERROR: Cannot restart - no valid level source");
+          levelLoader.loadLevel(currentLevelId);
       }
       _undoStack.clear();
       undoSystem.reset(); // Reset undo counts
@@ -520,7 +460,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       usedUndo = false;
       _updateNotifiers();
       requestBeamUpdate();
-      AudioManager().setContext(AudioContext.gameplay, levelId: currentLevelId);
+      AudioManager().playGameBgm(currentLevelId);
   }
 
   void recordMove(int componentId, Vector2 position, double angle) {
@@ -602,7 +542,6 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
   // ...
 
   Future<void> startLevelSequence() async {
-      progressManager.setLastPlayedLevel(currentLevelId); // Update Last Played
       introActiveNotifier.value = false;
       hasStartedLevel.value = true;
       
@@ -617,12 +556,8 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       // Enable Physics - Request beam update
       requestBeamUpdate();
       
-      // OPTIMIZATION: Refresh caches now that components are faded in/loaded
-      refreshLevelCache();
-      
       // Secondary beam update after short delay to ensure all components are ready
       Future.delayed(const Duration(milliseconds: 50), () {
-        if (_isUnmounted) return;
         if (!_isLevelCompleted) {
           requestBeamUpdate();
         }
@@ -638,7 +573,6 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       final stepDelay = (duration * 1000 / steps).round();
       for(int i=1; i<=steps; i++) {
           await Future.delayed(Duration(milliseconds: stepDelay));
-          if (_isUnmounted) return;
           for(final c in components) {
                // Dynamic access is tricky. 
                // We know T is one of the types we modified.
@@ -669,21 +603,22 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
   Future<void> onLoad() async {
     print("=== PRISMAZE GAME onLoad START ===");
     
-    // Setup World & BeamSystem EARLY to prevent late init errors
-    world = World();
-    add(world);
+    // CRITICAL: Call super.onLoad to init camera/world
+    await super.onLoad();
     
-    beamSystem = BeamSystem();
-    world.add(beamSystem);
+    // Ensure world is in the component tree
+    if (world.parent == null) {
+      add(world);
+    }
     
-    debugOverlay = DebugOverlay();
-    world.add(debugOverlay);
+    // Ensure camera points to world
+    camera.world = world;
     
     // Audio Setup
     print("DEBUG: Loading Audio...");
     await AudioManager().loadAssets();
     await AudioManager().init(); 
-    AudioManager().setContext(AudioContext.gameplay, levelId: currentLevelId);
+    AudioManager().playGameBgm(currentLevelId);
     print("DEBUG: Audio Loaded");
     
     // Center Camera on 1280x720 Play Area
@@ -749,60 +684,26 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
     debugOverlay = DebugOverlay();
     world.add(debugOverlay);
 
-    // VISUAL DEBUG: Stage 1 - onLoad Start (Red Square)
-    world.add(RectangleComponent(
-      position: Vector2(100, 100),
-      size: Vector2(50, 50),
-      paint: Paint()..color = const Color(0xFFFF0000), // Red
-      priority: 9999,
-    ));
-
     // Level Loader
     print("DEBUG: Creating LevelLoader...");
     levelLoader = LevelLoader();
     world.add(levelLoader); 
-    
-    // CRITICAL: Wait for LevelLoader to be mounted before using gameRef
-    await levelLoader.mounted;
-    print("DEBUG: LevelLoader mounted");
-
-    // VISUAL DEBUG: Stage 2 - LevelLoader Mounted (Yellow Square)
-    world.add(RectangleComponent(
-      position: Vector2(160, 100),
-      size: Vector2(50, 50),
-      paint: Paint()..color = const Color(0xFFFFFF00), // Yellow
-      priority: 9999,
-    ));
+    print("DEBUG: LevelLoader added to world");
     
     // Load Injected Level or Asset Level
     if (isCampaignMode && currentEpisode != null && currentLevelIdx != null) {
         print("DEBUG: Loading Campaign Episode $currentEpisode Level $currentLevelIdx...");
-        
-        // VISUAL DEBUG: Stage 3 - Campaign Load Start (Blue Square)
-        world.add(RectangleComponent(
-          position: Vector2(220, 100),
-          size: Vector2(50, 50),
-          paint: Paint()..color = const Color(0xFF0000FF), // Blue
-          priority: 9999,
-        ));
-
         await levelLoader.loadCampaignLevel(currentEpisode!, currentLevelIdx!);
-        
-        // VISUAL DEBUG: Stage 4 - Campaign Load End (Green Square)
-        world.add(RectangleComponent(
-          position: Vector2(280, 100),
-          size: Vector2(50, 50),
-          paint: Paint()..color = const Color(0xFF00FF00), // Green
-          priority: 9999,
-        ));
-    } else if (isEndlessMode && _pendingGeneratedLevel != null) {
-    } else if (isEndlessMode && _pendingGeneratedLevel != null) {
+    } else if (levelData != null) {
         print("DEBUG: Loading Endless Mode level...");
-        levelLoader.loadGeneratedLevel(_pendingGeneratedLevel!);
-        currentLevelId = _pendingGeneratedLevel!.index;
-        _pendingGeneratedLevel = null;
+        isEndlessMode = true;
+        proceduralGenerator = ProceduralLevelGenerator();
+        // Endless mode: Use standard level loading path
+        await levelLoader.loadLevel(currentLevelId);
     } else {
-        print("ERROR: No valid level source (campaign/endless)");
+        print("DEBUG: Loading Campaign Level $currentLevelId...");
+        await levelLoader.loadLevel(currentLevelId);
+        print("DEBUG: Level $currentLevelId loaded!");
     }
     _updateNotifiers();
     _updateNotifiers(); // Double update to ensure UI catches up?
@@ -911,11 +812,10 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
   }
 
   void skipTutorial() {
-      // Skip tutorial and jump to level 5 (index 4) in campaign mode
-      if (isCampaignMode && currentLevelId <= 4 && currentEpisode != null) {
-          currentLevelIdx = 4; // Level 5 = index 4
+      // Logic to jump to level 5?
+      if (currentLevelId <= 4) {
+          levelLoader.loadLevel(5);
           currentLevelId = 5;
-          levelLoader.loadCampaignLevel(currentEpisode!, 4);
           _updateNotifiers();
           tutorialActiveNotifier.value = false;
       }
@@ -937,15 +837,16 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
 
   @override
   Color backgroundColor() => const Color(0xFF000000); // Fallback
-
+  
   void _updateNotifiers() {
       movesNotifier.value = moves;
       levelTimeNotifier.value = levelTime;
-      // For campaign mode, show episode-local level (1-200), not global ID (1149)
+      
+      // FIX: Show level relative to episode (1-1000) instead of absolute ID (e.g. 4185 -> 185)
       if (isCampaignMode && currentLevelIdx != null) {
-        levelNotifier.value = currentLevelIdx! + 1;
+          levelNotifier.value = currentLevelIdx! + 1;
       } else {
-        levelNotifier.value = currentLevelId;
+          levelNotifier.value = currentLevelId;
       }
   }
   void zoomIn() {
@@ -971,8 +872,6 @@ class MoveAction {
   
   MoveAction(this.componentId, this.position, this.angle);
 }
-
-
 
 
 

@@ -12,6 +12,13 @@ class AdManager extends ChangeNotifier {
   static const int maxDailyRewardedAds = 10;
   static const int interstitialInterval = 7;
   
+  /// Check if we're on a mobile platform that supports ads
+  bool get _isMobilePlatform {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.android ||
+           defaultTargetPlatform == TargetPlatform.iOS;
+  }
+  
   /* Safe Test Ad Units */
   final String _rewardedAdUnitId = 'ca-app-pub-3940256099942544~3347511713'; // TEST ID
   final String _androidTestAdUnitId = 'ca-app-pub-3940256099942544/5224354917'; // Android Test
@@ -48,8 +55,18 @@ class AdManager extends ChangeNotifier {
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     
-    // Initialize Mobile Ads SDK
-    await MobileAds.instance.initialize();
+    // Initialize Mobile Ads SDK (ONLY on mobile platforms)
+    if (_isMobilePlatform) {
+      try {
+        await MobileAds.instance.initialize();
+        debugPrint('AdManager: Mobile Ads SDK initialized');
+      } catch (e) {
+        debugPrint('AdManager: Failed to initialize Mobile Ads SDK: $e');
+        // Continue without ads - don't block game loading
+      }
+    } else {
+      debugPrint('AdManager: Skipping ads (non-mobile platform)');
+    }
 
     _isAdFree = _prefs.getBool(keyRemoveAds) ?? false;
     
@@ -66,7 +83,7 @@ class AdManager extends ChangeNotifier {
         _dailyAdsWatched = _prefs.getInt(keyDailyAdCount) ?? 0;
     }
 
-    if (!_isAdFree) {
+    if (!_isAdFree && _isMobilePlatform) {
         loadRewardedAd();
     }
   }
@@ -100,6 +117,7 @@ class AdManager extends ChangeNotifier {
   }
 
   Future<bool> showRewardedAd(String placement) async {
+    if (!_isMobilePlatform) return false; // Ads not supported on this platform
     if (_isAdFree) return true; // Ad-free users get rewards instantly? No, usually skip logic.
 
     if (!_isRewardedAdLoaded || _rewardedAd == null) {

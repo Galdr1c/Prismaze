@@ -114,8 +114,8 @@ class EpisodeConfig {
           maxMixedTargets: 0,
           mixedTargetProbability: 0.0,
           // Walls
-          minWalls: 0,
-          maxWalls: 0,
+          minWalls: 2,
+          maxWalls: 4,
           // Scrambling
           minIncorrectCritical: 1,
           maxIncorrectCritical: 2,
@@ -150,8 +150,8 @@ class EpisodeConfig {
           maxMixedTargets: 0,
           mixedTargetProbability: 0.0,
           // Walls
-          minWalls: 0,
-          maxWalls: 2,
+          minWalls: 5,
+          maxWalls: 10,
           // Scrambling
           minIncorrectCritical: 2,
           maxIncorrectCritical: 3,
@@ -187,8 +187,8 @@ class EpisodeConfig {
           maxMixedTargets: 1,
           mixedTargetProbability: 0.7, // 70% have mixed target
           // Walls (anti-shortcut)
-          minWalls: 8,
-          maxWalls: 16,
+          minWalls: 12,
+          maxWalls: 20,
           // Scrambling (60% two-taps, 40% one-tap)
           minIncorrectCritical: 5,
           maxIncorrectCritical: 7,
@@ -223,8 +223,8 @@ class EpisodeConfig {
           maxMixedTargets: 2,
           mixedTargetProbability: 0.8,
           // Walls
-          minWalls: 12,
-          maxWalls: 22,
+          minWalls: 18,
+          maxWalls: 30,
           // Scrambling
           minIncorrectCritical: 7,
           maxIncorrectCritical: 9,
@@ -260,8 +260,8 @@ class EpisodeConfig {
           maxMixedTargets: 2,
           mixedTargetProbability: 0.9,
           // Walls
-          minWalls: 16,
-          maxWalls: 28,
+          minWalls: 25,
+          maxWalls: 45,
           // Scrambling
           minIncorrectCritical: 9,
           maxIncorrectCritical: 11,

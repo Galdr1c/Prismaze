@@ -88,21 +88,50 @@ class LevelGenerator {
   final RayTracer _rayTracer = RayTracer();
 
   /// Generate a level for a given episode and index.
-  GeneratedLevel? generate(int episode, int index, int seed) {
-    final config = EpisodeConfig.forEpisode(episode);
-    final rng = Random(seed);
+  /// 
+  /// Robust: If the current episode's logic fails, it will try lower episodes 
+  /// as fallbacks to ensure generate() never returns null.
+  GeneratedLevel generate(int episode, int index, int seed) {
+    var config = EpisodeConfig.forEpisode(episode);
+    var rng = Random(seed);
 
-    for (int attempt = 0; attempt < config.generationAttempts; attempt++) {
+    // Initial robust attempt: Try standard logic with original config
+    for (int attempt = 0; attempt < config.generationAttempts * 2; attempt++) {
       final result = episode >= 3
-          ? _generateBlueprint(config, episode, index, seed, rng, attempt)
-          : _generateSimple(config, episode, index, seed, rng, attempt);
+          ? _generateBlueprint(config, episode, index, seed + attempt, rng, attempt)
+          : _generateSimple(config, episode, index, seed + attempt, rng, attempt);
 
       if (result.success && result.level != null) {
-        return result.level;
+        return result.level!;
       }
     }
 
-    return null;
+    // FALLBACK PHASE: If original episode fails, try lower episodes as generators
+    for (int fallbackEp = episode - 1; fallbackEp >= 1; fallbackEp--) {
+      final fallbackConfig = EpisodeConfig.forEpisode(fallbackEp);
+      // We still use current episode/index in metadata, but lower episode generation logic
+      for (int attempt = 0; attempt < 50; attempt++) {
+        final result = fallbackEp >= 3
+            ? _generateBlueprint(fallbackConfig, episode, index, seed + 1000 + attempt, rng, attempt)
+            : _generateSimple(fallbackConfig, episode, index, seed + 1000 + attempt, rng, attempt);
+            
+        if (result.success && result.level != null) {
+          return result.level!;
+        }
+      }
+    }
+
+    // EMERGENCY FALLBACK: Episode 1 generator is extremely likely to succeed
+    final e1Config = EpisodeConfig.forEpisode(1);
+    for (int attempt = 0; attempt < 1000; attempt++) {
+        final result = _generateSimple(e1Config, episode, index, seed + 5000 + attempt, rng, attempt);
+        if (result.success && result.level != null) {
+            return result.level!;
+        }
+    }
+
+    // This part should technically never be reached given the simple generator's success rate
+    throw Exception('CRITICAL: Level generator failed to produce a valid level for E$episode L$index after exhaustive search.');
   }
 
   /// Simple generation for E1-E2.
@@ -127,7 +156,8 @@ class LevelGenerator {
     final level = GeneratedLevel(
       seed: seed, episode: episode, index: index,
       source: source, targets: targets,
-      walls: {}, mirrors: mirrors, prisms: [],
+      walls: _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble())), 
+      mirrors: mirrors, prisms: [],
       meta: LevelMeta(optimalMoves: 0, difficultyBand: config.difficultyBand, generationAttempts: attemptNumber + 1),
       solution: [],
     );
@@ -290,8 +320,8 @@ class LevelGenerator {
 
     final totalMoves = prismTaps + mirror1Taps + mirror2Taps;
 
-    // Add walls to block shortcuts (optional)
-    final walls = <Wall>{};
+    // Add walls specifically for E3 using config
+    final walls = _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble()));
 
     return LevelBlueprint(
       source: source,
@@ -390,7 +420,7 @@ class LevelGenerator {
       targets: targets,
       mirrors: updatedMirrors,
       prisms: prisms,
-      walls: {},
+      walls: _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble())),
       plannedMoves: plannedMoves,
       totalPlannedMoves: totalMoves,
     );
@@ -491,8 +521,8 @@ class LevelGenerator {
 
     final totalMoves = splitterTaps + mirrorTaps.fold<int>(0, (a, b) => a + b);
 
-    // Add walls to protect corridor and block shortcuts
-    final walls = _placeWallsForProtection(rng, occupied, 6 + rng.nextInt(6));
+    // Add walls using full config range
+    final walls = _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble()));
 
     return LevelBlueprint(
       source: source,

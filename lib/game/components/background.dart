@@ -51,7 +51,10 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
 
   @override
   Future<void> onLoad() async {
-    size = gameRef.size;
+    // FIX: Set size to match resolution, but larger to ensure coverage
+    size = Vector2(1344, 756); 
+    position = Vector2(-32, -18); // Center the 5% zoom out (1344-1280=64, 756-720=36 -> Half is 32, 18)
+    
     _currentTheme = gameRef.customizationManager.selectedTheme;
     gameRef.customizationManager.addListener(_onThemeChanged);
     
@@ -64,14 +67,8 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     _generateDustParticles();
   }
   
-  @override
-  void onGameResize(Vector2 size) {
-      super.onGameResize(size);
-      this.size = size;
-      _generateCity();
-      _generateOcean();
-      _generateHalloween();
-  }
+  // Removed onGameResize - Background should stay at logical size (-32, -18, 1344, 756)
+  // to perfectly cover the camera's fixed resolution view.
   
   @override
   void onRemove() {
@@ -338,6 +335,29 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       
     canvas.drawRect(rect, gradient);
     
+    // FIX: Restore theme specific rendering
+    switch (_currentTheme) {
+        case 'theme_space':
+            _renderSpace(canvas);
+            break;
+        case 'theme_city':
+        case 'theme_neon':
+            _renderCity(canvas);
+            break;
+        case 'theme_ocean':
+            _renderOcean(canvas);
+            break;
+        case 'theme_halloween':
+            _renderHalloween(canvas);
+            break;
+        case 'theme_aurora':
+            _renderAurora(canvas);
+            break;
+        case 'theme_galaxy':
+            _renderGalaxy(canvas);
+            break;
+    }
+
     // Shooting Star
     if (_shootingStar != null && !gameRef.settingsManager.reducedGlowEnabled) {
       final star = _shootingStar!;
@@ -368,6 +388,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     
     // God rays removed for performance - was using expensive canvas rotation + gradient shaders
     // The vignette provides sufficient ambient lighting effect
+    _drawVignette(canvas); 
   }
   
   void _generateDustParticles() {
@@ -375,7 +396,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     final rng = Random();
     for (int i = 0; i < 20; i++) { // Reduced from 40
       _dustParticles.add(_DustParticle(
-        position: Vector2(rng.nextDouble() * 1280, rng.nextDouble() * 720),
+        position: Vector2(rng.nextDouble() * size.x, rng.nextDouble() * size.y),
         velocityX: -3 + rng.nextDouble() * 6, // Slower
         velocityY: -2 + rng.nextDouble() * 4,
         size: 1 + rng.nextDouble() * 1.5, // Smaller
@@ -466,38 +487,24 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     canvas.restore();
     
     canvas.save();
-    canvas.translate(1280, 0);
+    canvas.translate(size.x, 0);
     canvas.rotate(0.2);
     canvas.drawRect(Rect.fromLTWH(-250, -50, 300, 600), rayPaint);
     canvas.restore();
   }
   
   void _drawVignette(Canvas canvas) {
-    // Simplified vignette - just corners darkened
-    final cornerPaint = Paint()..color = Colors.black.withOpacity(0.4);
-    canvas.drawOval(Rect.fromLTWH(-200, -200, 400, 400), cornerPaint);
-    canvas.drawOval(Rect.fromLTWH(1080, -200, 400, 400), cornerPaint);
-    canvas.drawOval(Rect.fromLTWH(-200, 520, 400, 400), cornerPaint);
-    canvas.drawOval(Rect.fromLTWH(1080, 520, 400, 400), cornerPaint);
+    // Simplified vignette - corners darkened
+    final cornerPaint = Paint()..color = Colors.black.withOpacity(0.5);
+    final vSize = 400.0;
+    canvas.drawOval(Rect.fromLTWH(-vSize/2, -vSize/2, vSize, vSize), cornerPaint);
+    canvas.drawOval(Rect.fromLTWH(size.x - vSize/2, -vSize/2, vSize, vSize), cornerPaint);
+    canvas.drawOval(Rect.fromLTWH(-vSize/2, size.y - vSize/2, vSize, vSize), cornerPaint);
+    canvas.drawOval(Rect.fromLTWH(size.x - vSize/2, size.y - vSize/2, vSize, vSize), cornerPaint);
   }
   
-  void _renderSpace(Canvas canvas) {
-      // 0. Grid Background (Maze Floor - Play Area Only)
-      final gridPaint = Paint()
-        ..color = Colors.white.withOpacity(0.03) // Very subtle
-        ..strokeWidth = 1;
-
-      // Vertical Lines (Aligned with Game Grid: 55px, Offset 35.0)
-      for (double x = 35.0; x <= size.x; x += 55) {
-          canvas.drawLine(Offset(x, 0), Offset(x, size.y), gridPaint);
-      }
-      // Draw lines to the left of 35.0 too if needed (35-55 = -20, offscreen)
-
-      // Horizontal Lines (Aligned with Game Grid: 55px, Offset 112.5)
-      // Start from 112.5 % 55 = 2.5 to cover top margin
-      for (double y = 112.5 % 55.0; y <= size.y; y += 55) {
-          canvas.drawLine(Offset(0, y), Offset(size.x, y), gridPaint);
-      }
+    void _renderSpace(Canvas canvas) {
+      // User requested NO grid here as it exists in debug mode
   
       // Nebula clouds first (behind stars)
       for (final nebula in _nebulaClouds) {

@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../game/procedural/level_generator.dart';
-import '../game/procedural/models/models.dart' as proc;
+import '../game/procedural_level_generator.dart';
 import '../game/audio_manager.dart';
 import '../game/economy_manager.dart';
 import '../game/progress_manager.dart';
-import '../game/endless_run_manager.dart';
 import '../theme/app_theme.dart';
 import '../game/localization_manager.dart';
 import 'components/styled_back_button.dart';
@@ -21,7 +19,7 @@ class EndlessModeScreen extends StatefulWidget {
 }
 
 class _EndlessModeScreenState extends State<EndlessModeScreen> {
-  final LevelGenerator _generator = LevelGenerator();
+  final ProceduralLevelGenerator _generator = ProceduralLevelGenerator();
   late EconomyManager _economy;
   late ProgressManager _progress;
   bool _isLoading = true;
@@ -42,10 +40,9 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
     _progress = ProgressManager();
     await _progress.init();
     
-    // Load endless run manager
-    await EndlessRunManager().init();
-    _highestEndlessLevel = EndlessRunManager().highestIndex;
-    _totalEndlessTokens = 0; // TODO: Track tokens earned
+    // Load endless stats (would come from progress manager)
+    _highestEndlessLevel = 0; // TODO: Load from prefs
+    _totalEndlessTokens = 0;
     
     setState(() => _isLoading = false);
   }
@@ -282,47 +279,22 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
     );
   }
   
-  void _startEndless({required bool continueProgress}) async {
-    AudioManager().playSfxId(SfxId.mirrorMove);
+  void _startEndless({required bool continueProgress}) {
+    AudioManager().playSfx('whoosh.mp3');
     
-    final manager = EndlessRunManager();
+    int levelToPlay = continueProgress ? (_highestEndlessLevel + 1) : 1;
     
-    if (continueProgress) {
-      // Continue existing run
-      if (!manager.continueRun()) {
-        // No active run, start new
-        await manager.startNewRun();
-      }
-    } else {
-      // Start new run
-      await manager.startNewRun();
-    }
+    // Generate endless level
+    final levelData = _generator.generateLevel(levelToPlay);
     
-    final levelIndex = manager.currentIndex;
-    final seed = manager.deriveSeed(levelIndex);
-    final difficultyEpisode = manager.getDifficultyEpisode();
-    
-    // Generate endless level with deterministic seed
-    final level = _generator.generate(difficultyEpisode, levelIndex, seed);
-    
-    if (level != null) {
-      Navigator.push(
-        context,
-        FastPageRoute(
-          page: GameScreen(
-              levelId: levelIndex,
-              generatedLevel: level,
-              isEndlessMode: true,
-          ),
+    Navigator.push(
+      context,
+      FastPageRoute(
+        page: GameScreen(
+            levelId: levelToPlay,
+            levelData: levelData,
         ),
-      );
-    } else {
-      // Generation failed, show error
-      debugPrint('Endless level generation failed for level $levelIndex (seed=$seed)');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Level generation failed. Please try again.')),
-      );
-    }
+      ),
+    );
   }
 }
-

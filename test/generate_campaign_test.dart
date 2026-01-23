@@ -41,28 +41,32 @@ Future<void> _generateEpisode(LevelGenerator generator, int episode) async {
     GeneratedLevel? level;
     int seedBase = (episode * 10000) + i;
     int currentSeed = seedBase;
+    int localRetryCount = 0;
     
-    // Retry logic
-    for (int attempt = 0; attempt < 20; attempt++) {
-      level = generator.generate(episode, i, currentSeed);
-      if (level != null) break;
-      currentSeed = seedBase + (attempt + 1) * 777; // Shift seed
-      retryCount++;
+    // EXHAUSTIVE SEED SCANNING
+    while (level == null) {
+      try {
+        level = generator.generate(episode, i, currentSeed);
+      } catch (e) {
+        // If generate() throws, we try a new seed
+        currentSeed += 997; 
+        localRetryCount++;
+        retryCount++;
+        if (localRetryCount % 10 == 0) {
+            stdout.write('\rEpisode $episode L$i: Searching seeds... ($localRetryCount attempts)');
+        }
+      }
     }
 
-    if (level != null) {
-      levels.add({
-        'version': 1,
-        'episode': episode,
-        'index': i,
-        'seed': currentSeed,
-        'level': level.toJson(),
-      });
-      successCount++;
-      stdout.write('\rProgess: $i/200 OK (Retries: $retryCount)');
-    } else {
-      print('\n❌ Failed to generate Level $i after 20 attempts');
-    }
+    levels.add({
+      'version': 1,
+      'episode': episode,
+      'index': i,
+      'seed': currentSeed,
+      'level': level.toJson(),
+    });
+    successCount++;
+    stdout.write('\rProgress: Episode $episode [$i/200] OK (Total Retries: $retryCount)    ');
   }
 
   stopwatch.stop();

@@ -122,7 +122,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
           // Header
           GestureDetector(
             onTap: () {
-              AudioManager().playSfxId(SfxId.uiClick);
+              AudioManager().playSfx('soft_button_click.mp3');
               if (isUnlocked) {
                 setState(() => _expandedWorldId = isExpanded ? null : world.id);
               } else {
@@ -201,7 +201,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
           return GestureDetector(
             onTap: () {
               if (isUnlocked) {
-                AudioManager().playSfxId(SfxId.uiClick);
+                AudioManager().playSfx('soft_button_click.mp3');
                 Navigator.push(context, FastPageRoute(page: GameScreen(levelId: levelId)));
               } else {
                 _showLockedLevelWarning(levelId);
@@ -251,7 +251,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
   }
 
   void _showLockedWarning() {
-    AudioManager().playSfxId(SfxId.error);
+    AudioManager().playSfx('error_sound.mp3');
     final loc = LocalizationManager();
     
     showDialog(
@@ -299,7 +299,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
                 const SizedBox(height: 20),
                 GestureDetector(
                   onTap: () {
-                    AudioManager().playSfxId(SfxId.uiClick);
+                    AudioManager().playSfx('soft_button_click.mp3');
                     Navigator.pop(ctx);
                   },
                   child: Container(
@@ -321,7 +321,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
   }
 
   void _showLockedLevelWarning(int levelId) {
-    AudioManager().playSfxId(SfxId.error);
+    AudioManager().playSfx('error_sound.mp3');
     final loc = LocalizationManager();
     final neededLevel = levelId - 1;
     
@@ -360,7 +360,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
                   const SizedBox(height: 20),
                   GestureDetector(
                     onTap: () {
-                      AudioManager().playSfxId(SfxId.uiClick);
+                      AudioManager().playSfx('soft_button_click.mp3');
                       Navigator.pop(ctx);
                     },
                     child: Container(
@@ -378,4 +378,3 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
     );
   }
 }
-

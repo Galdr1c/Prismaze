@@ -119,23 +119,33 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
         ..strokeWidth = 3,
     );
     
-    // Draw grid
+    // Draw centered 22x9 grid (matches LevelLoader)
     const gridSize = 55.0;
+    const double offsetX = 35.0;
+    const double offsetY = 112.5;
+    const int cols = 22;
+    const int rows = 9;
+    
     final gridPaint = Paint()
-      ..color = Colors.cyan.withOpacity(0.1)
+      ..color = Colors.cyan.withOpacity(0.15)
       ..strokeWidth = 1;
     
-    for (double x = area.left; x <= area.right; x += gridSize) {
+    // Vertical lines
+    for (int i = 0; i <= cols; i++) {
+      final x = offsetX + i * gridSize;
       canvas.drawLine(
-        Offset(x, area.top),
-        Offset(x, area.bottom),
+        Offset(x, offsetY),
+        Offset(x, offsetY + rows * gridSize),
         gridPaint,
       );
     }
-    for (double y = area.top; y <= area.bottom; y += gridSize) {
+    
+    // Horizontal lines
+    for (int i = 0; i <= rows; i++) {
+      final y = offsetY + i * gridSize;
       canvas.drawLine(
-        Offset(area.left, y),
-        Offset(area.right, y),
+        Offset(offsetX, y),
+        Offset(offsetX + cols * gridSize, y),
         gridPaint,
       );
     }
