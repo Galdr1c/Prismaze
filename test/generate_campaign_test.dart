@@ -21,7 +21,7 @@ void main() async {
   }
 
   // Generate 5 Episodes
-  for (int episode = 1; episode <= 5; episode++) {
+  for (int episode = 1; episode <= 1; episode++) {
     await _generateEpisode(generator, episode);
   }
 

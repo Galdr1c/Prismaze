@@ -35,7 +35,7 @@ class RayTracerAdapter {
   RayTracerAdapter({
     Vector2? boardOffset,
     this.cellSize = 55.0,
-  }) : boardOffset = boardOffset ?? Vector2.zero();
+  }) : boardOffset = boardOffset ?? Vector2(35.0, 112.5);
 
   /// Convert TraceResult segments to pixel-space RenderSegments.
   List<RenderSegment> convertToPixelSegments(TraceResult result) {

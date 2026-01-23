@@ -149,6 +149,10 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     final solutionJson = level.solution.map((s) => s.toJson()).toList();
     gameRef.hintManager.loadSolution(solutionJson, objectMap);
     
+    // CRITICAL: Refresh BeamSystem cache to drop old components and pick up new ones
+    gameRef.beamSystem.refreshCache();
+    gameRef.beamSystem.clearBeams(); // Ensure no stale segments
+    
     debugPrint("Generated level loaded: Episode ${level.episode} Index ${level.index}");
   }
 
@@ -279,6 +283,10 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     final solutionSteps = data['solutionSteps'] as List? ?? [];
     gameRef.hintManager.loadSolution(solutionSteps, objectMap);
     
+    // CRITICAL: Refresh BeamSystem cache
+    gameRef.beamSystem.refreshCache();
+    gameRef.beamSystem.clearBeams();
+    
     print("Procedural level loaded: ${objectMap.length} objects");
   }
   
@@ -376,6 +384,11 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
 
      // 6. Hint/Solution
      gameRef.hintManager.loadSolution(def.solutionSteps, objectMap);
+     
+     // CRITICAL: Refresh BeamSystem cache
+     gameRef.beamSystem.refreshCache();
+     gameRef.beamSystem.clearBeams();
+     
      print("DEBUG _loadFromDef: COMPLETE - ${objectMap.length} objects loaded");
   }
 

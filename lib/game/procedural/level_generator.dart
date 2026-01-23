@@ -156,7 +156,7 @@ class LevelGenerator {
     final level = GeneratedLevel(
       seed: seed, episode: episode, index: index,
       source: source, targets: targets,
-      walls: _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble())), 
+      walls: _placeDecorativeStructures(rng, occupied, config.minWalls), // Use decorative logic + min count
       mirrors: mirrors, prisms: [],
       meta: LevelMeta(optimalMoves: 0, difficultyBand: config.difficultyBand, generationAttempts: attemptNumber + 1),
       solution: [],
@@ -548,6 +548,55 @@ class LevelGenerator {
         walls.add(Wall(position: GridPosition(x, y)));
         occupied.add(key);
       }
+    }
+    
+    return walls;
+  }
+
+  /// Place decorative structures (L, T, Box shapes) to fill empty space.
+  /// 
+  /// This creates a more "constructed" feel rather than random noise.
+  Set<Wall> _placeDecorativeStructures(Random rng, Set<String> occupied, int minCount) {
+    final walls = <Wall>{};
+    
+    // Structure templates (relative coordinates)
+    const shapes = [
+      [Point(0,0), Point(1,0), Point(0,1)], // L-Shape small
+      [Point(0,0), Point(1,0), Point(1,1), Point(0,1)], // Box 2x2
+      [Point(0,0), Point(1,0), Point(2,0)], // Line 3
+      [Point(1,0), Point(0,1), Point(1,1), Point(2,1)], // T-Shape
+      [Point(0,0), Point(0,1), Point(0,2), Point(1,2)], // L-Shape long
+    ];
+    
+    // Try to place shapes first
+    for (int attempts = 0; attempts < 20; attempts++) {
+      final shape = shapes[rng.nextInt(shapes.length)];
+      final originX = 2 + rng.nextInt(GridPosition.gridWidth - 5);
+      final originY = 2 + rng.nextInt(GridPosition.gridHeight - 5);
+      
+      bool canPlace = true;
+      for (final p in shape) {
+        final key = '${originX + p.x},${originY + p.y}';
+        if (occupied.contains(key)) {
+          canPlace = false;
+          break;
+        }
+      }
+      
+      if (canPlace) {
+        for (final p in shape) {
+          final pos = GridPosition(originX + p.x, originY + p.y);
+          if (!walls.any((w) => w.position == pos)) { // Avoid dupes
+             walls.add(Wall(position: pos));
+             occupied.add('${pos.x},${pos.y}');
+          }
+        }
+      }
+    }
+    
+    // Fill remaining quota with random/smart walls if needed
+    if (walls.length < minCount) {
+       walls.addAll(_placeWallsForProtection(rng, occupied, minCount - walls.length));
     }
     
     return walls;

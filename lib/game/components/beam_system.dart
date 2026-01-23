@@ -113,16 +113,16 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   
   /// Call this when the level loads or components change significantly (not on move)
   void refreshCache() {
-     _cachedMirrors.clear(); _cachedMirrors.addAll(gameRef.world.children.whereType<Mirror>());
-     _cachedWalls.clear(); _cachedWalls.addAll(gameRef.world.children.whereType<Wall>());
-     _cachedPrisms.clear(); _cachedPrisms.addAll(gameRef.world.children.whereType<Prism>());
-     _cachedTargets.clear(); _cachedTargets.addAll(gameRef.world.children.whereType<Target>());
-     _cachedFilters.clear(); _cachedFilters.addAll(gameRef.world.children.whereType<Filter>());
-     _cachedGlassWalls.clear(); _cachedGlassWalls.addAll(gameRef.world.children.whereType<GlassWall>());
-     _cachedSplitters.clear(); _cachedSplitters.addAll(gameRef.world.children.whereType<Splitter>());
-     _cachedPortals.clear(); _cachedPortals.addAll(gameRef.world.children.whereType<Portal>());
-     _cachedAbsorbingWalls.clear(); _cachedAbsorbingWalls.addAll(gameRef.world.children.whereType<AbsorbingWall>());
-     _cachedSources.clear(); _cachedSources.addAll(gameRef.world.children.whereType<LightSource>());
+     _cachedMirrors.clear(); _cachedMirrors.addAll(gameRef.world.children.whereType<Mirror>().where((c) => !c.isRemoving));
+     _cachedWalls.clear(); _cachedWalls.addAll(gameRef.world.children.whereType<Wall>().where((c) => !c.isRemoving));
+     _cachedPrisms.clear(); _cachedPrisms.addAll(gameRef.world.children.whereType<Prism>().where((c) => !c.isRemoving));
+     _cachedTargets.clear(); _cachedTargets.addAll(gameRef.world.children.whereType<Target>().where((c) => !c.isRemoving));
+     _cachedFilters.clear(); _cachedFilters.addAll(gameRef.world.children.whereType<Filter>().where((c) => !c.isRemoving));
+     _cachedGlassWalls.clear(); _cachedGlassWalls.addAll(gameRef.world.children.whereType<GlassWall>().where((c) => !c.isRemoving));
+     _cachedSplitters.clear(); _cachedSplitters.addAll(gameRef.world.children.whereType<Splitter>().where((c) => !c.isRemoving));
+     _cachedPortals.clear(); _cachedPortals.addAll(gameRef.world.children.whereType<Portal>().where((c) => !c.isRemoving));
+     _cachedAbsorbingWalls.clear(); _cachedAbsorbingWalls.addAll(gameRef.world.children.whereType<AbsorbingWall>().where((c) => !c.isRemoving));
+     _cachedSources.clear(); _cachedSources.addAll(gameRef.world.children.whereType<LightSource>().where((c) => !c.isRemoving));
      
      // Sort targets for sequencing logic
      _cachedTargets.sort((a, b) => a.sequenceIndex.compareTo(b.sequenceIndex));
@@ -225,6 +225,8 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   void clearBeams() {
       _segments.clear();
       _particles.clear();
+      _externalSegments = null; // Guardrail: Ensure external segments are cleared on level reset
+      _cachedPaths.clear(); // CRITICAL FIX: Clear visual cache to prevent ghost beams during transition
   }
   
   void _recalculateBeams() {

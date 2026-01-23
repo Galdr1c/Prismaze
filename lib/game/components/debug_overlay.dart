@@ -32,8 +32,8 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
   
   @override
   void update(double dt) {
-    // Check if debug mode changed (Force ON in debug builds for verification)
-    _debugEnabled = gameRef.settingsManager.debugModeEnabled || kDebugMode;
+    // Check if debug mode changed
+    _debugEnabled = gameRef.settingsManager.debugModeEnabled;
     
     // Smooth FPS
     if (dt > 0) {

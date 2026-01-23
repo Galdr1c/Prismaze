@@ -61,6 +61,11 @@ class HintManager extends Component with HasGameRef<PrismazeGame> {
       _activeHintEffect!.removeFromParent();
       _activeHintEffect = null;
     }
+    
+    // CRITICAL FIX: Ensure external beam segments are cleared when hint is cleared
+    final beamSystem = gameRef.world.children.whereType<BeamSystem>().firstOrNull;
+    beamSystem?.clearExternalSegments();
+    
     _activeSession = null;
     _isAnimating = false;
     _onAnimationComplete = null;
@@ -327,8 +332,10 @@ class HintManager extends Component with HasGameRef<PrismazeGame> {
   
   /// Update ray visualization during animation.
   void _updateRaysForAnimation(proc.HintAnimationStep step) {
-    // Use the RayTracerAdapter to convert segments
-    final adapter = proc.RayTracerAdapter();
+    // Use the RayTracerAdapter with correct board offset (matches LevelLoader)
+    final adapter = proc.RayTracerAdapter(
+      boardOffset: Vector2(35.0, 112.5),
+    );
     final segments = adapter.convertToPixelSegments(step.traceResult);
     
     // Update BeamSystem with new segments
@@ -344,6 +351,8 @@ class HintManager extends Component with HasGameRef<PrismazeGame> {
     clearHint();
     
     // Restore original ray state
+    final beamSystem = gameRef.world.children.whereType<BeamSystem>().firstOrNull;
+    beamSystem?.clearExternalSegments();
     gameRef.requestBeamUpdate();
     
     _onAnimationComplete?.call();
