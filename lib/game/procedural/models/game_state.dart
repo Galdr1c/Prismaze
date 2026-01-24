@@ -67,6 +67,20 @@ class GameState {
         (newState.prismOrientations[index] + 1) % 4;
     return newState;
   }
+  
+  /// Create a new state with specific mirror orientation.
+  GameState withMirrorOrientation(int index, int orientation) {
+    final newState = copy();
+    newState.mirrorOrientations[index] = orientation % 4;
+    return newState;
+  }
+
+  /// Create a new state with specific prism orientation.
+  GameState withPrismOrientation(int index, int orientation) {
+    final newState = copy();
+    newState.prismOrientations[index] = orientation % 4;
+    return newState;
+  }
 
   /// Create a new state with target progress updated from ray trace.
   /// 

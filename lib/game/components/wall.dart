@@ -9,6 +9,7 @@ import '../utils/visual_effects.dart';
 class Wall extends PositionComponent with HasGameRef<PrismazeGame> {
   double opacity = 1.0;
   double _time = 0;
+  bool shouldRender = true; // Added for WallCluster compatibility
   
   // Texture pattern
   static ui.Image? _patternImage;
@@ -146,7 +147,7 @@ class Wall extends PositionComponent with HasGameRef<PrismazeGame> {
 
   @override
   void render(Canvas canvas) {
-    if (opacity == 0) return;
+    if (opacity == 0 || !shouldRender) return;
     
     final rect = size.toRect();
     final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(4));
@@ -168,16 +169,17 @@ class Wall extends PositionComponent with HasGameRef<PrismazeGame> {
       return;
     }
 
-    // === LAYER 1: Outer Glow Haze ===
+    // === LAYER 1: Outer Glow Haze (Optimized) ===
     if (!reducedGlow) {
-      VisualEffects.drawCrystalGlow(
-        canvas,
-        rrect,
-        _glowColor,
-        intensity: 0.6 + 0.2 * sin(_time * 2),
-        opacity: opacity,
-        reducedGlow: reducedGlow,
-      );
+         // Using optimized single-layer glow from VisualEffects
+         VisualEffects.drawCrystalGlow(
+            canvas,
+            rrect,
+            _glowColor,
+            intensity: 0.6 + 0.2 * sin(_time * 2),
+            opacity: opacity,
+            reducedGlow: false, // Internal logic is already optimized
+         );
     }
 
     // === LAYER 2: Base Gradient Body ===
@@ -197,36 +199,9 @@ class Wall extends PositionComponent with HasGameRef<PrismazeGame> {
       Paint()..shader = bodyGradient.createShader(rect),
     );
 
-    // === LAYER 3: Subtle Pattern Overlay ===
-    if (_patternImage != null && !reducedGlow) {
-      canvas.save();
-      canvas.clipRRect(rrect);
-      
-      // Scale pattern (0.3x) with random offset for variation
-      final scale = 0.3;
-      final scaleMatrix = Float64List.fromList([
-        scale, 0, 0, 0,
-        0, scale, 0, 0,
-        0, 0, 1, 0,
-        _patternOffsetX * scale, _patternOffsetY * scale, 0, 1
-      ]);
-      
-      final shader = ui.ImageShader(
-        _patternImage!,
-        ui.TileMode.repeated,
-        ui.TileMode.repeated,
-        scaleMatrix,
-      );
-      
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..shader = shader
-          ..blendMode = BlendMode.overlay
-          ..color = Colors.white.withOpacity(opacity * 0.35), // Very subtle
-      );
-      canvas.restore();
-    }
+    // === LAYER 3: Subtle Pattern Overlay (Removed for Performance) ===
+    // Pattern drawing with blend modes is very expensive on every frame.
+    // Removed to boost FPS.
 
     // === LAYER 3: Bevel Effect (3D Depth) ===
     VisualEffects.drawBeveledEdge(

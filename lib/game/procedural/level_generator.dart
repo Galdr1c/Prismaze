@@ -67,6 +67,52 @@ class LevelBlueprint {
   });
 }
 
+/// A more integrated blueprint that tracks the intended solution path.
+class ProperBlueprint {
+  final Source source;
+  final List<Target> targets;
+  final List<Mirror> mirrors;
+  final List<Prism> prisms;
+  final Set<Wall> walls;
+  final List<PlannedMove> plannedMoves;
+  final int totalPlannedMoves;
+  
+  /// The cells that the light MUST pass through to solve the level.
+  final Set<GridPosition> solutionPath;
+  
+  /// The directions the light travels along the path.
+  final Map<GridPosition, List<Direction>> pathDirections;
+
+  const ProperBlueprint({
+    required this.source,
+    required this.targets,
+    required this.mirrors,
+    required this.prisms,
+    required this.walls,
+    required this.plannedMoves,
+    required this.totalPlannedMoves,
+    required this.solutionPath,
+    required this.pathDirections,
+  });
+}
+
+/// A critical point in the solution path where an object must exist.
+class BlueprintPoint {
+  final GridPosition position;
+  final OccupantType type;
+  final Direction incomingDir;
+  final Direction outgoingDir;
+  final int solvedOrientation; // 0-3
+
+  const BlueprintPoint({
+    required this.position,
+    required this.type,
+    required this.incomingDir,
+    required this.outgoingDir,
+    required this.solvedOrientation,
+  });
+}
+
 /// Result of a generation attempt.
 class GenerationAttempt {
   final bool success;
@@ -156,7 +202,7 @@ class LevelGenerator {
     final level = GeneratedLevel(
       seed: seed, episode: episode, index: index,
       source: source, targets: targets,
-      walls: _placeDecorativeStructures(rng, occupied, config.minWalls), // Use decorative logic + min count
+      walls: _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble())), 
       mirrors: mirrors, prisms: [],
       meta: LevelMeta(optimalMoves: 0, difficultyBand: config.difficultyBand, generationAttempts: attemptNumber + 1),
       solution: [],
@@ -190,26 +236,51 @@ class LevelGenerator {
   GenerationAttempt _generateBlueprint(
     EpisodeConfig config, int episode, int index, int seed, Random rng, int attemptNumber,
   ) {
-    // Build appropriate blueprint based on episode
-    LevelBlueprint? blueprint;
-    if (episode >= 5) {
-      blueprint = _buildFourPhaseBlueprint(config, rng);  // E5: 4 targets, 2 prisms
-    } else if (episode >= 4) {
-      blueprint = _buildThreePhaseBlueprint(config, rng); // E4: 2 mixed targets
-    } else {
-      blueprint = _buildTwoPhaseBlueprint(config, rng);   // E3: 1 purple target
-    }
-    
-    if (blueprint == null) {
-      return GenerationAttempt(success: false, rejectionReason: RejectionReason.blueprintFailed, attemptNumber: attemptNumber);
-    }
+    // Check if we should use the new "Proper Blueprint" system
+    return _generateProperBlueprint(config, episode, index, seed, rng, attemptNumber);
+  }
 
-    // Create level from blueprint
+  /// THE PROPER BLUEPRINT FLOW
+  GenerationAttempt _generateProperBlueprint(
+    EpisodeConfig config, int episode, int index, int seed, Random rng, int attemptNumber,
+  ) {
+    final occupied = <String>{};
+    final criticalPoints = <BlueprintPoint>[];
+    final directions = <GridPosition, List<Direction>>{};
+
+    // 1. Place Source
+    final source = _placeSource(rng, occupied);
+    occupied.add(_key(source.position));
+
+    // 2. Select Targets
+    int targetCount = episode >= 5 ? 3 : (episode >= 4 ? 2 : 1);
+    final targets = _placeTargetsSimple(rng, targetCount, occupied, source.position);
+    if (targets.length < targetCount) {
+      return GenerationAttempt(success: false, rejectionReason: RejectionReason.noValidTargetPositions, attemptNumber: attemptNumber);
+    }
+    for (final t in targets) occupied.add(_key(t.position));
+
+    // 3. Draw Solution Path
+    final path = _drawSolutionPath(source, targets.map((t) => t.position).toList(), rng, criticalPoints, directions);
+    
+    // 4. Place Objects on Path
+    final mirrors = <Mirror>[];
+    final prisms = <Prism>[];
+    _placeObjectsOnPath(criticalPoints, mirrors, prisms, occupied);
+
+    // 5. Scramble
+    final blueprint = _scrambleBlueprint(
+      source, targets, mirrors, prisms, path, directions, 
+      config.getInRange(config.minMoves, config.maxMoves, rng.nextDouble()), 
+      rng,
+    );
+
+    // 6. Build GeneratedLevel
     final level = GeneratedLevel(
       seed: seed, episode: episode, index: index,
       source: blueprint.source,
       targets: blueprint.targets,
-      walls: blueprint.walls,
+      walls: _placeWallsAvoidingPath(rng, occupied, path, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble())),
       mirrors: blueprint.mirrors,
       prisms: blueprint.prisms,
       meta: LevelMeta(
@@ -220,18 +291,18 @@ class LevelGenerator {
       solution: blueprint.plannedMoves.expand((pm) => pm.toSolutionMoves()).toList(),
     );
 
-    // VALIDATION PHASE 1: Simulate planned solution (fast)
-    final validationResult = _validatePlannedSolution(level, blueprint.plannedMoves);
-    if (!validationResult) {
+    // 7. Validation
+    // Fast simulation check
+    if (!_validateProperBlueprint(level, blueprint.plannedMoves)) {
       return GenerationAttempt(success: false, rejectionReason: RejectionReason.plannedSolutionFailed, attemptNumber: attemptNumber);
     }
 
-    // VALIDATION PHASE 2: Bounded shortcut search (reject if solvable under minMoves)
+    // Shortcut Check (Bounded BFS)
     if (blueprint.totalPlannedMoves >= config.minMoves) {
       final initialState = GameState.fromLevel(level);
       final shortcutCheck = _solver.solveWithMaxDepth(
         level, initialState,
-        maxDepth: config.minMoves - 1,
+        maxDepth: (blueprint.totalPlannedMoves * 0.7).floor().clamp(1, config.minMoves - 1),
         budget: 5000,
       );
       if (shortcutCheck.solvable) {
@@ -240,6 +311,33 @@ class LevelGenerator {
     }
 
     return GenerationAttempt(success: true, level: level, attemptNumber: attemptNumber);
+  }
+
+  /// Simulation validation for the proper blueprint.
+  bool _validateProperBlueprint(GeneratedLevel level, List<PlannedMove> plannedMoves) {
+    return _validatePlannedSolution(level, plannedMoves);
+  }
+
+  /// Optimized wall placement that avoids the protected solution corridor.
+  Set<Wall> _placeWallsAvoidingPath(Random rng, Set<String> occupied, Set<GridPosition> path, int count) {
+    final walls = <Wall>{};
+    final occupiedKeys = {...occupied};
+    
+    // Protection: Add all path cells to a temp "don't place here" set
+    for (final p in path) occupiedKeys.add(_key(p));
+
+    for (int attempts = 0; attempts < count * 20 && walls.length < count; attempts++) {
+      final x = 1 + rng.nextInt(GridPosition.gridWidth - 2);
+      final y = 1 + rng.nextInt(GridPosition.gridHeight - 2);
+      final key = '$x,$y';
+      
+      if (!occupiedKeys.contains(key)) {
+        walls.add(Wall(position: GridPosition(x, y)));
+        occupiedKeys.add(key);
+      }
+    }
+    
+    return walls;
   }
 
   /// Build a two-phase mixing blueprint for purple target.
@@ -553,55 +651,6 @@ class LevelGenerator {
     return walls;
   }
 
-  /// Place decorative structures (L, T, Box shapes) to fill empty space.
-  /// 
-  /// This creates a more "constructed" feel rather than random noise.
-  Set<Wall> _placeDecorativeStructures(Random rng, Set<String> occupied, int minCount) {
-    final walls = <Wall>{};
-    
-    // Structure templates (relative coordinates)
-    const shapes = [
-      [Point(0,0), Point(1,0), Point(0,1)], // L-Shape small
-      [Point(0,0), Point(1,0), Point(1,1), Point(0,1)], // Box 2x2
-      [Point(0,0), Point(1,0), Point(2,0)], // Line 3
-      [Point(1,0), Point(0,1), Point(1,1), Point(2,1)], // T-Shape
-      [Point(0,0), Point(0,1), Point(0,2), Point(1,2)], // L-Shape long
-    ];
-    
-    // Try to place shapes first
-    for (int attempts = 0; attempts < 20; attempts++) {
-      final shape = shapes[rng.nextInt(shapes.length)];
-      final originX = 2 + rng.nextInt(GridPosition.gridWidth - 5);
-      final originY = 2 + rng.nextInt(GridPosition.gridHeight - 5);
-      
-      bool canPlace = true;
-      for (final p in shape) {
-        final key = '${originX + p.x},${originY + p.y}';
-        if (occupied.contains(key)) {
-          canPlace = false;
-          break;
-        }
-      }
-      
-      if (canPlace) {
-        for (final p in shape) {
-          final pos = GridPosition(originX + p.x, originY + p.y);
-          if (!walls.any((w) => w.position == pos)) { // Avoid dupes
-             walls.add(Wall(position: pos));
-             occupied.add('${pos.x},${pos.y}');
-          }
-        }
-      }
-    }
-    
-    // Fill remaining quota with random/smart walls if needed
-    if (walls.length < minCount) {
-       walls.addAll(_placeWallsForProtection(rng, occupied, minCount - walls.length));
-    }
-    
-    return walls;
-  }
-
   /// Find a position in a given direction from start.
   GridPosition? _findPositionInDirection(GridPosition start, Direction dir, Random rng, int minDist, int maxDist) {
     for (int attempts = 0; attempts < 20; attempts++) {
@@ -771,6 +820,216 @@ class LevelGenerator {
       }
     }
     return null;
+  }
+
+  Set<GridPosition> _drawSolutionPath(
+    Source source, 
+    List<GridPosition> targetPositions, 
+    Random rng,
+    List<BlueprintPoint> criticalPoints,
+    Map<GridPosition, List<Direction>> directions,
+  ) {
+    final path = <GridPosition>{source.position};
+    final List<GridPosition> activePoints = [source.position];
+    final Map<GridPosition, Direction> pointOutDir = {source.position: source.direction};
+
+    // For multi-target levels, we might need a Prism for branching
+    bool usedPrism = false;
+
+    for (int i = 0; i < targetPositions.length; i++) {
+        final targetPos = targetPositions[i];
+        
+        // Find a point on existing path to branch from
+        final branchFrom = activePoints[rng.nextInt(activePoints.length)];
+        
+        // If it's a first branch in a multi-target level, force a Prism point
+        bool forcePrism = !usedPrism && i > 0;
+
+        _connectToTarget(branchFrom, pointOutDir[branchFrom]!, targetPos, path, directions, criticalPoints, rng, activePoints, pointOutDir, forcePrism: forcePrism);
+        
+        if (forcePrism) usedPrism = true;
+    }
+    
+    return path;
+  }
+
+  void _connectToTarget(
+    GridPosition start,
+    Direction startDir,
+    GridPosition target,
+    Set<GridPosition> path,
+    Map<GridPosition, List<Direction>> directions,
+    List<BlueprintPoint> criticalPoints,
+    Random rng,
+    List<GridPosition> activePoints,
+    Map<GridPosition, Direction> pointOutDir,
+    {bool forcePrism = false}
+  ) {
+    var current = start;
+    var dir = startDir;
+    
+    if (forcePrism) {
+        final splitDir = rng.nextBool() ? dir.rotateLeft : dir.rotateRight;
+        criticalPoints.add(BlueprintPoint(
+            position: current,
+            type: OccupantType.prism,
+            incomingDir: dir,
+            outgoingDir: splitDir,
+            solvedOrientation: 0,
+        ));
+        dir = splitDir;
+    }
+
+    // Simple Manhattan-style path toward target with some random turns
+    for (int step = 0; step < 40; step++) {
+      final next = GridPosition(current.x + dir.dx, current.y + dir.dy);
+      
+      if (!next.isValid) {
+        // Turn if blocked by edge
+        dir = rng.nextBool() ? dir.rotateLeft : dir.rotateRight;
+        continue;
+      }
+      
+      path.add(next);
+      activePoints.add(next);
+      directions.putIfAbsent(current, () => []).add(dir);
+      pointOutDir[next] = dir;
+      
+      if (next == target) break;
+      
+      // Decide whether to turn toward target
+      final dx = target.x - next.x;
+      final dy = target.y - next.y;
+      
+      bool shouldTurn = false;
+      Direction? newDir;
+      
+      if (dx != 0 && dir.dx == 0 && rng.nextDouble() < 0.3) {
+        shouldTurn = true;
+        newDir = dx > 0 ? Direction.east : Direction.west;
+      } else if (dy != 0 && dir.dy == 0 && rng.nextDouble() < 0.3) {
+        shouldTurn = true;
+        newDir = dy > 0 ? Direction.south : Direction.north;
+      }
+      
+      if (shouldTurn && newDir != null && newDir != dir.opposite) {
+        criticalPoints.add(BlueprintPoint(
+          position: next,
+          type: OccupantType.mirror,
+          incomingDir: dir,
+          outgoingDir: newDir,
+          solvedOrientation: _calculateMirrorOrientation(dir, newDir),
+        ));
+        dir = newDir;
+      }
+      
+      current = next;
+    }
+  }
+
+  int _calculateMirrorOrientation(Direction incoming, Direction outgoing) {
+    // 0 = horizontal "-", 1 = "/", 2 = vertical "|", 3 = "\"
+    if (incoming == Direction.east) {
+      return outgoing == Direction.north ? 1 : 3;
+    }
+    if (incoming == Direction.west) {
+      return outgoing == Direction.north ? 3 : 1;
+    }
+    if (incoming == Direction.north) {
+      return outgoing == Direction.east ? 1 : 3;
+    }
+    if (incoming == Direction.south) {
+      return outgoing == Direction.east ? 3 : 1;
+    }
+    return 0;
+  }
+
+  /// Places Mirrors and Prisms based on identify critical points.
+  void _placeObjectsOnPath(
+    List<BlueprintPoint> criticalPoints,
+    List<Mirror> mirrors,
+    List<Prism> prisms,
+    Set<String> occupied,
+  ) {
+    for (final cp in criticalPoints) {
+      if (occupied.contains(_key(cp.position))) continue;
+      
+      if (cp.type == OccupantType.mirror) {
+        mirrors.add(Mirror(
+          position: cp.position,
+          orientation: MirrorOrientationExtension.fromInt(cp.solvedOrientation),
+          rotatable: true,
+        ));
+      } else if (cp.type == OccupantType.prism) {
+        prisms.add(Prism(
+          position: cp.position,
+          orientation: cp.solvedOrientation,
+          rotatable: true,
+          type: PrismType.splitter,
+        ));
+      }
+      occupied.add(_key(cp.position));
+    }
+  }
+
+  /// Scrambles the solution by offsetting orientations.
+  /// 
+  /// The total number of taps applied becomes the level's parMoves.
+  ProperBlueprint _scrambleBlueprint(
+    Source source,
+    List<Target> targets,
+    List<Mirror> solvedMirrors,
+    List<Prism> solvedPrisms,
+    Set<GridPosition> path,
+    Map<GridPosition, List<Direction>> directions,
+    int targetMoves,
+    Random rng,
+  ) {
+    final scrambledMirrors = <Mirror>[];
+    final scrambledPrisms = <Prism>[];
+    final plannedMoves = <PlannedMove>[];
+    int totalMoves = 0;
+
+    // SCRAMBLE MIRRORS
+    for (int i = 0; i < solvedMirrors.length; i++) {
+      final taps = 1 + rng.nextInt(3); // 1-3 taps to scramble
+      final initialOri = (solvedMirrors[i].orientation.index - taps + 4) % 4;
+      
+      scrambledMirrors.add(solvedMirrors[i].copyWith(
+        orientation: MirrorOrientationExtension.fromInt(initialOri),
+      ));
+      
+      plannedMoves.add(PlannedMove(type: MoveType.rotateMirror, objectIndex: i, taps: taps));
+      totalMoves += taps;
+    }
+
+    // SCRAMBLE PRISMS
+    for (int i = 0; i < solvedPrisms.length; i++) {
+        final taps = 1 + rng.nextInt(3);
+        final initialOri = (solvedPrisms[i].orientation - taps + 4) % 4;
+        
+        scrambledPrisms.add(Prism(
+            position: solvedPrisms[i].position,
+            orientation: initialOri,
+            rotatable: solvedPrisms[i].rotatable,
+            type: solvedPrisms[i].type,
+        ));
+        
+        plannedMoves.add(PlannedMove(type: MoveType.rotatePrism, objectIndex: i, taps: taps));
+        totalMoves += taps;
+    }
+
+    return ProperBlueprint(
+      source: source,
+      targets: targets,
+      mirrors: scrambledMirrors,
+      prisms: scrambledPrisms,
+      walls: {}, // Added later
+      plannedMoves: plannedMoves,
+      totalPlannedMoves: totalMoves,
+      solutionPath: path,
+      pathDirections: directions,
+    );
   }
 
   List<Mirror> _placeMirrors(Random rng, int count, Set<String> occupied) {

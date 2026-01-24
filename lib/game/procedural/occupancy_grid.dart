@@ -37,8 +37,8 @@ class OccupancyGrid {
   final Map<String, OccupantType> _occupied = {};
 
   /// Grid dimensions
-  static const int gridWidth = 22;
-  static const int gridHeight = 9;
+  static const int gridWidth = 14;
+  static const int gridHeight = 7;
 
   /// Generate a unique key for a position.
   static String _key(GridPosition pos) => '${pos.x},${pos.y}';

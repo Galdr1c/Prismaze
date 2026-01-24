@@ -3,14 +3,15 @@ import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import '../audio_manager.dart';
 import '../prismaze_game.dart';
-import '../game_bounds.dart';
 import '../utils/visual_effects.dart';
 import '../procedural/models/models.dart' as proc;
 import 'wall.dart';
 import 'prism.dart';
 import 'dart:math';
 
-class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, TapCallbacks, HasGameRef<PrismazeGame> {
+class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame> {
+  // Global index for GameState
+  final int index;
   // Visual state
   double _shineOffset = -1.0;
   bool _isRotating = false;
@@ -20,23 +21,14 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
   
   /// Discrete orientation (0-3) for the new procedural system.
   /// 0 = horizontal "_", 1 = slash "/", 2 = vertical "|", 3 = backslash "\"
-  int _discreteOrientation = 0;
+  /// Discrete orientation (0-3) linked to GameState
+  int get _discreteOrientation => gameRef.currentState.mirrorOrientations[index];
+  set _discreteOrientation(int value) => gameRef.currentState = gameRef.currentState.withMirrorOrientation(index, value);
   
   /// Whether this mirror uses discrete orientation (campaign mode).
-  /// When true, drag is disabled and tap rotates through 4 states.
+  /// When true, tap rotates through 4 states.
   bool useDiscreteOrientation = false;
   
-  /// Whether drag movement is allowed (false in campaign/episode mode).
-  bool allowDrag = true;
-  
-  // Track move for undo
-  Vector2 _dragStartPos = Vector2.zero();
-  double _dragStartAngle = 0;
-  
-  // Track for movement detection
-  DateTime _dragStartTime = DateTime.now();
-  bool _hasMoved = false;
-
   double opacity = 1.0;
   
   // Premium color scheme
@@ -65,11 +57,10 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
     this.isLocked = false,
     int discreteOrientation = 0,
     this.useDiscreteOrientation = false,
-    this.allowDrag = true,
-  }) : _discreteOrientation = discreteOrientation,
-       super(
+    required this.index,
+  }) : super(
           position: position,
-          size: Vector2(54, 14), // Maximize width within 55px cell
+          size: Vector2(75, 20), // Wider for 85px cell (was 54x14)
           angle: angle,
           anchor: Anchor.center,
         );
@@ -85,9 +76,7 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
   /// Set discrete orientation and update visual angle.
   set discreteOrientation(int value) {
     _discreteOrientation = value % 4;
-    if (useDiscreteOrientation) {
-      angle = _discreteOrientationToAngle(_discreteOrientation);
-    }
+    angle = _discreteOrientationToAngle(_discreteOrientation);
   }
   
   /// Convert discrete orientation to visual angle (45° increments).
@@ -97,7 +86,7 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
   }
   
   /// Convert from procedural model.
-  factory Mirror.fromProcedural(proc.Mirror m, {bool allowDrag = false}) {
+  factory Mirror.fromProcedural(proc.Mirror m, int index) {
     final angle = _discreteOrientationToAngle(m.orientation.index);
     return Mirror(
       position: Vector2(
@@ -108,54 +97,49 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
       isLocked: !m.rotatable,
       discreteOrientation: m.orientation.index,
       useDiscreteOrientation: true,
-      allowDrag: allowDrag,
+      index: index,
     );
   }
 
-  // ===== TAP TO ROTATE (Campaign mode) =====
+  // ===== TAP TO ROTATE =====
   @override
   void onTapUp(TapUpEvent event) {
-    if (isLocked) return;
-    if (!useDiscreteOrientation) return; // Use double-tap for legacy
+      // Rotate on single tap
+      _rotate();
+  }
+
+  void _rotate() {
+    if (isLocked) {
+         AudioManager().playSfx('error_sound.mp3');
+         return;
+    }
     
-    // Record for undo
     final startPos = position.clone();
     final startAngle = angle;
     
-    // Rotate to next discrete state
-    _discreteOrientation = (_discreteOrientation + 1) % 4;
-    angle = _discreteOrientationToAngle(_discreteOrientation);
+    if (useDiscreteOrientation) {
+        _discreteOrientation = (_discreteOrientation + 1) % 4;
+        angle = _discreteOrientationToAngle(_discreteOrientation);
+    } else {
+        angle += pi / 4;
+        if (angle >= 2 * pi) angle -= 2 * pi;
+        _discreteOrientation = ((angle / (pi / 4)).round() % 4).abs();
+    }
     
-    print('MIRROR TAP ROTATE! orientation=$_discreteOrientation');
+    print('MIRROR ROTATE! orientation=$_discreteOrientation');
     _triggerShine();
     AudioManager().playSfx('mirror_tap_sound.mp3');
     
     gameRef.recordMove(hashCode, startPos, startAngle);
     gameRef.requestBeamUpdate();
   }
-  
-  // ===== DOUBLE TAP TO ROTATE (Legacy mode) =====
+
   @override
-  void onDoubleTapDown(DoubleTapDownEvent event) {
-    if (isLocked) return;
-    if (useDiscreteOrientation) return; // Use single tap for campaign
-    
-    // Record for undo
-    final startPos = position.clone();
-    final startAngle = angle;
-    
-    // ROTATE 45 degrees
-    angle += pi / 4;
-    if (angle >= 2 * pi) angle -= 2 * pi;
-    
-    print('MIRROR DOUBLE-TAP ROTATE! angle=${(angle * 180 / pi).toStringAsFixed(0)}°');
-    _triggerShine();
-    AudioManager().playSfx('mirror_tap_sound.mp3');
-    
-    // Record move using hashCode as ID (guaranteed unique)
-    gameRef.recordMove(hashCode, startPos, startAngle);
-    
-    gameRef.requestBeamUpdate();
+  bool containsLocalPoint(Vector2 point) {
+      // Expand hitbox for easier tapping (especially for thin mirror)
+      // 54x14 is very thin. Add 20px padding.
+      final r = size.toRect().inflate(20);
+      return r.contains(point.toOffset());
   }
 
   @override
@@ -184,6 +168,12 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
     if (opacity == 0) return;
     
     final rect = size.toRect();
+    // ... [Render code kept mostly same, compacted for brevity in replacement if unchanged, but I must provide valid replacement]
+    // Since I'm replacing a large block, I need to keep the render code.
+    // I will use render_diffs logic by just copying the render method essentially or just replacing the top part if I can focus the chunk.
+    // But Drag methods are at the bottom.
+    // I'll rewrite the whole class structure in the replacement to be safe, but keep render body.
+    
     final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
     
     // Check accessibility settings
@@ -191,7 +181,6 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
     final bool highContrast = gameRef.settingsManager.highContrastEnabled;
     
     if (highContrast) {
-      // High Contrast Mode: Simple solid with white border
       _basePaint.color = Colors.grey.shade800.withOpacity(opacity);
       canvas.drawRRect(rrect, _basePaint);
       _strokePaint
@@ -202,7 +191,7 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
       return;
     }
 
-    // === LAYER 1: Drop Shadow (Depth) ===
+    // === LAYER 1: Drop Shadow ===
     if (!reducedGlow) {
       final shadowRRect = rrect.shift(const Offset(2, 3));
       _glowPaint
@@ -211,7 +200,7 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
       canvas.drawRRect(shadowRRect, _glowPaint);
     }
 
-    // === LAYER 2: Golden Frame (Outer) ===
+    // === LAYER 2: Golden Frame ===
     final frameGradient = LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
@@ -227,7 +216,7 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
     _shaderPaint.shader = frameGradient.createShader(rect);
     canvas.drawRRect(rrect, _shaderPaint);
     
-    // Frame inner shadow (inset effect)
+    // Frame inner shadow
     final innerShadowRRect = RRect.fromRectAndRadius(
       rect.deflate(1),
       const Radius.circular(5),
@@ -246,7 +235,6 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
     );
     final innerRRect = RRect.fromRectAndRadius(innerRect, const Radius.circular(3));
     
-    // Chrome gradient (creates curved/reflective look)
     final chromeGradient = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
@@ -262,7 +250,7 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
     _shaderPaint.shader = chromeGradient.createShader(innerRect);
     canvas.drawRRect(innerRRect, _shaderPaint);
 
-    // === LAYER 4: Idle Shimmer (Subtle sweep) ===
+    // === LAYER 4: Idle Shimmer ===
     if (!reducedGlow) {
       final shimmerPhase = (_time * 0.3) % 3.0; // Slow sweep every 3 seconds
       if (shimmerPhase < 1.0) {
@@ -307,7 +295,6 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
 
     // === LAYER 6: Light Impact Glow ===
     if (_lightHitIntensity > 0 && !reducedGlow) {
-      // Edge glow intensifies
       VisualEffects.drawCrystalGlow(
         canvas,
         rrect,
@@ -317,7 +304,6 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
         reducedGlow: false,
       );
       
-      // Surface flash
       _glowPaint
         ..color = _impactColor.withOpacity(_lightHitIntensity * 0.4 * opacity)
         ..maskFilter = _blur3;
@@ -349,9 +335,8 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
       canvas.drawCircle(Offset(size.x / 2, size.y / 2), 2, _basePaint);
     }
   }
-
-
-  // Physics Line Segment
+  
+  // Physics Line Segment (Restored for DebugOverlay)
   Vector2 get startPoint {
     final localStart = Vector2(0, size.y / 2);
     return absolutePositionOf(localStart);
@@ -362,164 +347,6 @@ class Mirror extends PositionComponent with DragCallbacks, DoubleTapCallbacks, T
     return absolutePositionOf(localEnd);
   }
 
-  // --- Interaction ---
-  
-  @override
-  void onDragStart(DragStartEvent event) {
-    if (isLocked) return;
-    super.onDragStart(event); // Always call super for drag lifecycle
-    _dragStartPos = position.clone();
-    _dragStartAngle = angle;
-    _dragStartTime = DateTime.now();
-    _hasMoved = false;
-  }
-
-  @override
-  void onDragUpdate(DragUpdateEvent event) {
-    if (isLocked) return;
-    if (!allowDrag) return; // Campaign mode disables drag
-    
-    // Store old position for collision rollback
-    final oldPosition = position.clone();
-    
-    // Calculate global delta from localDelta
-    final globalDelta = event.localDelta.clone()..rotate(angle);
-    
-    // Apply zoom correction
-    position += globalDelta / gameRef.camera.viewfinder.zoom;
-    
-    // BOUNDARY CHECK via GameBounds
-    position = GameBounds.clampPosition(position, size);
-    
-    // WALL COLLISION CHECK
-    if (_collidesWithWall()) {
-      position = oldPosition; // Revert if colliding
-      return;
-    }
-    
-    // OBJECT COLLISION CHECK
-    if (_collidesWithObjects()) {
-      position = oldPosition;
-      return;
-    }
-    
-    // Only mark as moved if significant movement from start
-    final distFromStart = (position - _dragStartPos).length;
-    if (distFromStart > 10) {
-      _hasMoved = true;
-    }
-    
-    // Snap to Grid (20px) if enabled
-    if (gameRef.settingsManager.snapToGrid) {
-        position.x = (position.x / 20).round() * 20.0;
-        position.y = (position.y / 20).round() * 20.0;
-    }
-    
-    gameRef.requestBeamUpdate(); 
-  }
-  
-  bool _collidesWithWall() {
-    final mirrorRect = Rect.fromCenter(
-      center: Offset(position.x, position.y),
-      width: size.x + 10, // Add buffer
-      height: size.y + 10,
-    );
-    
-    for (final wall in gameRef.world.children.whereType<Wall>()) {
-      final wallRect = Rect.fromLTWH(
-        wall.position.x,
-        wall.position.y,
-        wall.size.x,
-        wall.size.y,
-      );
-      if (mirrorRect.overlaps(wallRect)) {
-        return true;
-      }
-    }
-    return false;
-  }
-  
-  bool _collidesWithObjects() {
-    final mirrorRect = Rect.fromCenter(
-      center: Offset(position.x, position.y),
-      width: size.x + 5,
-      height: size.y + 5,
-    );
-    
-    // Check other mirrors
-    for (final other in gameRef.world.children.whereType<Mirror>()) {
-      if (other == this) continue;
-      final otherRect = Rect.fromCenter(
-        center: Offset(other.position.x, other.position.y),
-        width: other.size.x,
-        height: other.size.y,
-      );
-      if (mirrorRect.overlaps(otherRect)) return true;
-    }
-    
-    // Check prisms
-    for (final prism in gameRef.world.children.whereType<Prism>()) {
-      final prismRect = Rect.fromCenter(
-        center: Offset(prism.position.x, prism.position.y),
-        width: prism.size.x,
-        height: prism.size.y,
-      );
-      if (mirrorRect.overlaps(prismRect)) return true;
-    }
-    
-    return false;
-  }
-
-  @override
-  void onDragEnd(DragEndEvent event) {
-    if (isLocked) return;
-    super.onDragEnd(event);
-    
-    // Calculate drag duration
-    final dragDuration = DateTime.now().difference(_dragStartTime);
-    final isQuickTap = dragDuration.inMilliseconds < 400 && !_hasMoved;
-    
-    print('Mirror onDragEnd: duration=${dragDuration.inMilliseconds}ms, hasMoved=$_hasMoved, isQuickTap=$isQuickTap');
-    
-    // TAP ROTATION: If quick tap (< 400ms) and didn't move, rotate the mirror
-    if (isQuickTap) {
-      _rotateDiscrete();
-      AudioManager().playSfx('mirror_tap_sound.mp3');
-      gameRef.recordMove(hashCode, position.clone(), _dragStartAngle);
-      gameRef.requestBeamUpdate();
-      return;
-    }
-    
-    // Only plays sound if actually moved
-    if (_hasMoved) {
-      AudioManager().playSfx('mirror_tap_sound.mp3');
-    }
-    
-    // Record move for undo (only if position changed)
-    if (position != _dragStartPos) {
-       gameRef.recordMove(hashCode, _dragStartPos, _dragStartAngle);
-    }
-    
-    gameRef.requestBeamUpdate();
-  }
-  
-  /// Rotate the mirror by 45 degrees (one discrete step).
-  void _rotateDiscrete() {
-    // First, derive current discrete orientation from actual angle
-    // This ensures we're in sync even if _discreteOrientation wasn't initialized
-    _discreteOrientation = ((angle / (pi / 4)).round() % 4).abs();
-    
-    // Advance to next position
-    _discreteOrientation = (_discreteOrientation + 1) % 4;
-    angle = _discreteOrientationToAngle(_discreteOrientation);
-    _triggerShine();
-    
-    print('Mirror rotated to orientation $_discreteOrientation, angle=${(angle * 180 / pi).toStringAsFixed(1)}°');
-  }
-  
-  // NOTE: onTapUp is NOT used because DragCallbacks intercepts all touches.
-  // Tap detection is handled in onDragEnd via timing check.
-  
   void _triggerShine() {
       _isRotating = true;
       _shineOffset = -0.5; // Start off-left

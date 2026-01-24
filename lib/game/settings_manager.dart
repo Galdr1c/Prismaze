@@ -107,7 +107,7 @@ class SettingsManager extends ChangeNotifier {
     _colorBlindIndex = _prefs.getInt(keyColorBlind) ?? 0;
     _bigTextEnabled = _prefs.getBool(keyBigText) ?? false;
     _highContrastEnabled = _prefs.getBool(keyHighContrast) ?? false;
-    _reducedGlowEnabled = _prefs.getBool(keyReducedGlow) ?? false;
+    _reducedGlowEnabled = _prefs.getBool(keyReducedGlow) ?? true; // Default to TRUE for performance
     _notifDaily = _prefs.getBool(keyNotifDaily) ?? true;
     _notifEvents = _prefs.getBool(keyNotifEvents) ?? true;
     _notifReminders = _prefs.getBool(keyNotifReminders) ?? true;

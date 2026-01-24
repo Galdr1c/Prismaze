@@ -12,25 +12,15 @@ class GridPos {
 }
 
 class GridConverter {
-  static const double cellSize = 55.0;
-  static const int gridCols = 22;
-  static const int gridRows = 9;
+  static const double cellSize = 85.0;
+  static const int gridCols = 14;
+  static const int gridRows = 7;
   
-  // Centering offsets for 1280x720 viewport
-  // 1280 - (16 * 70) = 160 -> Margin X = 80
-  // 720 - (9 * 70) = 90 -> Margin Y = 45
-  static const double offsetX = 80.0;
-  static const double offsetY = 45.0; // Wait, top margin in game_bounds is 100. Should we align with user request?
-  // User asked for "Profesyonel Level Tasarım Sistemi" in LEVEL.md which specified:
-  // "Grid: 16x9 (her kare 70x70px)"
-  // "Ekran: 1120x640px (yatay, safe area)"
-  // "Margins: X=80, Y=45" implied by MATH.
-  // GameBounds sets Top: 100, Bottom: 150.
-  // If we follow GameBounds, 9 rows don't fit well (9*70 = 630). 720-250 = 470 available height.
-  // 470 / 70 = 6.7 rows. 
-  // User's LEVEL.md request conflicts with GameBounds request.
-  // LEVEL.md says: "Ekran: 1120x640px". BUT Viewport is 1280x720.
-  // Let's stick to LEVEL.md design (16x9) and CENTER it efficiently.
+  // 720 - (7 * 85) = 125 -> Margin Y = 62.5
+  static const double offsetX = 45.0; // (1280 - (14*85)) / 2 = 45.0
+  static const double offsetY = 62.5;
+  
+  // Center grid 16x9 efficiently within 1280x720 viewport
   // We can override bounds for Campaign Levels or assume the "GameBounds" apply to UI overlay, 
   // but the grid is the play area.
   // Let's use 80, 45 to center the grid OF 16x9.

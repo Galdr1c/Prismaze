@@ -274,7 +274,10 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
         _buildColorBlindDropdown(),
         _toggleRow(LocalizationManager().getString('settings_acc_big_text'), _bigText, (v) { setState(() => _bigText = v); widget.settingsManager.setBigText(v); }),
         _toggleRow(LocalizationManager().getString('settings_acc_high_contrast'), _highContrast, (v) { setState(() => _highContrast = v); widget.settingsManager.setHighContrast(v); }),
-        _toggleRow(LocalizationManager().getString('settings_acc_reduced_glow'), _reducedGlow, (v) { setState(() => _reducedGlow = v); widget.settingsManager.setReducedGlow(v); }),
+        _toggleRow(LocalizationManager().getString('settings_acc_reduced_glow'), widget.settingsManager.reducedGlowEnabled, (v) { 
+             setState(() => _reducedGlow = v);
+             widget.settingsManager.setReducedGlow(v); 
+        }),
       ],
     );
   }

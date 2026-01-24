@@ -95,11 +95,11 @@ class EpisodeConfig {
         // TUTORIAL: [1..4] moves, simple puzzles
         return const EpisodeConfig(
           episode: 1,
-          minMoves: 3,
-          maxMoves: 6,
+          minMoves: 1,
+          maxMoves: 4,
           // Critical objects
-          minCriticalMirrors: 3,
-          maxCriticalMirrors: 5,
+          minCriticalMirrors: 2,
+          maxCriticalMirrors: 3,
           minCriticalPrisms: 0,
           maxCriticalPrisms: 0,
           // Decoys

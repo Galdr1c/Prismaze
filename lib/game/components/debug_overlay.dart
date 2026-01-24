@@ -1,10 +1,9 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // for kDebugMode
 import '../prismaze_game.dart';
-import '../game_bounds.dart';
 import '../audio_manager.dart';
 import 'wall.dart';
+import 'wall_cluster.dart';
 import 'mirror.dart';
 import 'prism.dart';
 import 'target.dart';
@@ -32,17 +31,25 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
   
   @override
   void update(double dt) {
-    // Check if debug mode changed
+    // Check if debug mode changed (Force ON in debug builds for verification)
     _debugEnabled = gameRef.settingsManager.debugModeEnabled;
     
     // Smooth FPS
     if (dt > 0) {
       final currentFps = 1.0 / dt;
       _fps = _fps * 0.9 + currentFps * 0.1; // Simple smoothing
+      
+      _updateTimer += dt;
+      if (_updateTimer > 0.5) { // Update text only twice per second
+        _updateMetricsText();
+        _updateTimer = 0;
+      }
     }
   }
   
   double _fps = 60.0;
+  double _updateTimer = 0.0;
+  TextSpan? _cachedTextSpan;
   
   // Text painters for metrics
   final TextPainter _fpsPainter = TextPainter(textDirection: TextDirection.ltr);
@@ -76,7 +83,7 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
     _drawPerformanceMetrics(canvas);
   }
   
-  void _drawPerformanceMetrics(Canvas canvas) {
+  void _updateMetricsText() {
       final style = TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, shadows: [
           Shadow(blurRadius: 2, color: Colors.black, offset: Offset(1,1))
       ]);
@@ -87,7 +94,6 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
       final particles = gameRef.beamSystem.debugParticleCount;
       final sfxPlayers = AudioManager().debugActiveSfxCount;
       
-      // Build metrics text
       final metricsBuffer = StringBuffer();
       metricsBuffer.writeln('FPS: $fps');
       metricsBuffer.writeln('Beams: $beams');
@@ -99,6 +105,10 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
           style: style,
       );
       _fpsPainter.layout();
+  }
+  
+  void _drawPerformanceMetrics(Canvas canvas) {
+      if (_fpsPainter.text == null) _updateMetricsText(); // Ensure init
       
       // Draw background
       canvas.drawRect(
@@ -110,21 +120,12 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
   }
   
   void _drawPlayAreaBounds(Canvas canvas) {
-    final area = GameBounds.playArea;
-    canvas.drawRect(
-      area,
-      Paint()
-        ..color = Colors.cyan.withOpacity(0.3)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3,
-    );
-    
-    // Draw centered 22x9 grid (matches LevelLoader)
-    const gridSize = 55.0;
-    const double offsetX = 35.0;
-    const double offsetY = 112.5;
-    const int cols = 22;
-    const int rows = 9;
+    // Draw centered 14x7 grid (matches LevelLoader)
+    const gridSize = 85.0;
+    const double offsetX = 45.0;
+    const double offsetY = 62.5;
+    const int cols = 14;
+    const int rows = 7;
     
     final gridPaint = Paint()
       ..color = Colors.cyan.withOpacity(0.15)
@@ -156,8 +157,26 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
       ..color = Colors.red.withOpacity(0.5)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
+
+    // 1. Draw Clustered Walls (Unified)
+    for (final cluster in gameRef.world.children.whereType<WallCluster>()) {
+      canvas.drawPath(cluster.outlinePath, paint);
+      
+      // Optional: Draw interior grid lines of the cluster in very faint red
+      canvas.drawPath(
+        cluster.bodyPath,
+        Paint()
+          ..color = Colors.red.withOpacity(0.1)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
+      );
+    }
     
+    // 2. Draw Standalone Walls (that are not clustered)
     for (final wall in gameRef.world.children.whereType<Wall>()) {
+      // Only draw if NOT clustered (shouldRender is true for standalone)
+      if (!wall.shouldRender) continue;
+
       final rect = Rect.fromLTWH(
         wall.position.x,
         wall.position.y,

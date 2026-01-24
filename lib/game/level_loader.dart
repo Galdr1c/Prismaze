@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data'; // Added for Uint8List
 import 'package:flame/components.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -7,11 +8,9 @@ import 'components/light_source.dart';
 import 'components/mirror.dart';
 import 'components/prism.dart';
 import 'components/wall.dart';
+import 'components/wall_cluster.dart';
 import 'components/target.dart';
-import 'components/glass_wall.dart';
-import 'components/splitter.dart';
 import 'components/portal.dart';
-import 'components/filter.dart';
 import 'components/timed_light_source.dart';
 import 'components/move_behavior.dart';
 import 'components/hint_manager.dart';
@@ -64,17 +63,20 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     objectMap.clear();
     clearLevelEntities();
     
+    // Init GameState
+    gameRef.currentState = proc.GameState.fromLevel(level);
+    
     // Setup Par
     gameRef.currentLevelPar = level.meta.optimalMoves;
     gameRef.parNotifier.value = level.meta.optimalMoves;
     gameRef.currentLevelMeta = level.meta;
 
-    // Center 22x9 grid (55px cells) in 1280x720
-    // 22 * 55 = 1210 (Offset X: 35)
-    // 9 * 55 = 495 (Offset Y: 112.5)
-    final double cellSize = 55.0;
-    final double offsetX = 35.0;
-    final double offsetY = 112.5;
+    // Center 14x7 grid (85px cells) in 1280x720
+    // 14 * 85 = 1190 (Offset X: 45)
+    // 7 * 85 = 595 (Offset Y: 62.5)
+    final double cellSize = 85.0;
+    final double offsetX = 45.0;
+    final double offsetY = 62.5;
 
     // Local conversion helper
     Vector2 toPixel(int x, int y) {
@@ -108,19 +110,21 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     }
 
     // 3. Mirrors
+    int mIndex = 0;
     for (final m in level.mirrors) {
       final mirror = Mirror(
         position: toPixel(m.position.x, m.position.y),
         angle: m.orientation.angleRad,
         isLocked: !m.rotatable,
         useDiscreteOrientation: true,
-        allowDrag: false,
+        index: mIndex++, // Bind to GameState
       );
       gameRef.world.add(mirror);
       objectMap[idCounter++] = mirror;
     }
 
     // 4. Prisms
+    int pIndex = 0;
     for (final p in level.prisms) {
       final prism = Prism(
         position: toPixel(p.position.x, p.position.y),
@@ -129,7 +133,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
         angle: p.orientation * (pi / 2.0),
         isLocked: !p.rotatable,
         useDiscreteOrientation: true,
-        allowDrag: false,
+        index: pIndex++,
       );
       gameRef.world.add(prism);
       objectMap[idCounter++] = prism;
@@ -143,7 +147,8 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
         size: Vector2.all(cellSize),
       ));
     }
-
+    _clusterWalls();
+    
     // 6. Solution (for Hints)
     // The HintManager expects formatted JSON solution steps for now
     final solutionJson = level.solution.map((s) => s.toJson()).toList();
@@ -200,12 +205,39 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     objectMap.clear();
     clearLevelEntities();
     
+    // Init GameState manually
+    final mirrorList = data['mirrors'] as List? ?? [];
+    final prismList = data['prisms'] as List? ?? [];
+    final targetList = data['targets'] as List? ?? [];
+     
+    final mirrorO = Uint8List(mirrorList.length);
+    for(int i=0; i<mirrorList.length; i++) {
+        double a = ((mirrorList[i]['angle'] ?? 0) as num).toDouble();
+        mirrorO[i] = (a / 45).round() % 4; 
+    }
+    
+    final prismO = Uint8List(prismList.length);
+    for(int i=0; i<prismList.length; i++) {
+        double a = ((prismList[i]['angle'] ?? 0) as num).toDouble();
+        prismO[i] = (a / 90).round() % 4; 
+    }
+    
+    gameRef.currentState = proc.GameState(
+        mirrorOrientations: mirrorO,
+        prismOrientations: prismO,
+        targetCollected: Uint8List(targetList.length),
+    );
+    
     // Setup Par
     final parMoves = data['parMoves'] ?? 5;
     gameRef.currentLevelPar = parMoves;
     gameRef.parNotifier.value = parMoves;
+
+    // Enable efficient RayTracer rendering for BeamSystem
+    gameRef.beamSystem.useRayTracerMode = true;
     
     _createBoundaries();
+    _clusterWalls();
     
     int idCounter = 0;
     
@@ -237,6 +269,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     }
     
     // 3. Mirrors
+    int mIndex = 0;
     final mirrors = data['mirrors'] as List? ?? [];
     for (final m in mirrors) {
       final mPos = lds.GridPos(m['pos']['x'], m['pos']['y']);
@@ -247,13 +280,14 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
         angle: angle * (pi / 180.0),
         isLocked: !(m['movable'] ?? true),
         useDiscreteOrientation: true,
-        allowDrag: false,
+        index: mIndex++,
       );
       gameRef.world.add(mirror);
       objectMap[idCounter++] = mirror;
     }
     
     // 4. Prisms
+    int pIndex = 0;
     final prisms = data['prisms'] as List? ?? [];
     for (final p in prisms) {
       final pPos = lds.GridPos(p['pos']['x'], p['pos']['y']);
@@ -262,7 +296,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
         position: pPixel,
         angle: ((p['angle'] ?? 0) as num).toDouble() * (pi / 180.0),
         useDiscreteOrientation: true,
-        allowDrag: false,
+        index: pIndex++,
       );
       gameRef.world.add(prism);
       objectMap[idCounter++] = prism;
@@ -278,6 +312,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
       final size = endBottomRight - start;
       gameRef.world.add(Wall(position: start, size: size));
     }
+    _clusterWalls();
     
     // 6. Solution
     final solutionSteps = data['solutionSteps'] as List? ?? [];
@@ -310,6 +345,19 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
      gameRef.resetLevelState();
      objectMap.clear();
      clearLevelEntities();
+     
+     // Legacy GameState Init
+     final mirrorO = Uint8List(def.mirrors.length);
+     for(int i=0; i<def.mirrors.length; i++) {
+        mirrorO[i] = (def.mirrors[i].angle / 45).round() % 4;
+     }
+     
+     gameRef.currentState = proc.GameState(
+        mirrorOrientations: mirrorO,
+        prismOrientations: Uint8List(0),
+        targetCollected: Uint8List(def.targets.length),
+     );
+     
      
      // Setup Par
      gameRef.currentLevelPar = def.optimalMoves;
@@ -350,6 +398,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
 
      // 3. Mirrors
      print("DEBUG: Spawning ${def.mirrors.length} mirrors...");
+     int mIndex = 0;
      for(final m in def.mirrors) {
          final mPixel = lds.GridConverter.gridToPixel(m.pos);
          final mirror = Mirror(
@@ -357,7 +406,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
              angle: m.angle * (pi / 180.0), // Convert deg to rad
              isLocked: !m.movable && !m.rotatable, // Assume locked if neither
              useDiscreteOrientation: true,
-             allowDrag: false,
+             index: mIndex++,
          );
          gameRef.world.add(mirror);  // FIXED
          objectMap[idCounter++] = mirror;
@@ -384,8 +433,9 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
 
      // 6. Hint/Solution
      gameRef.hintManager.loadSolution(def.solutionSteps, objectMap);
-     
-     // CRITICAL: Refresh BeamSystem cache
+    _clusterWalls();
+    
+    // CRITICAL: Refresh BeamSystem cache
      gameRef.beamSystem.refreshCache();
      gameRef.beamSystem.clearBeams();
      
@@ -393,18 +443,15 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
   }
 
   void clearLevelEntities() {
-    gameRef.world.children.whereType<LightSource>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<Mirror>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<Wall>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<Prism>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<Target>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<Filter>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<GlassWall>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<Splitter>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<Portal>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<TimedLightSource>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<AbsorbingWall>().forEach((e) => e.removeFromParent());
-    gameRef.world.children.whereType<MoveBehavior>().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<LightSource>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<Mirror>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<Wall>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<Prism>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<Target>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<Portal>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<TimedLightSource>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<AbsorbingWall>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<MoveBehavior>().toList().forEach((e) => e.removeFromParent());
   }
 
   void _createBoundaries() {
@@ -425,5 +472,29 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     // Right wall (X=1250 to clear grid end at 1245)
     gameRef.world.add(Wall(position: Vector2(1250, 30 + thickness), size: Vector2(thickness, height - 60 - thickness * 2))..opacity = 1.0);
 
+  }
+
+  void _clusterWalls() {
+    final allWalls = gameRef.world.children.whereType<Wall>().toList();
+    if (allWalls.isEmpty) return;
+    
+    // 1. Filter out boundary walls (which have opacity initialized to 1.0 and fixed positions)
+    // Actually, boundary walls are also Walls. 
+    // Usually clustering is for grid walls. 
+    // Boundary walls are large rectangles (1250x15, etc.) but clustering works by cell logic.
+    // I'll only cluster walls that have the default grid size (85x85) or are small enough.
+    
+    final gridWalls = allWalls.where((w) => w.size.x < 100 && w.size.y < 100).toList();
+    if (gridWalls.isEmpty) return;
+    
+    // 2. Group walls by adjacency (Simple grouping for now: all in one cluster is safe if they are visible)
+    // For even better optimization we could split into isolated islands, but one cluster handle disjoint walls fine.
+    
+    for (final wall in gridWalls) {
+        wall.shouldRender = false; // Hide individual render
+    }
+    
+    gameRef.world.add(WallCluster(gridWalls));
+    print("Wall Clustering: Grouped ${gridWalls.length} grid walls into 1 cluster.");
   }
 }

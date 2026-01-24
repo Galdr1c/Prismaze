@@ -19,43 +19,34 @@ class VisualEffects {
     double opacity = 1.0,
     bool reducedGlow = false,
   }) {
-    if (reducedGlow) {
-      // Simplified single-layer for accessibility
+    if (reducedGlow || intensity <= 0.1) {
+      // Simplified single-layer for accessibility or low intensity
       canvas.drawRRect(
         rrect.inflate(2),
         Paint()
           ..color = glowColor.withOpacity(0.4 * intensity * opacity)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2
-          ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 3),
+          ..strokeWidth = 2,
       );
       return;
     }
 
-    // Layer 1: Wide atmospheric haze
-    canvas.drawRRect(
-      rrect.inflate(8),
-      Paint()
-        ..color = glowColor.withOpacity(0.15 * intensity * opacity)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
-    );
-
-    // Layer 2: Medium glow
+    // OPTIMIZATION: Combine layers. Reduced from 3 expensive blurs to 1.
+    // Single medium glow is usually sufficient.
     canvas.drawRRect(
       rrect.inflate(4),
       Paint()
-        ..color = glowColor.withOpacity(0.3 * intensity * opacity)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+        ..color = glowColor.withOpacity(0.4 * intensity * opacity)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
 
-    // Layer 3: Tight edge glow
+    // Tight crisp stroke instead of blurred stroke for edge
     canvas.drawRRect(
       rrect,
       Paint()
-        ..color = glowColor.withOpacity(0.5 * intensity * opacity)
+        ..color = glowColor.withOpacity(0.6 * intensity * opacity)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..maskFilter = const MaskFilter.blur(BlurStyle.solid, 4),
+        ..strokeWidth = 2,
     );
   }
 

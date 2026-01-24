@@ -47,7 +47,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
   double _shootingStarTimer = 0.0;
   double _globalTime = 0.0;
   
-  BackgroundComponent() : super(anchor: Anchor.topLeft);
+  BackgroundComponent() : super(anchor: Anchor.topLeft, priority: -200);
 
   @override
   Future<void> onLoad() async {
@@ -506,36 +506,41 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     void _renderSpace(Canvas canvas) {
       // User requested NO grid here as it exists in debug mode
   
-      // Nebula clouds first (behind stars)
+      // Nebula clouds (Optimized)
       for (final nebula in _nebulaClouds) {
+          // Use solid blur style which is slightly cheaper, or reduce sigma
           canvas.drawCircle(
             nebula.position.toOffset(),
             nebula.radius,
             Paint()
               ..color = nebula.color
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, nebula.radius * 0.6),
+              ..maskFilter = MaskFilter.blur(BlurStyle.normal, 40), // Fixed lower blur radius
           );
       }
       
-      // Twinkling stars
-      for (int i = 0; i < _stars.length; i++) {
+      // Twinkling stars (Optimized)
+      // Reduced count: 120 -> 80
+      // Removed MaskFilter.blur (Expensive!) -> Replaced with simple alpha transparency
+      for (int i = 0; i < 80; i++) { // Reduced count
+          if (i >= _stars.length) break;
+          
           final twinkle = 0.4 + 0.6 * (0.5 + 0.5 * sin(_starTwinkle[i]));
           final starSize = 1.0 + (_starSpeeds[i] - 0.3) * 0.8;
           
+          // Core Star (Solid)
           canvas.drawCircle(
             _stars[i].toOffset(),
             starSize,
             Paint()..color = Colors.white.withOpacity(twinkle * 0.9),
           );
           
-          // Glow for brighter stars
+          // Glow for brighter stars (Simple alpha circle, NO BLUR)
           if (starSize > 1.5) {
               canvas.drawCircle(
                 _stars[i].toOffset(),
-                starSize * 2,
+                starSize * 2.5,
                 Paint()
-                  ..color = Colors.white.withOpacity(twinkle * 0.15)
-                  ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+                  ..color = Colors.white.withOpacity(twinkle * 0.1), // Faint halo
               );
           }
       }
@@ -613,10 +618,10 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
           canvas.restore();
       }
       
-      // Waves
+      // Waves (Simplified to 2 layers)
       final wavePaint = Paint()..style = PaintingStyle.fill;
       
-      for (int i = 0; i < 3; i++) {
+      for (int i = 0; i < 2; i++) { // Reduced from 3 to 2
           final path = Path();
           double yOffset = size.y * 0.75 + i * 40;
           double amp = 15.0 - i * 3;
@@ -632,7 +637,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
           path.moveTo(0, size.y);
           path.lineTo(0, yOffset);
           
-          for (double x = 0; x <= size.x; x += 8) {
+          for (double x = 0; x <= size.x; x += 16) { // Reduced resolution (step 8 -> 16)
               path.lineTo(x, yOffset + amp * sin(x * freq + shift));
           }
           

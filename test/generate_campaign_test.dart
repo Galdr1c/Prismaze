@@ -21,7 +21,7 @@ void main() async {
   }
 
   // Generate 5 Episodes
-  for (int episode = 1; episode <= 1; episode++) {
+  for (int episode = 1; episode <= 5; episode++) {
     await _generateEpisode(generator, episode);
   }
 
@@ -35,6 +35,8 @@ Future<void> _generateEpisode(LevelGenerator generator, int episode) async {
   final levels = <Map<String, dynamic>>[];
   int successCount = 0;
   int retryCount = 0;
+  int? firstSeed;
+  int lastSeed = 0;
   
   // Generate 200 levels per episode
   for (int i = 1; i <= 200; i++) {
@@ -57,6 +59,9 @@ Future<void> _generateEpisode(LevelGenerator generator, int episode) async {
         }
       }
     }
+
+    if (firstSeed == null) firstSeed = currentSeed;
+    lastSeed = currentSeed;
 
     levels.add({
       'version': 1,
@@ -85,4 +90,35 @@ Future<void> _generateEpisode(LevelGenerator generator, int episode) async {
   final filename = 'assets/generated/episode_0$episode.json';
   await File(filename).writeAsString(jsonStr);
   print('Saved to $filename');
+
+  // Update Manifest
+  await _updateManifest(Directory('assets/generated'), episode, successCount, firstSeed ?? 0, lastSeed);
+}
+
+Future<void> _updateManifest(Directory outputDir, int episode, int count, int seedStart, int seedEnd) async {
+  final manifestFile = File('${outputDir.path}/manifest.json');
+
+  Map<String, dynamic> manifest;
+  if (await manifestFile.exists()) {
+    manifest = jsonDecode(await manifestFile.readAsString()) as Map<String, dynamic>;
+  } else {
+    manifest = {
+      'version': 1,
+      'generatedAt': DateTime.now().toIso8601String(),
+      'episodes': <String, dynamic>{},
+    };
+  }
+
+  final episodeStr = episode.toString().padLeft(2, '0');
+  (manifest['episodes'] as Map<String, dynamic>)[episode.toString()] = {
+    'file': 'assets/generated/episode_$episodeStr.json',
+    'count': count,
+    'seedStart': seedStart,
+    'seedEnd': seedEnd,
+    'updatedAt': DateTime.now().toIso8601String(),
+  };
+
+  final encoder = const JsonEncoder.withIndent('  ');
+  await manifestFile.writeAsString(encoder.convert(manifest));
+  print('Updated ${manifestFile.path}');
 }

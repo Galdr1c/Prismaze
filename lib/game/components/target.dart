@@ -69,7 +69,7 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     this.sequenceIndex = 0,
   }) : super(
           position: position,
-          size: Vector2(50, 50), // Larger for better visibility
+          size: Vector2(65, 65), // Larger for 85px cell (was 50x50)
           anchor: Anchor.center,
         );
 

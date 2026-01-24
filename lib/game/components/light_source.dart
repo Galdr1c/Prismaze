@@ -16,7 +16,7 @@ class LightSource extends PositionComponent with HasGameRef<PrismazeGame> {
     required this.color,
     double angle = 0,
   })  : _beamAngle = angle,
-        super(position: position, size: Vector2(50, 50), anchor: Anchor.center);
+        super(position: position, size: Vector2(65, 65), anchor: Anchor.center);
 
   double get beamAngle => _beamAngle;
   set beamAngle(double value) => _beamAngle = value;

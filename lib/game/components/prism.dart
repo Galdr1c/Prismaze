@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 import '../audio_manager.dart';
 import '../prismaze_game.dart';
 import 'dart:math';
-import '../game_bounds.dart';
 import '../procedural/models/models.dart' as proc;
 import 'wall.dart';
 import 'mirror.dart';
 
-class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameRef<PrismazeGame> {
-  bool _isDragging = false;
+class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame> {
+  // Global index for GameState
+  final int index;
+  // Visual state
   double _visualAngleOffset = 0;
   double _time = 0;
   bool isLocked = false;
@@ -21,29 +22,23 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
   double opacity = 1.0;
   
   /// Discrete orientation (0-3) for the new procedural system.
-  int _discreteOrientation = 0;
+  /// Discrete orientation (0-3) linked to GameState
+  int get _discreteOrientation => gameRef.currentState.prismOrientations[index];
+  set _discreteOrientation(int value) => gameRef.currentState = gameRef.currentState.withPrismOrientation(index, value);
   
   /// Whether this prism uses discrete orientation (campaign mode).
   bool useDiscreteOrientation = false;
   
-  /// Whether drag movement is allowed (false in campaign/episode mode).
-  bool allowDrag = true;
+  // Track for undo (using simplified model)
+  // No drag fields needed anymore
   
-  /// Prism type for procedural system.
-  proc.PrismType prismType = proc.PrismType.splitter;
-  
-  // Track move for undo
-  Vector2 _dragStartPos = Vector2.zero();
-  double _dragStartAngle = 0;
-  
-  // Track for tap detection
-  DateTime _dragStartTime = DateTime.now();
-  bool _hasMoved = false;
+  // Premium color scheme
   
   // Premium color scheme
   static const _crystalClear = Color(0xFFE8F4FC);
   static const _crystalCore = Color(0xFF88DDFF);
-  static const _edgeHighlight = Color(0xFFFFFFFF);
+
+  proc.PrismType prismType = proc.PrismType.splitter;
   
   // Rainbow refraction colors
   static const _rainbowColors = [
@@ -74,12 +69,11 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
     this.isLocked = false,
     int discreteOrientation = 0,
     this.useDiscreteOrientation = false,
-    this.allowDrag = true,
     this.prismType = proc.PrismType.splitter,
-  }) : _discreteOrientation = discreteOrientation,
-       super(
+    required this.index,
+  }) : super(
           position: position,
-          size: Vector2(54, 54), // Maximize size within 55px cell
+          size: Vector2(75, 75), // Larger for 85px cell (was 54x54)
           angle: angle,
           anchor: Anchor.center,
         );
@@ -90,9 +84,7 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
   /// Set discrete orientation and update visual angle.
   set discreteOrientation(int value) {
     _discreteOrientation = value % 4;
-    if (useDiscreteOrientation) {
-      angle = _discreteOrientationToAngle(_discreteOrientation);
-    }
+    angle = _discreteOrientationToAngle(_discreteOrientation);
   }
   
   /// Convert discrete orientation to visual angle (90° increments).
@@ -101,7 +93,7 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
   }
   
   /// Convert from procedural model.
-  factory Prism.fromProcedural(proc.Prism p, {bool allowDrag = false}) {
+  factory Prism.fromProcedural(proc.Prism p, int index) {
     final angle = _discreteOrientationToAngle(p.orientation);
     return Prism(
       position: Vector2(
@@ -112,8 +104,8 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
       isLocked: !p.rotatable,
       discreteOrientation: p.orientation,
       useDiscreteOrientation: true,
-      allowDrag: allowDrag,
       prismType: p.type,
+      index: index,
     );
   }
         
@@ -170,10 +162,8 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
       super.update(dt);
       _time += dt;
       
-      // Visual rotation wobble when dragging (only during drag)
-      if (_isDragging) {
-           _visualAngleOffset = sin(_time * 10) * 0.08;
-      } else if (_visualAngleOffset != 0) {
+      // Visual wobble reset logic (legacy cleanup)
+      if (_visualAngleOffset != 0) {
            _visualAngleOffset = _visualAngleOffset * 0.92;
            if (_visualAngleOffset.abs() < 0.001) _visualAngleOffset = 0;
       }
@@ -290,141 +280,29 @@ class Prism extends PositionComponent with DragCallbacks, TapCallbacks, HasGameR
     canvas.restore();
   }
   @override
-  void onDragStart(DragStartEvent event) {
-    if (isLocked) return;
-    super.onDragStart(event); // Always call super for drag lifecycle
-    _dragStartPos = position.clone();
-    _dragStartAngle = angle;
-    _dragStartTime = DateTime.now();
-    _hasMoved = false;
-    
-    if (allowDrag) {
-      _isDragging = true;
-      AudioManager().playSfx('crystal_tap_sound.mp3');
-      AudioManager().vibratePrismHold(); // 10ms hold
-      // Scale up visual feedback
-      scale = Vector2.all(1.1);
-    }
-  }
-  @override
-  void onDragUpdate(DragUpdateEvent event) {
-    if (isLocked) return;
-    if (!allowDrag) return; // Campaign mode disables drag
-    
-    // Store old position for collision rollback
-    final oldPosition = position.clone();
-    
-    // Calculate global delta from localDelta
-    // FIX: 1:1 movement, not multiplied
-    final globalDelta = event.localDelta.clone()..rotate(angle);
-    
-    // Apply zoom correction
-    position += globalDelta / gameRef.camera.viewfinder.zoom;
-
-    // BOUNDARY CHECK via GameBounds
-    position = GameBounds.clampPosition(position, size);
-    
-    // WALL COLLISION CHECK
-    if (_collidesWithWall()) {
-      position = oldPosition;
-      return;
-    }
-    
-    // OBJECT COLLISION CHECK
-    if (_collidesWithObjects()) {
-      position = oldPosition;
-      return;
-    }
-    
-    // Snap to Grid (20px) if enabled
-    if (gameRef.settingsManager.snapToGrid) {
-        position.x = (position.x / 20).round() * 20.0;
-        position.y = (position.y / 20).round() * 20.0;
-    }
-    
-    // Track movement
-    final distFromStart = (position - _dragStartPos).length;
-    if (distFromStart > 10) {
-      _hasMoved = true;
-    }
-    
-    gameRef.requestBeamUpdate(); // Live preview while dragging
-  }
-  
-  @override
-  void onDragEnd(DragEndEvent event) {
-    if (isLocked) return;
-    super.onDragEnd(event);
-    _isDragging = false;
-    
-    // Calculate drag duration for tap detection
-    final dragDuration = DateTime.now().difference(_dragStartTime);
-    final isQuickTap = dragDuration.inMilliseconds < 400 && !_hasMoved;
-    
-    print('Prism onDragEnd: duration=${dragDuration.inMilliseconds}ms, hasMoved=$_hasMoved, isQuickTap=$isQuickTap');
-    
-    // TAP ROTATION: If quick tap (< 400ms) and didn't move, rotate the prism
-    if (isQuickTap) {
-      _rotateDiscrete();
-      gameRef.requestBeamUpdate();
-      scale = Vector2.all(1.0);
-      return;
-    }
-    
-    // Record move if position changed
-    if (position != _dragStartPos) {
-       gameRef.recordMove(hashCode, _dragStartPos, _dragStartAngle);
-    }
-    
-    gameRef.requestBeamUpdate();
-    
-    // Reset scale
-    scale = Vector2.all(1.0);
-  }
-  
-  /// Rotate the prism by one discrete step (90°).
-  void _rotateDiscrete() {
-    final startAng = angle;
-    final startPos = position.clone();
-    
-    // Derive current discrete orientation from actual angle (90° = pi/2 increments)
-    _discreteOrientation = ((angle / (pi / 2)).round() % 4).abs();
-    
-    // Advance to next position
-    _discreteOrientation = (_discreteOrientation + 1) % 4;
-    angle = _discreteOrientationToAngle(_discreteOrientation);
-    
-    // Record move using hashCode
-    gameRef.recordMove(hashCode, startPos, startAng);
-    AudioManager().playSfx('rotate.mp3');
-    
-    print('Prism rotated to orientation $_discreteOrientation, angle=${(angle * 180 / pi).toStringAsFixed(1)}°');
-  }
-  
-  @override
   void onTapUp(TapUpEvent event) {
-      if (isLocked) return;
+      _rotate();
+  }
+  
+  void _rotate() {
+      if (isLocked) {
+         AudioManager().playSfx('error_sound.mp3');
+         return;
+      }
       
-      // Record state before rotate
       final startAng = angle;
       final startPos = position.clone();
       
-      if (useDiscreteOrientation) {
-        // Campaign mode: 4 states (90° increments)
-        _discreteOrientation = (_discreteOrientation + 1) % 4;
-        angle = _discreteOrientationToAngle(_discreteOrientation);
-      } else {
-        // Legacy mode: 60 degrees (PI/3)
-        angle += pi / 3;
-        if (angle >= 2 * pi) angle -= 2 * pi;
-      }
+      _discreteOrientation = (_discreteOrientation + 1) % 4;
+      angle = _discreteOrientationToAngle(_discreteOrientation);
       
-      // Record move using hashCode
       gameRef.recordMove(hashCode, startPos, startAng);
       
       gameRef.requestBeamUpdate();
       AudioManager().playSfx('rotate.mp3');
   }
+  
+
 
   // Returns vertices in absolute coordinates
   List<Vector2> get absoluteVertices {

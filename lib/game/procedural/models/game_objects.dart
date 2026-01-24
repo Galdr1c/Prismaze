@@ -15,11 +15,11 @@ class GridPosition {
   const GridPosition(this.x, this.y);
 
   /// Grid dimensions.
-  static const int gridWidth = 22;
-  static const int gridHeight = 9;
+  static const int gridWidth = 14;
+  static const int gridHeight = 7;
 
   /// Cell size in pixels for rendering (matches level_loader and grid_overlay).
-  static const double cellSize = 55.0;
+  static const double cellSize = 85.0;
 
   /// Check if position is within grid bounds.
   bool get isValid => x >= 0 && x < gridWidth && y >= 0 && y < gridHeight;

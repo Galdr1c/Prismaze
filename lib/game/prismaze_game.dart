@@ -25,13 +25,14 @@ import 'components/target.dart';
 import 'components/prism.dart';
 import 'components/mirror.dart';
 import 'components/wall.dart';
-import 'components/filter.dart';
 import 'components/light_source.dart';
 import 'utils/color_blindness_utils.dart';
 import 'level_state_manager.dart';
 import 'easter_egg_manager.dart';
 import 'undo_system.dart';
 import 'components/debug_overlay.dart';
+import 'procedural/models/game_state.dart';
+import 'endless_run_manager.dart';
 
 class LevelResult {
   final int stars;
@@ -49,7 +50,7 @@ class LevelResult {
   });
 }
 
-class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
+class PrismazeGame extends FlameGame with HasCollisionDetection {
   final WidgetRef ref;
   late final BeamSystem beamSystem;
   late LevelLoader levelLoader;
@@ -62,6 +63,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
   late AnalyticsManager analyticsManager;
   late SettingsManager settingsManager;
   late DebugOverlay debugOverlay;
+  late EndlessRunManager endlessManager;
   final UndoSystem undoSystem = UndoSystem();
   
   int moves = 0;
@@ -95,6 +97,8 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
   Map<String, dynamic>? currentLevelJson; // To store current level data for restart
   ProceduralLevelGenerator? proceduralGenerator;
   proc.LevelMeta? currentLevelMeta;
+  
+  late GameState currentState; // Single Source of Truth
 
   PrismazeGame(this.ref, {this.levelData, this.episode, this.levelIndex}) : super(
     camera: CameraComponent.withFixedResolution(
@@ -371,10 +375,19 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
       
     if (isCampaignMode && currentEpisode != null && currentLevelIdx != null) {
           levelLoader.loadCampaignLevel(currentEpisode!, currentLevelIdx!);
-      } else if (isEndlessMode && proceduralGenerator != null) {
-          // Endless mode: Generate and load via standard path
-          // The proceduralGenerator creates JSON data - for now use loadLevel fallback
-          levelLoader.loadLevel(currentLevelId);
+      } else if (isEndlessMode) {
+          // Notify manager of completion
+          await endlessManager.onLevelComplete();
+          currentLevelId = endlessManager.currentIndex;
+          
+          if (proceduralGenerator != null) {
+             // Endless mode: Generate and load via standard path
+             // The proceduralGenerator creates JSON data - for now use loadLevel fallback
+             levelLoader.loadLevel(currentLevelId);
+          } else {
+             // Fallback
+             levelLoader.loadLevel(currentLevelId);
+          }
       } else {
           levelLoader.loadLevel(currentLevelId);
       }
@@ -605,6 +618,25 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
     
     // CRITICAL: Call super.onLoad to init camera/world
     await super.onLoad();
+    
+    // Check if we should activate Endless Mode
+    if (!isCampaignMode && levelData == null && episode == null) {
+        // Default to endless if nothing else specified
+        isEndlessMode = true;
+    }
+
+    if (isEndlessMode) {
+        endlessManager = EndlessRunManager();
+        await endlessManager.init();
+        
+        if (endlessManager.hasActiveRun) {
+            endlessManager.continueRun();
+        } else {
+            await endlessManager.startNewRun();
+        }
+        
+        currentLevelId = endlessManager.currentIndex;
+    }
     
     // Ensure world is in the component tree
     if (world.parent == null) {
@@ -860,7 +892,30 @@ class PrismazeGame extends FlameGame with HasCollisionDetection, TapDetector {
   }
   @override
   void onDispose() {
+      // Remove Listeners
       settingsManager.removeListener(_colorBlindListener);
+      
+      // Dispose Notifiers
+      movesNotifier.dispose();
+      parNotifier.dispose();
+      scoreNotifier.dispose();
+      levelCompleteNotifier.dispose();
+      introActiveNotifier.dispose();
+      tutorialActiveNotifier.dispose();
+      hintHighlightNotifier.dispose();
+      hasStartedLevel.dispose();
+      levelNotifier.dispose();
+      levelTimeNotifier.dispose();
+      onboardingCompleteNotifier.dispose();
+      activeTipNotifier.dispose();
+      activeVideoNotifier.dispose();
+      easterEggNotifier.dispose();
+      
+      // Dispose Managers
+      economyManager.dispose();
+      progressManager.dispose();
+      missionManager.dispose();
+      
       super.onDispose();
   }
 }

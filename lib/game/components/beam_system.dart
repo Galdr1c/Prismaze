@@ -7,9 +7,6 @@ import 'mirror.dart';
 import 'wall.dart';
 import 'prism.dart';
 import 'target.dart';
-import 'filter.dart';
-import 'glass_wall.dart';
-import 'splitter.dart';
 import 'portal.dart';
 import 'absorbing_wall.dart';
 import '../utils/physics_utils.dart';
@@ -73,15 +70,15 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   double _pulseIntensity = 0.0;
   double _time = 0.0; // For energy pulse animation
   
+  // Optimization: Track segment changes
+  int _lastSegmentHash = 0;
+  
   // === OPTIMIZATION: CACHED COMPONENTS ===
   // We cache these lists to avoid querying the world 8+ times per frame.
   final List<Mirror> _cachedMirrors = [];
   final List<Wall> _cachedWalls = [];
   final List<Prism> _cachedPrisms = [];
   final List<Target> _cachedTargets = [];
-  final List<Filter> _cachedFilters = [];
-  final List<GlassWall> _cachedGlassWalls = [];
-  final List<Splitter> _cachedSplitters = [];
   final List<Portal> _cachedPortals = [];
   final List<AbsorbingWall> _cachedAbsorbingWalls = [];
   final List<LightSource> _cachedSources = [];
@@ -117,9 +114,6 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
      _cachedWalls.clear(); _cachedWalls.addAll(gameRef.world.children.whereType<Wall>().where((c) => !c.isRemoving));
      _cachedPrisms.clear(); _cachedPrisms.addAll(gameRef.world.children.whereType<Prism>().where((c) => !c.isRemoving));
      _cachedTargets.clear(); _cachedTargets.addAll(gameRef.world.children.whereType<Target>().where((c) => !c.isRemoving));
-     _cachedFilters.clear(); _cachedFilters.addAll(gameRef.world.children.whereType<Filter>().where((c) => !c.isRemoving));
-     _cachedGlassWalls.clear(); _cachedGlassWalls.addAll(gameRef.world.children.whereType<GlassWall>().where((c) => !c.isRemoving));
-     _cachedSplitters.clear(); _cachedSplitters.addAll(gameRef.world.children.whereType<Splitter>().where((c) => !c.isRemoving));
      _cachedPortals.clear(); _cachedPortals.addAll(gameRef.world.children.whereType<Portal>().where((c) => !c.isRemoving));
      _cachedAbsorbingWalls.clear(); _cachedAbsorbingWalls.addAll(gameRef.world.children.whereType<AbsorbingWall>().where((c) => !c.isRemoving));
      _cachedSources.clear(); _cachedSources.addAll(gameRef.world.children.whereType<LightSource>().where((c) => !c.isRemoving));
@@ -254,7 +248,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
           source.color, 
           source.position, 
           Vector2(1, 0)..rotate(source.beamAngle), 
-          _cachedMirrors, _cachedWalls, _cachedPrisms, _cachedTargets, _cachedFilters, _cachedGlassWalls, _cachedSplitters, _cachedPortals, _cachedAbsorbingWalls,
+          _cachedMirrors, _cachedWalls, _cachedPrisms, _cachedTargets, _cachedPortals, _cachedAbsorbingWalls,
           0
       );
     }
@@ -282,6 +276,17 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   }
   
   void _buildBatchedPaths() {
+      // OPTIMIZATION: Check if segments actually changed content
+      // Since _segments is mutable (same identity), we must check content hash
+      int currentHash = 0;
+      for(final seg in _segments) {
+          // Simple XOR hash of properties for speed
+          currentHash ^= seg.start.hashCode ^ seg.end.hashCode ^ seg.color.value;
+      }
+      
+      if (currentHash == _lastSegmentHash) return; // Skip rebuild if identical
+      
+      _lastSegmentHash = currentHash;
       _cachedPaths.clear();
       
       for (final seg in _segments) {
@@ -302,9 +307,6 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
     List<Wall> walls,
     List<Prism> prisms,
     List<Target> targets,
-    List<Filter> filters,
-    List<GlassWall> glassWalls,
-    List<Splitter> splitters,
     List<Portal> portals,
     List<AbsorbingWall> absorbingWalls,
     int bounces, {
@@ -324,9 +326,6 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
     // Hit Objects
     Mirror? hitMirror;
     Prism? hitPrism;
-    Filter? hitFilter;
-    GlassWall? hitGlassWall;
-    Splitter? hitSplitter;
     Portal? hitPortal;
     Vector2? hitNormal;
     bool hitWall = false;
@@ -344,7 +343,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
           closestDist = dist;
           closestPoint = intersection;
           hitMirror = mirror;
-          hitPrism = null; hitWall = false; hitFilter = null; hitGlassWall = null; hitSplitter = null; hitPortal = null;
+          hitPrism = null; hitWall = false; hitPortal = null;
           Vector2 surfaceDir = p2 - p1;
           hitNormal = Vector2(-surfaceDir.y, surfaceDir.x).normalized();
         }
@@ -365,7 +364,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
                   closestDist = dist;
                   closestPoint = intersection;
                   hitWall = true;
-                   hitMirror = null; hitPrism = null; hitFilter = null; hitGlassWall = null; hitSplitter = null; hitPortal = null;
+                   hitMirror = null; hitPrism = null; hitPortal = null;
                 }
              }
         }
@@ -386,7 +385,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
                   closestPoint = intersection;
                   hitAbsorbingWall = true;
                   hitWall = false;
-                  hitMirror = null; hitPrism = null; hitFilter = null; hitGlassWall = null; hitSplitter = null; hitPortal = null;
+                  hitMirror = null; hitPrism = null; hitPortal = null;
                 }
              }
         }
@@ -406,54 +405,13 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
                    closestDist = dist;
                    closestPoint = intersection;
                    hitPrism = prism;
-                   hitMirror = null; hitWall = false; hitFilter = null; hitGlassWall = null; hitSplitter = null; hitPortal = null;
+                   hitMirror = null; hitWall = false; hitPortal = null;
                    
                    Vector2 surfaceDir = p2 - p1;
                    hitNormal = Vector2(-surfaceDir.y, surfaceDir.x).normalized();
                 }
             }
         }
-    }
-    
-    // Check Filters
-    for (final filter in filters) {
-        final rect = filter.toAbsoluteRect();
-        final corners = [
-            Vector2(rect.left, rect.top), Vector2(rect.right, rect.top),
-            Vector2(rect.right, rect.bottom), Vector2(rect.left, rect.bottom),
-        ];
-        for (int i = 0; i < 4; i++) {
-            final p1 = corners[i];
-            final p2 = corners[(i + 1) % 4];
-            final intersection = PhysicsUtils.getLineSegmentIntersection(start, closestPoint, p1, p2);
-            if (intersection != null) {
-                 final dist = start.distanceTo(intersection);
-                 if (dist < closestDist && dist > 3.0) {
-                     closestDist = dist;
-                     closestPoint = intersection;
-                     hitFilter = filter;
-                      hitMirror = null; hitPrism = null; hitWall = false; hitGlassWall = null; hitSplitter = null; hitPortal = null;
-                 }
-            }
-        }
-    }
-    
-    // Check Splitters
-    for (final splitter in splitters) {
-      final p1 = splitter.startPoint;
-      final p2 = splitter.endPoint;
-      final intersection = PhysicsUtils.getLineSegmentIntersection(start, closestPoint, p1, p2);
-      if (intersection != null) {
-        final dist = start.distanceTo(intersection);
-        if (dist < closestDist && dist > 3.0) {
-          closestDist = dist;
-          closestPoint = intersection;
-          hitSplitter = splitter;
-           hitMirror = null; hitPrism = null; hitWall = false; hitGlassWall = null; hitFilter = null; hitPortal = null;
-          Vector2 surfaceDir = p2 - p1;
-          hitNormal = Vector2(-surfaceDir.y, surfaceDir.x).normalized();
-        }
-      }
     }
     
     // Check Portals
@@ -467,7 +425,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
           closestDist = dist;
           closestPoint = intersection;
            hitPortal = portal;
-           hitMirror = null; hitPrism = null; hitWall = false; hitGlassWall = null; hitFilter = null; hitSplitter = null;
+           hitMirror = null; hitPrism = null; hitWall = false;
           hitNormal = Vector2(-(p2 - p1).y, (p2 - p1).x).normalized();
         }
       }
@@ -501,11 +459,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
     
     if (hitMirror != null && hitNormal != null) {
       final reflectedDir = PhysicsUtils.getReflectionVector(direction, hitNormal);
-      _castBeam(beamColor, closestPoint, reflectedDir, mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
-    } else if (hitSplitter != null && hitNormal != null) {
-        _castBeam(beamColor.withOpacity(beamColor.opacity * 0.5), closestPoint, direction, mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
-        final reflectedDir = PhysicsUtils.getReflectionVector(direction, hitNormal);
-        _castBeam(beamColor.withOpacity(beamColor.opacity * 0.5), closestPoint, reflectedDir, mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+      _castBeam(beamColor, closestPoint, reflectedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
     } else if (hitPortal != null && hitNormal != null) {
          try {
             final exitPortal = portals.firstWhere((p) => p.id == hitPortal!.linkedPortalId);
@@ -515,18 +469,8 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
             final surfaceDir = p2_out - p1_out;
             final exitNormal = Vector2(surfaceDir.y, -surfaceDir.x).normalized(); 
             final safeExit = exitPoint + exitNormal * 5;
-            _castBeam(beamColor, safeExit, exitNormal, mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+            _castBeam(beamColor, safeExit, exitNormal, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
         } catch (e) {}
-    } else if (hitFilter != null) {
-         Color nextColor = PhysicsUtils.applyFilter(beamColor, hitFilter!.color);
-         if (nextColor.computeLuminance() > 0.01) {
-             _castBeam(nextColor, closestPoint, direction, mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
-         }
-    } else if (hitGlassWall != null) {
-        final nextAlpha = beamColor.opacity * 0.5;
-        if (nextAlpha > 0.05) {
-            _castBeam(beamColor.withOpacity(nextAlpha), closestPoint, direction, mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
-        }
     } else if (hitPrism != null && hitNormal != null) {
         // Trigger glow effect on prism with the incoming beam color
         hitPrism.onLightHit(beamColor);
@@ -538,10 +482,10 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
         Vector2? refractedDir = PhysicsUtils.getRefractionVector(direction.normalized(), calcNormal, n1, n2);
         
         if (refractedDir != null) {
-             _castBeam(beamColor, closestPoint, refractedDir, mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+             _castBeam(beamColor, closestPoint, refractedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
         } else {
              final reflectedDir = PhysicsUtils.getReflectionVector(direction, calcNormal);
-             _castBeam(beamColor, closestPoint, reflectedDir, mirrors, walls, prisms, targets, filters, glassWalls, splitters, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+             _castBeam(beamColor, closestPoint, reflectedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
         }
     }
   }
@@ -683,7 +627,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
         }
       }
       
-      // === LAYER 1: Wide outer glow ===
+      // === LAYER 1: Wide outer glow (Single layer) ===
       // Setup paint once (mask filter changes per mode)
       _outerGlowPaint.maskFilter = reducedGlow ? _blur5 : _blur18;
       
@@ -691,23 +635,12 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
         final safeColor = ColorBlindnessUtils.getSafeColor(entry.key);
         final path = entry.value;
         
-        if (reducedGlow) {
-          // Reduced: Single efficient glow layer
-          _outerGlowPaint.color = safeColor.withOpacity(0.4);
-          _outerGlowPaint.strokeWidth = 14;
-          canvas.drawPath(path, _outerGlowPaint);
-        } else {
-          // Full quality: Wide atmospheric haze
-          _outerGlowPaint.color = safeColor.withOpacity(0.2);
-          _outerGlowPaint.strokeWidth = 36;
-          canvas.drawPath(path, _outerGlowPaint);
-          
-          // Medium intense glow (Using same paint, reused)
-          _hazePaint.maskFilter = _blur8;
-          _hazePaint.color = safeColor.withOpacity(0.45);
-          _hazePaint.strokeWidth = 18;
-          canvas.drawPath(path, _hazePaint);
-        }
+        // Single optimized glow layer for all modes
+        _outerGlowPaint.color = safeColor.withOpacity(reducedGlow ? 0.4 : 0.3);
+        _outerGlowPaint.strokeWidth = reducedGlow ? 14 : 28;
+        canvas.drawPath(path, _outerGlowPaint);
+        
+        // Removed 2nd glow layer (Medium intense glow) for performance
       }
       
       // === LAYER 2: Solid core beam ===
