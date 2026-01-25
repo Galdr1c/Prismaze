@@ -21,7 +21,6 @@ import 'procedural/models/models.dart' as proc; // Procedural Models
 import 'procedural/campaign_loader.dart'; // Campaign Loader
 import 'package:flutter/foundation.dart';
 import 'dart:math';
-import 'config/grid_constants.dart';
 
 class LevelLoader extends Component with HasGameRef<PrismazeGame> {
   
@@ -75,11 +74,16 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     // Center 14x7 grid (85px cells) in 1280x720
     // 14 * 85 = 1190 (Offset X: 45)
     // 7 * 85 = 595 (Offset Y: 62.5)
-    // Constants moved to GridConstants.
+    final double cellSize = 85.0;
+    final double offsetX = 45.0;
+    final double offsetY = 62.5;
 
     // Local conversion helper
     Vector2 toPixel(int x, int y) {
-      return GridConstants.gridToWorld(proc.GridPosition(x, y));
+      return Vector2(
+        offsetX + x * cellSize + cellSize / 2,
+        offsetY + y * cellSize + cellSize / 2,
+      );
     }
 
     _createBoundaries();
@@ -136,15 +140,14 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     }
 
     // 5. Walls
-    final List<Wall> gridWalls = [];
     for (final w in level.walls) {
-      final pos = toPixel(w.position.x, w.position.y) - Vector2.all(GridConstants.cellSize / 2);
-      gridWalls.add(Wall(
+      final pos = toPixel(w.position.x, w.position.y) - Vector2.all(cellSize / 2);
+      gameRef.world.add(Wall(
         position: pos,
-        size: Vector2.all(GridConstants.cellSize),
+        size: Vector2.all(cellSize),
       ));
     }
-    _addGridWalls(gridWalls);
+    _clusterWalls();
     
     // 6. Solution (for Hints)
     // The HintManager expects formatted JSON solution steps for now
@@ -153,10 +156,8 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     
     // CRITICAL: Refresh BeamSystem cache to drop old components and pick up new ones
     gameRef.beamSystem.refreshCache();
-    gameRef.beamSystem.clearBeams(); // Ensure no stale segments
-    
-    // FIX: Trigger initial beam calculation immediately
-    gameRef.requestBeamUpdate();
+    gameRef.beamSystem.clearBeams(); // Reset hash and clear segments
+    gameRef.beamSystem.updateBeams(); // Force immediate recalculation
     
     debugPrint("Generated level loaded: Episode ${level.episode} Index ${level.index}");
   }
@@ -237,7 +238,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     gameRef.beamSystem.useRayTracerMode = true;
     
     _createBoundaries();
-
+    _clusterWalls();
     
     int idCounter = 0;
     
@@ -303,17 +304,16 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     }
     
     // 5. Walls
-    final wallsJson = data['walls'] as List? ?? [];
-    final List<Wall> gridWalls = [];
-    for (final w in wallsJson) {
+    final walls = data['walls'] as List? ?? [];
+    for (final w in walls) {
       final from = lds.GridPos(w['from']['x'], w['from']['y']);
       final to = lds.GridPos(w['to']['x'], w['to']['y']);
       final start = lds.GridConverter.gridToPixelTopLeft(from);
       final endBottomRight = lds.GridConverter.gridToPixelTopLeft(to) + Vector2.all(lds.GridConverter.cellSize);
       final size = endBottomRight - start;
-      gridWalls.add(Wall(position: start, size: size));
+      gameRef.world.add(Wall(position: start, size: size));
     }
-    _addGridWalls(gridWalls);
+    _clusterWalls();
     
     // 6. Solution
     final solutionSteps = data['solutionSteps'] as List? ?? [];
@@ -322,6 +322,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     // CRITICAL: Refresh BeamSystem cache
     gameRef.beamSystem.refreshCache();
     gameRef.beamSystem.clearBeams();
+    gameRef.beamSystem.updateBeams();
     
     print("Procedural level loaded: ${objectMap.length} objects");
   }
@@ -416,7 +417,6 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
      
      // 4. Walls
      print("DEBUG: Spawning ${def.walls.length} walls...");
-     final List<Wall> gridWalls = [];
      for(final w in def.walls) {
          // GridWall(from, to)
          final start = lds.GridConverter.gridToPixelTopLeft(w.from);
@@ -426,21 +426,21 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
          final size = endBottomRight - start;
          
          // Wall expects position=TopLeft (checked in step 1707)
-         gridWalls.add(Wall(  // FIXED
+         gameRef.world.add(Wall(  // FIXED
              position: start,
              size: size
          ));
          print("DEBUG: Wall added at $start, size=$size");
      }
-     _addGridWalls(gridWalls);
 
      // 6. Hint/Solution
+     gameRef.hintManager.loadSolution(def.solutionSteps, objectMap);
+    _clusterWalls();
     
     // CRITICAL: Refresh BeamSystem cache
      gameRef.beamSystem.refreshCache();
      gameRef.beamSystem.clearBeams();
-     // FIX: Trigger initial beam calculation
-     gameRef.requestBeamUpdate();
+     gameRef.beamSystem.updateBeams();
      
      print("DEBUG _loadFromDef: COMPLETE - ${objectMap.length} objects loaded");
   }
@@ -449,14 +449,13 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     gameRef.world.children.whereType<LightSource>().toList().forEach((e) => e.removeFromParent());
     gameRef.world.children.whereType<Mirror>().toList().forEach((e) => e.removeFromParent());
     gameRef.world.children.whereType<Wall>().toList().forEach((e) => e.removeFromParent());
+    gameRef.world.children.whereType<WallCluster>().toList().forEach((e) => e.removeFromParent()); // FIX: Remove clustered walls
     gameRef.world.children.whereType<Prism>().toList().forEach((e) => e.removeFromParent());
     gameRef.world.children.whereType<Target>().toList().forEach((e) => e.removeFromParent());
     gameRef.world.children.whereType<Portal>().toList().forEach((e) => e.removeFromParent());
     gameRef.world.children.whereType<TimedLightSource>().toList().forEach((e) => e.removeFromParent());
     gameRef.world.children.whereType<AbsorbingWall>().toList().forEach((e) => e.removeFromParent());
     gameRef.world.children.whereType<MoveBehavior>().toList().forEach((e) => e.removeFromParent());
-    // FIX: WallCluster was missing, causing glow accumulation on reset
-    gameRef.world.children.whereType<WallCluster>().toList().forEach((e) => e.removeFromParent());
   }
 
   void _createBoundaries() {
@@ -479,18 +478,27 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
 
   }
 
-  /// efficient batch adding and clustering of grid walls
-  void _addGridWalls(List<Wall> walls) {
-    if (walls.isEmpty) return;
-
-    // Add individual walls (physically present, visually hidden)
-    for (final wall in walls) {
-      wall.shouldRender = false; 
-      gameRef.world.add(wall);
+  void _clusterWalls() {
+    final allWalls = gameRef.world.children.whereType<Wall>().toList();
+    if (allWalls.isEmpty) return;
+    
+    // 1. Filter out boundary walls (which have opacity initialized to 1.0 and fixed positions)
+    // Actually, boundary walls are also Walls. 
+    // Usually clustering is for grid walls. 
+    // Boundary walls are large rectangles (1250x15, etc.) but clustering works by cell logic.
+    // I'll only cluster walls that have the default grid size (85x85) or are small enough.
+    
+    final gridWalls = allWalls.where((w) => w.size.x < 100 && w.size.y < 100).toList();
+    if (gridWalls.isEmpty) return;
+    
+    // 2. Group walls by adjacency (Simple grouping for now: all in one cluster is safe if they are visible)
+    // For even better optimization we could split into isolated islands, but one cluster handle disjoint walls fine.
+    
+    for (final wall in gridWalls) {
+        wall.shouldRender = false; // Hide individual render
     }
     
-    // Create optimized cluster view
-    gameRef.world.add(WallCluster(walls));
-    // print("Wall Clustering: Batch added ${walls.length} walls.");
+    gameRef.world.add(WallCluster(gridWalls));
+    print("Wall Clustering: Grouped ${gridWalls.length} grid walls into 1 cluster.");
   }
 }

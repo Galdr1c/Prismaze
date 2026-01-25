@@ -34,23 +34,14 @@ class OccupancyValidationResult {
 /// Tracks occupied cells and prevents collisions during level generation.
 class OccupancyGrid {
   /// Map of cell key -> occupant type
-  final Map<int, OccupantType> _occupied = {};
+  final Map<String, OccupantType> _occupied = {};
 
   /// Grid dimensions
   static const int gridWidth = 14;
   static const int gridHeight = 7;
 
-  /// Generate a unique key for a position (x < 32, y < 32).
-  /// x: 0-13 (4 bits), y: 0-6 (3 bits)
-  static int _key(GridPosition pos) {
-    // assert(pos.x >= 0 && pos.x < 32, 'X out of range');
-    // assert(pos.y >= 0 && pos.y < 32, 'Y out of range');
-    return (pos.x << 5) | pos.y;
-  }
-  
-  static GridPosition _fromKey(int key) {
-    return GridPosition(key >> 5, key & 0x1F);
-  }
+  /// Generate a unique key for a position.
+  static String _key(GridPosition pos) => '${pos.x},${pos.y}';
 
   /// Check if a cell is occupied.
   bool isOccupied(GridPosition pos) => _occupied.containsKey(_key(pos));
@@ -88,9 +79,7 @@ class OccupancyGrid {
   }
 
   /// Get all occupied positions.
-  Set<GridPosition> getOccupiedPositions() {
-    return _occupied.keys.map(_fromKey).toSet();
-  }
+  Set<String> get occupiedKeys => _occupied.keys.toSet();
 
   /// Validate a GeneratedLevel has no cell collisions.
   ///

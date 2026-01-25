@@ -8,10 +8,12 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
   final List<Wall> walls;
   Path? _cachedOutlinePath;
   Path? _cachedBodyPath;
-  String? _outlineCacheKey;
   int _themeHash = 0;
 
-  Path get outlinePath => _buildOutlinePath();
+  Path get outlinePath {
+    _cachedOutlinePath ??= _buildOutlinePath();
+    return _cachedOutlinePath!;
+  }
 
   Path get bodyPath {
     _cachedBodyPath ??= _buildBodyPath();
@@ -31,8 +33,15 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
   @override
   void update(double dt) {
     super.update(dt);
-    // Note: We no longer invalidate path cache on theme change 
-    // because path geometry is theme-independent.
+    
+    // Rebuild cache if theme changed
+    final currentTheme = gameRef.customizationManager.selectedTheme;
+    final newHash = currentTheme.hashCode;
+    if (_themeHash != newHash) {
+      _themeHash = newHash;
+      _cachedOutlinePath = null;
+      _cachedBodyPath = null;
+    }
   }
   
   @override
@@ -42,8 +51,8 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
     final reducedGlow = gameRef.settingsManager.reducedGlowEnabled;
     final highContrast = gameRef.settingsManager.highContrastEnabled;
     
-    // Build or retrieve cached paths
-    final currentOutline = _buildOutlinePath();
+    // Build paths on first render or theme change
+    _cachedOutlinePath ??= _buildOutlinePath();
     _cachedBodyPath ??= _buildBodyPath();
     
     // Check global opacity from first wall (if exists) or default to 1
@@ -51,7 +60,7 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
     if (globalOpacity < 0.01) return; // Skip if invisible
     
     if (highContrast) {
-      _renderHighContrast(canvas, currentOutline);
+      _renderHighContrast(canvas);
       return;
     }
     
@@ -64,7 +73,7 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
     // === SINGLE OUTER GLOW ===
     if (!reducedGlow) {
       canvas.drawPath(
-        currentOutline,
+        _cachedOutlinePath!,
         Paint()
           ..color = glowColor.withOpacity(0.4 * globalOpacity)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
@@ -95,7 +104,7 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
     
     // === SINGLE BORDER ===
     canvas.drawPath(
-      currentOutline,
+      _cachedOutlinePath!,
       Paint()
         ..color = borderColor.withOpacity(0.9 * globalOpacity)
         ..style = PaintingStyle.stroke
@@ -103,13 +112,13 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
     );
   }
   
-  void _renderHighContrast(Canvas canvas, Path outline) {
+  void _renderHighContrast(Canvas canvas) {
     canvas.drawPath(
       _cachedBodyPath!,
       Paint()..color = Colors.black,
     );
     canvas.drawPath(
-      outline,
+      _cachedOutlinePath!,
       Paint()
         ..color = Colors.white
         ..style = PaintingStyle.stroke
@@ -119,19 +128,6 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
   
   /// Build outline path from individual walls
   Path _buildOutlinePath() {
-    // Generate cache key from sorted positions
-    final key = walls
-        .map((w) => '${w.position.x},${w.position.y}')
-        .toList()
-        ..sort();
-    final cacheKey = key.join('|');
-    
-    // Cache Hit: reuse existing path if key matches
-    if (_cachedOutlinePath != null && _outlineCacheKey == cacheKey) {
-      return _cachedOutlinePath!;
-    }
-    
-    // Cache Miss: rebuild path
     final path = Path();
     
     // Create a grid to track occupied cells
@@ -153,8 +149,6 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
       _addEdgeIfBoundary(path, x, y, grid, 'left');
     }
     
-    _cachedOutlinePath = path;
-    _outlineCacheKey = cacheKey;
     return path;
   }
   

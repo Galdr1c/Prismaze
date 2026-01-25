@@ -51,10 +51,6 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
   static const _blur3 = MaskFilter.blur(BlurStyle.solid, 3);
   static const _blur4 = MaskFilter.blur(BlurStyle.normal, 4);
 
-  // Cached physics values
-  Vector2? _cachedNormal;
-  double _lastRotation = 0;
-
   Mirror({
     required Vector2 position,
     double angle = 0,
@@ -68,20 +64,6 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
           angle: angle,
           anchor: Anchor.center,
         );
-        
-  /// Get the surface normal vector (cached).
-  Vector2 get surfaceNormal {
-    // Return cached normal if rotation hasn't changed
-    if (_cachedNormal != null && _lastRotation == angle) {
-      return _cachedNormal!;
-    }
-    
-    // Recalculate and cache
-    _lastRotation = angle;
-    // Normal is perpendicular to the mirror surface (+90 deg)
-    _cachedNormal = Vector2(cos(angle + pi / 2), sin(angle + pi / 2));
-    return _cachedNormal!;
-  }
   
   /// Called by BeamSystem when light hits this mirror
   void onLightHit() {
@@ -127,8 +109,10 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
   }
 
   void _rotate() {
-    if (isLocked) {
-         AudioManager().playSfx('error_sound.mp3');
+    if (isLocked || gameRef.isLevelCompleted) {
+         if (isLocked && !gameRef.isLevelCompleted) {
+           AudioManager().playSfx('error_sound.mp3');
+         }
          return;
     }
     
@@ -185,22 +169,18 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
   void render(Canvas canvas) {
     if (opacity == 0) return;
     
-    final bool reducedGlow = gameRef.settingsManager.reducedGlowEnabled;
-    final bool highContrast = gameRef.settingsManager.highContrastEnabled;
-    
-    // FAST PATH: Reduced Glow
-    if (reducedGlow) {
-        _renderSimple(canvas);
-        return;
-    }
-    
     final rect = size.toRect();
-    // ... [Original rendering]
-    // Since I'm using replace_file_content, I must provide the full content or just the diff. 
-    // To minimize tokens and risk, I will implement _renderSimple within the render function scope or as a helper and call it.
-    // However, I need to match the user's exact "Fast Path" request structure.
+    // ... [Render code kept mostly same, compacted for brevity in replacement if unchanged, but I must provide valid replacement]
+    // Since I'm replacing a large block, I need to keep the render code.
+    // I will use render_diffs logic by just copying the render method essentially or just replacing the top part if I can focus the chunk.
+    // But Drag methods are at the bottom.
+    // I'll rewrite the whole class structure in the replacement to be safe, but keep render body.
     
     final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
+    
+    // Check accessibility settings
+    final bool reducedGlow = gameRef.settingsManager.reducedGlowEnabled;
+    final bool highContrast = gameRef.settingsManager.highContrastEnabled;
     
     if (highContrast) {
       _basePaint.color = Colors.grey.shade800.withOpacity(opacity);
@@ -214,11 +194,13 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
     }
 
     // === LAYER 1: Drop Shadow ===
+    if (!reducedGlow) {
       final shadowRRect = rrect.shift(const Offset(2, 3));
       _glowPaint
         ..color = Colors.black.withOpacity(0.35 * opacity)
         ..maskFilter = _blur4;
       canvas.drawRRect(shadowRRect, _glowPaint);
+    }
 
     // === LAYER 2: Golden Frame ===
     final frameGradient = LinearGradient(
@@ -271,6 +253,7 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
     canvas.drawRRect(innerRRect, _shaderPaint);
 
     // === LAYER 4: Idle Shimmer ===
+    if (!reducedGlow) {
       final shimmerPhase = (_time * 0.3) % 3.0; // Slow sweep every 3 seconds
       if (shimmerPhase < 1.0) {
         final shimmerPos = shimmerPhase * (size.x + 30) - 15;
@@ -289,6 +272,7 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
         );
         canvas.restore();
       }
+    }
 
     // === LAYER 5: Rotation Shine Effect ===
     if (_shineOffset > -1.0 || _isRotating) {
@@ -312,7 +296,7 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
     }
 
     // === LAYER 6: Light Impact Glow ===
-    if (_lightHitIntensity > 0) {
+    if (_lightHitIntensity > 0 && !reducedGlow) {
       VisualEffects.drawCrystalGlow(
         canvas,
         rrect,
@@ -329,12 +313,14 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
     }
 
     // === LAYER 7: Frame Glow (Pulsing) ===
+    if (!reducedGlow) {
       final pulseIntensity = 0.3 + 0.1 * sin(_time * 2.5);
       _strokePaint
         ..color = _glowColor.withOpacity(pulseIntensity * opacity)
         ..strokeWidth = 2
         ..maskFilter = _blur3;
       canvas.drawRRect(rrect, _strokePaint);
+    }
     
     // === LAYER 8: Crisp Frame Border ===
     _strokePaint
@@ -350,24 +336,6 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
       _basePaint.color = Colors.white.withOpacity(opacity);
       canvas.drawCircle(Offset(size.x / 2, size.y / 2), 2, _basePaint);
     }
-  }
-
-  void _renderSimple(Canvas canvas) {
-      final rect = size.toRect();
-      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
-      
-      // Simple frame (no gradients)
-      canvas.drawRRect(rrect, _basePaint..color = const Color(0xFFD4AF37).withOpacity(opacity));
-      
-      // Simple glass center
-      final innerRect = rect.deflate(4);
-      final innerRRect = RRect.fromRectAndRadius(innerRect, const Radius.circular(3));
-      canvas.drawRRect(innerRRect, _basePaint..color = const Color(0xFFB8C5D6).withOpacity(opacity));
-      
-      // Locked?
-      if (isLocked) {
-          canvas.drawCircle(rect.center, 3, Paint()..color = Colors.red);
-      }
   }
   
   // Physics Line Segment (Restored for DebugOverlay)

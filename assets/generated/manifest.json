@@ -1,51 +1,41 @@
 {
   "version": 1,
-  "generatedAt": "2026-01-25T14:49:05.358426",
-  "episodes": [
-    {
-      "episode": 1,
+  "generatedAt": "2026-01-24T15:21:32.398896",
+  "episodes": {
+    "1": {
+      "file": "assets/generated/episode_01.json",
       "count": 200,
-      "file": "episode_01.json",
-      "seedRange": {
-        "start": 10001,
-        "end": 10201
-      }
+      "seedStart": 10001,
+      "seedEnd": 10200,
+      "updatedAt": "2026-01-24T16:08:35.879212"
     },
-    {
-      "episode": 2,
+    "2": {
+      "file": "assets/generated/episode_02.json",
       "count": 200,
-      "file": "episode_02.json",
-      "seedRange": {
-        "start": 20001,
-        "end": 20200
-      }
+      "seedStart": 20001,
+      "seedEnd": 20200,
+      "updatedAt": "2026-01-24T16:08:41.126809"
     },
-    {
-      "episode": 3,
+    "3": {
+      "file": "assets/generated/episode_03.json",
       "count": 200,
-      "file": "episode_03.json",
-      "seedRange": {
-        "start": 30001,
-        "end": 30221
-      }
+      "seedStart": 30001,
+      "seedEnd": 30200,
+      "updatedAt": "2026-01-24T16:08:41.838686"
     },
-    {
-      "episode": 4,
+    "4": {
+      "file": "assets/generated/episode_04.json",
       "count": 200,
-      "file": "episode_04.json",
-      "seedRange": {
-        "start": 40001,
-        "end": 40200
-      }
+      "seedStart": 40001,
+      "seedEnd": 40200,
+      "updatedAt": "2026-01-24T16:08:57.766673"
     },
-    {
-      "episode": 5,
+    "5": {
+      "file": "assets/generated/episode_05.json",
       "count": 200,
-      "file": "episode_05.json",
-      "seedRange": {
-        "start": 50001,
-        "end": 50200
-      }
+      "seedStart": 50001,
+      "seedEnd": 50200,
+      "updatedAt": "2026-01-24T16:09:33.148902"
     }
-  ]
+  }
 }

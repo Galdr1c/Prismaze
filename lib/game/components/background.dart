@@ -1,19 +1,12 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'dart:ui' as ui; // Added for image caching
 import '../prismaze_game.dart';
 import 'wall.dart';
 
 class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame> {
   // Theme Data
   late String _currentTheme;
-  
-  // Caching
-  ui.Image? _cachedImage;
-  String _cachedTheme = '';
-  bool _isCaching = false;
-
   
   // Space Assets
   final List<Vector2> _stars = [];
@@ -72,10 +65,11 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     _generateAurora();
     _generateGalaxy();
     _generateDustParticles();
-    
-    await _rebuildCache(gameRef.customizationManager.selectedTheme);
   }
-
+  
+  // Removed onGameResize - Background should stay at logical size (-32, -18, 1344, 756)
+  // to perfectly cover the camera's fixed resolution view.
+  
   @override
   void onRemove() {
       gameRef.customizationManager.removeListener(_onThemeChanged);
@@ -189,9 +183,6 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
 
   @override
   void update(double dt) {
-    // Battery Saver: Skip background animations if paused
-    if (gameRef.isPaused) return;
-
     // Space Parallax & Twinkle
     if (_currentTheme == 'theme_space') {
         for (int i = 0; i < _stars.length; i++) {
@@ -303,92 +294,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
         return;
     }
 
-    // Cache Management
-    if (_currentTheme != _cachedTheme) {
-        _cachedImage = null; // Invalidate
-        _cachedTheme = _currentTheme;
-    }
-
-    if (_cachedImage != null) {
-        // Draw Cached Background
-        canvas.drawImage(_cachedImage!, Offset.zero, Paint());
-    } else {
-        // Fallback: draw simple background and trigger cache build
-        // Important: While waiting, draw simple black background to prevent flicker
-         canvas.drawRect(size.toRect(), Paint()..color = Colors.black);
-         
-        if (!_isCaching) {
-            _rebuildCache(_currentTheme);
-        }
-    }
-
-    // Shooting Star (Dynamic - always on top if not reduced glow)
-    if (_shootingStar != null && !gameRef.settingsManager.reducedGlowEnabled) {
-      final star = _shootingStar!;
-      final tailLength = 80.0 * star.life;
-      final tailEnd = star.position - Vector2(
-        cos(star.angle) * tailLength,
-        sin(star.angle) * tailLength,
-      );
-      
-      // Tail glow
-      canvas.drawLine(
-        star.position.toOffset(),
-        tailEnd.toOffset(),
-        Paint()
-          ..color = Colors.white.withOpacity(0.4 * star.life)
-          ..strokeWidth = 3
-          ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
-      
-      // Head
-      canvas.drawCircle(
-        star.position.toOffset(),
-        3,
-        Paint()..color = Colors.white.withOpacity(star.life),
-      );
-    }
-    
-    // Vignette (Dynamic/Overlay)
-    _drawVignette(canvas); 
-    
-    // Dust Particles (Dynamic)
-    _renderDustParticles(canvas);
-  }
-
-  void _renderDustParticles(Canvas canvas) {
-      for (final dust in _dustParticles) {
-          final paint = Paint()
-            ..color = Colors.white.withOpacity(0.1 + 0.1 * sin(dust.phase)) // Twinkle
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1);
-            
-          canvas.drawCircle(dust.position.toOffset(), dust.size, paint);
-      }
-  }
-
-  Future<void> _rebuildCache(String theme) async {
-      _isCaching = true;
-      try {
-          final recorder = ui.PictureRecorder();
-          final canvas = Canvas(recorder);
-          
-          // Draw the full static theme
-          _renderCurrentTheme(canvas);
-          
-          final picture = recorder.endRecording();
-          // Cache at render size and WAIT for image
-          _cachedImage = await picture.toImage(1344, 756);
-          _cachedTheme = theme;
-      } catch (e) {
-          print("Background cache failed: $e");
-      } finally {
-          _isCaching = false;
-      }
-  }
-
-  void _renderCurrentTheme(Canvas canvas) {
-    // Base Background Gradient
+    // Base Background
     Color alignColor1, alignColor2;
     
     switch (_currentTheme) {
@@ -429,7 +335,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       
     canvas.drawRect(rect, gradient);
     
-    // Theme Specifics
+    // FIX: Restore theme specific rendering
     switch (_currentTheme) {
         case 'theme_space':
             _renderSpace(canvas);
@@ -451,6 +357,38 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
             _renderGalaxy(canvas);
             break;
     }
+
+    // Shooting Star
+    if (_shootingStar != null && !gameRef.settingsManager.reducedGlowEnabled) {
+      final star = _shootingStar!;
+      final tailLength = 80.0 * star.life;
+      final tailEnd = star.position - Vector2(
+        cos(star.angle) * tailLength,
+        sin(star.angle) * tailLength,
+      );
+      
+      // Tail glow
+      canvas.drawLine(
+        star.position.toOffset(),
+        tailEnd.toOffset(),
+        Paint()
+          ..color = Colors.white.withOpacity(0.4 * star.life)
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+      
+      // Head
+      canvas.drawCircle(
+        star.position.toOffset(),
+        3,
+        Paint()..color = Colors.white.withOpacity(star.life),
+      );
+    }
+    
+    // God rays removed for performance - was using expensive canvas rotation + gradient shaders
+    // The vignette provides sufficient ambient lighting effect
+    _drawVignette(canvas); 
   }
   
   void _generateDustParticles() {

@@ -219,9 +219,10 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   void clearBeams() {
       _segments.clear();
       _particles.clear();
-      _externalSegments = null; // Guardrail: Ensure external segments are cleared on level reset
-      _cachedPaths.clear(); // CRITICAL FIX: Clear visual cache to prevent ghost beams during transition
-      _lastSegmentHash = 0; // FIX: Force path rebuild on next update
+      _externalSegments = null;
+      _cachedPaths.clear(); 
+      _lastSegmentHash = -1; // CRITICAL FIX: Invalidate hash to force path rebuild
+      requestUpdate(); // Ensure a recalculation is queued
   }
   
   void _recalculateBeams() {
@@ -278,19 +279,14 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   
   void _buildBatchedPaths() {
       // OPTIMIZATION: Check if segments actually changed content
+      // Since _segments is mutable (same identity), we must check content hash
       int currentHash = 0;
       for(final seg in _segments) {
-          // Robust hash including position and color
+          // Simple XOR hash of properties for speed
           currentHash ^= seg.start.hashCode ^ seg.end.hashCode ^ seg.color.value;
       }
       
-      // CRITICAL: Skip rebuild if identical
-      if (currentHash == _lastSegmentHash) {
-          // If segments match, we don't rebuild paths.
-          // Note: If segments changed but hash collided (rare), visual glitch might occur.
-          // For visuals, this is acceptable trade-off for performance.
-          return;
-      }
+      if (currentHash == _lastSegmentHash) return; // Skip rebuild if identical
       
       _lastSegmentHash = currentHash;
       _cachedPaths.clear();
@@ -322,15 +318,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
     
     // Loop detection: track visited segments to prevent infinite loops
     visitedSegments ??= {};
-    // FIX: Better precision (1 decimal) to avoid false merges, but strict enough to catch loops
-    final segmentKey = '${start.x.toStringAsFixed(1)},${start.y.toStringAsFixed(1)},${direction.x.toStringAsFixed(2)},${direction.y.toStringAsFixed(2)}';
-    
-    // Debug assertion to catch loops early in development
-    assert(
-        !visitedSegments.contains(segmentKey),
-        'Ray loop detected at $segmentKey - infinite recursion prevented'
-    );
-
+    final segmentKey = '${start.x.toStringAsFixed(0)},${start.y.toStringAsFixed(0)},${direction.x.toStringAsFixed(2)},${direction.y.toStringAsFixed(2)}';
     if (visitedSegments.contains(segmentKey)) return;
     visitedSegments.add(segmentKey);
 

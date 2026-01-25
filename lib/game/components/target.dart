@@ -170,19 +170,6 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     super.update(dt);
     _time += dt;
     
-    // OPTIMIZATION: Skip complex animations if reduced glow
-    if (gameRef.settingsManager.reducedGlowEnabled) {
-         _confetti.clear();
-         // Still do logic updates for game state (fill progress)
-         if (_isLit) {
-            _fillProgress += dt * 0.7;
-         } else {
-            _fillProgress -= dt * 1.5;
-         }
-         _fillProgress = _fillProgress.clamp(0.0, 1.0);
-         return;
-    }
-    
     // 1. Continuous Scale Animation (Breathing)
     // Sine wave: period ~2s
     _scaleAnim = 1.0 + 0.05 * sin(_time * 3);
@@ -212,29 +199,21 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
   void render(Canvas canvas) {
     if (opacity == 0) return;
     
-    final bool reducedGlow = gameRef.settingsManager.reducedGlowEnabled;
-    final bool highContrast = gameRef.settingsManager.highContrastEnabled;
-    
-    // FAST PATH: Reduced Glow
-    if (reducedGlow) {
-        _renderSimple(canvas);
-        return;
-    }
-    
     canvas.save();
     canvas.translate(_visualOffset.x, _visualOffset.y);
     
     final center = Offset(size.x / 2, size.y / 2);
     final radius = size.x / 2;
     final safeColor = ColorBlindnessUtils.getSafeColor(requiredColor);
+    final bool reducedGlow = gameRef.settingsManager.reducedGlowEnabled;
+    final bool highContrast = gameRef.settingsManager.highContrastEnabled;
 
     // High contrast mode: simple solid circles
     if (highContrast) {
-      _basePaint.color = (_isLit ? Colors.white : Colors.grey.shade700).withOpacity(opacity);
-      _basePaint.style = _isLit ? PaintingStyle.fill : PaintingStyle.stroke;
-      _basePaint.strokeWidth = 3;
-      _basePaint.maskFilter = null; // Clear mask
-      
+      _basePaint
+        ..color = (_isLit ? Colors.white : Colors.grey.shade700).withOpacity(opacity)
+        ..style = _isLit ? PaintingStyle.fill : PaintingStyle.stroke
+        ..strokeWidth = 3;
       canvas.drawCircle(center, radius, _basePaint);
       canvas.restore();
       return;
@@ -242,18 +221,18 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
 
     // === LAYER 1: Drop Shadow ===
     if (!reducedGlow) {
-      _glowPaint.color = Colors.black.withOpacity(0.3 * opacity);
-      _glowPaint.maskFilter = _blur6;
-      _glowPaint.style = PaintingStyle.fill;
+      _glowPaint
+        ..color = Colors.black.withOpacity(0.3 * opacity)
+        ..maskFilter = _blur6;
       canvas.drawCircle(center + const Offset(2, 3), radius + 2, _glowPaint);
     }
 
     // === LAYER 2: Outer Halo (Atmospheric Glow) ===
     if (!reducedGlow && _fillProgress < 1.0) {
       final haloAlpha = 0.15 + 0.1 * sin(_time * 2.5);
-      _glowPaint.color = safeColor.withOpacity(haloAlpha.clamp(0.0, 0.3) * opacity);
-      _glowPaint.maskFilter = _blur15;
-      _glowPaint.style = PaintingStyle.fill;
+      _glowPaint
+        ..color = safeColor.withOpacity(haloAlpha.clamp(0.0, 0.3) * opacity)
+        ..maskFilter = _blur15;
       canvas.drawCircle(center, radius + 15, _glowPaint);
     }
 
@@ -264,33 +243,29 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
       
       // Outer glow ring
       if (!reducedGlow) {
-        _strokePaint.color = safeColor.withOpacity(pulseAlpha * 0.4 * opacity);
-        _strokePaint.strokeWidth = pulseWidth + 4;
-        _strokePaint.maskFilter = _blur4;
-        _strokePaint.style = PaintingStyle.stroke;
+        _strokePaint
+          ..color = safeColor.withOpacity(pulseAlpha * 0.4 * opacity)
+          ..strokeWidth = pulseWidth + 4
+          ..maskFilter = _blur4;
         canvas.drawCircle(center, radius, _strokePaint);
       }
       
       // Crisp ring
-      _strokePaint.color = safeColor.withOpacity(pulseAlpha.clamp(0.3, 0.8) * opacity);
-      _strokePaint.strokeWidth = pulseWidth;
-      _strokePaint.maskFilter = null;
-      _strokePaint.style = PaintingStyle.stroke;
+      _strokePaint
+        ..color = safeColor.withOpacity(pulseAlpha.clamp(0.3, 0.8) * opacity)
+        ..strokeWidth = pulseWidth
+        ..maskFilter = null;
       canvas.drawCircle(center, radius, _strokePaint);
       
       // Inner depth ring
-      _strokePaint.color = Colors.black.withOpacity(0.15 * opacity);
-      _strokePaint.strokeWidth = 1;
-      _strokePaint.maskFilter = null;
-      _strokePaint.style = PaintingStyle.stroke;
+      _strokePaint
+        ..color = Colors.black.withOpacity(0.15 * opacity)
+        ..strokeWidth = 1;
       canvas.drawCircle(center, radius - 4, _strokePaint);
     }
 
     // === LAYER 4: Orbiting Particles (Empty State) - OPTIMIZED ===
     if (!reducedGlow && _fillProgress < 0.5) {
-      _basePaint.style = PaintingStyle.fill;
-      _basePaint.maskFilter = null;
-      
       const int particleCount = 4; // Reduced from 6
       for (int i = 0; i < particleCount; i++) {
         final angle = (_time * 0.6) + (i * 2 * pi / particleCount); // Slower
@@ -311,21 +286,20 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
           safeColor.withOpacity(0.0),
         ],
       );
-      _fillPaint.shader = hintGradient.createShader(Rect.fromCircle(center: center, radius: radius - 5));
-      _fillPaint.style = PaintingStyle.fill;
-      _fillPaint.maskFilter = null;
-      
-      canvas.drawCircle(center, radius - 5, _fillPaint);
-      _fillPaint.shader = null; // Clear shader
+      canvas.drawCircle(
+        center,
+        radius - 5,
+        Paint()..shader = hintGradient.createShader(Rect.fromCircle(center: center, radius: radius - 5)),
+      );
     }
 
     // === LAYER 6: Fill Animation (Radial gradient fill) ===
     if (_fillProgress > 0.01) {
       // Outer fill glow
       if (!reducedGlow) {
-        _glowPaint.color = safeColor.withOpacity(0.3 * _fillProgress * opacity);
-        _glowPaint.maskFilter = _blur8;
-        _glowPaint.style = PaintingStyle.fill;
+        _glowPaint
+          ..color = safeColor.withOpacity(0.3 * _fillProgress * opacity)
+          ..maskFilter = _blur8;
         canvas.drawCircle(center, radius * _fillProgress + 5, _glowPaint);
       }
       
@@ -340,17 +314,14 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
       );
       
       _fillPaint.shader = fillGradient.createShader(Rect.fromCircle(center: center, radius: radius * _fillProgress));
-      _fillPaint.style = PaintingStyle.fill;
-      _fillPaint.maskFilter = null;
       canvas.drawCircle(center, radius * _fillProgress, _fillPaint);
-      _fillPaint.shader = null; // Clear shader
       
       // Edge highlight ring
       if (_fillProgress > 0.3) {
-        _strokePaint.color = Colors.white.withOpacity(0.6 * opacity);
-        _strokePaint.strokeWidth = 2;
-        _strokePaint.maskFilter = null;
-        _strokePaint.style = PaintingStyle.stroke;
+        _strokePaint
+          ..color = Colors.white.withOpacity(0.6 * opacity)
+          ..strokeWidth = 2
+          ..maskFilter = null;
         canvas.drawCircle(center, radius * _fillProgress, _strokePaint);
       }
     }
@@ -359,16 +330,14 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     if (_fillProgress >= 0.95) {
       // Bright halo
       if (!reducedGlow) {
-        _glowPaint.color = safeColor.withOpacity(0.5 * opacity);
-        _glowPaint.maskFilter = _blur10;
-        _glowPaint.style = PaintingStyle.fill;
+        _glowPaint
+          ..color = safeColor.withOpacity(0.5 * opacity)
+          ..maskFilter = _blur10;
         canvas.drawCircle(center, radius + 8, _glowPaint);
       }
       
       // White core
       _basePaint.color = Colors.white.withOpacity(0.95 * opacity);
-      _basePaint.style = PaintingStyle.fill;
-      _basePaint.maskFilter = null;
       canvas.drawCircle(center, radius * 0.6, _basePaint);
       
       // Draw checkmark
@@ -381,12 +350,12 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
       checkPath.lineTo(cx - checkSize * 0.1, cy + checkSize * 0.5);
       checkPath.lineTo(cx + checkSize * 0.6, cy - checkSize * 0.4);
       
-      _strokePaint.color = safeColor.withOpacity(opacity);
-      _strokePaint.strokeWidth = 3;
-      _strokePaint.strokeCap = StrokeCap.round;
-      _strokePaint.strokeJoin = StrokeJoin.round;
-      _strokePaint.maskFilter = null;
-      _strokePaint.style = PaintingStyle.stroke;
+      _strokePaint
+        ..color = safeColor.withOpacity(opacity)
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..maskFilter = null;
       canvas.drawPath(checkPath, _strokePaint);
     }
 
@@ -401,63 +370,12 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     }
 
     // === Render Confetti Particles (OPTIMIZED - no glow) ===
-    _basePaint.style = PaintingStyle.fill;
-    _basePaint.maskFilter = null;
     for (final p in _confetti) {
       _basePaint.color = Colors.white.withOpacity(p.life.clamp(0.0, 1.0));
       canvas.drawCircle(p.position.toOffset(), p.size * p.life, _basePaint);
     }
     
     canvas.restore();
-  }
-  
-  void _renderSimple(Canvas canvas) {
-      final center = Offset(size.x / 2, size.y / 2);
-      final radius = size.x / 2;
-      final safeColor = ColorBlindnessUtils.getSafeColor(requiredColor);
-      
-      // Fill when lit
-      if (_fillProgress > 0) {
-          _basePaint.color = safeColor.withOpacity(opacity * 0.8);
-          _basePaint.style = PaintingStyle.fill;
-          _basePaint.maskFilter = null;
-          canvas.drawCircle(center, radius * _fillProgress, _basePaint);
-      }
-      
-      // Border
-      _strokePaint.color = (_isLit ? safeColor : Colors.white).withOpacity(opacity);
-      _strokePaint.style = PaintingStyle.stroke;
-      _strokePaint.strokeWidth = 2;
-      _strokePaint.maskFilter = null;
-      canvas.drawCircle(center, radius, _strokePaint);
-        
-      if (_isLit && _fillProgress > 0.9) {
-          // Checkmark
-           final checkPath = Path();
-           final cx = center.dx;
-           final cy = center.dy;
-           final checkSize = radius * 0.4;
-           
-           checkPath.moveTo(cx - checkSize * 0.6, cy);
-           checkPath.lineTo(cx - checkSize * 0.1, cy + checkSize * 0.5);
-           checkPath.lineTo(cx + checkSize * 0.6, cy - checkSize * 0.4);
-           
-           _strokePaint.color = Colors.white;
-           _strokePaint.style = PaintingStyle.stroke;
-           _strokePaint.strokeWidth = 3;
-           _strokePaint.maskFilter = null;
-           canvas.drawPath(checkPath, _strokePaint);
-      }
-      
-      // Mixed slots if needed
-      if (_fillProgress < 0.9 && _isMixedTarget()) {
-          _drawProgressSlots(canvas, center, radius);
-      }
-      
-      // Symbol
-      if (_fillProgress < 0.9) {
-          ColorBlindnessUtils.drawSymbol(canvas, center, requiredColor, size.x / 2);
-      }
   }
 
   bool _colorMatch(Color c1, Color c2) {
