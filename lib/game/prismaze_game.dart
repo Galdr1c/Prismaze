@@ -74,9 +74,12 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
   int currentLevelId = 1;
   int _retryCount = 0;
   bool _isLevelCompleted = false;
+  bool _isPaused = false;
+  bool get isPaused => _isPaused;
   
   // Listener callback for cleanup
-  late VoidCallback _colorBlindListener;
+  VoidCallback? _colorBlindListener;
+  VoidCallback? _themeListener;
   
   // Easter Egg Notifier for special popups
   final ValueNotifier<EasterEggEvent?> easterEggNotifier = ValueNotifier(null);
@@ -142,6 +145,10 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
   
   @override
   void update(double dt) {
+      // Battery Saver: Skip update if paused or completed
+      if (_isPaused || _isLevelCompleted) {
+          return;
+      }
       super.update(dt * timeScale);
       
       if (!_isLevelCompleted) {
@@ -704,10 +711,14 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
     
     // Sync ColorBlind Mode
     ColorBlindnessUtils.currentMode = ColorBlindMode.values[settingsManager.colorBlindIndex];
-    _colorBlindListener = () {
-        ColorBlindnessUtils.currentMode = ColorBlindMode.values[settingsManager.colorBlindIndex];
-    };
-    settingsManager.addListener(_colorBlindListener);
+    // Sync ColorBlind Mode
+    ColorBlindnessUtils.currentMode = ColorBlindMode.values[settingsManager.colorBlindIndex];
+    
+    _colorBlindListener = _onColorBlindModeChanged;
+    _themeListener = _onThemeChanged;
+    
+    settingsManager.addListener(_colorBlindListener!);
+    settingsManager.addListener(_themeListener!);
 
     beamSystem = BeamSystem();
     world.add(beamSystem);  // FIXED: Use world.add for camera rendering
@@ -881,6 +892,29 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           levelNotifier.value = currentLevelId;
       }
   }
+  
+  void pauseGame() {
+    _isPaused = true;
+    pauseEngine(); 
+  }
+  
+  void resumeGame() {
+    _isPaused = false;
+    resumeEngine();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    if (_isPaused) {
+      _renderPauseOverlay(canvas);
+    }
+  }
+
+  void _renderPauseOverlay(Canvas canvas) {
+      canvas.drawColor(Colors.black.withOpacity(0.5), BlendMode.darken);
+  }
+
   void zoomIn() {
       double newZoom = camera.viewfinder.zoom + 0.2; 
       if (newZoom <= 3.0) camera.viewfinder.zoom = newZoom;
@@ -891,9 +925,14 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       if (newZoom >= 0.5) camera.viewfinder.zoom = newZoom;
   }
   @override
+  void onRemove() {
+    _removeListeners();
+    super.onRemove();
+  }
+
+  @override
   void onDispose() {
-      // Remove Listeners
-      settingsManager.removeListener(_colorBlindListener);
+      _removeListeners();
       
       // Dispose Notifiers
       movesNotifier.dispose();
@@ -917,6 +956,27 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       missionManager.dispose();
       
       super.onDispose();
+  }
+  
+  void _removeListeners() {
+    if (_colorBlindListener != null) {
+      settingsManager.removeListener(_colorBlindListener!);
+      _colorBlindListener = null;
+    }
+    if (_themeListener != null) {
+      settingsManager.removeListener(_themeListener!);
+      _themeListener = null;
+    }
+  }
+
+  void _onColorBlindModeChanged() {
+      ColorBlindnessUtils.currentMode = ColorBlindMode.values[settingsManager.colorBlindIndex];
+  }
+
+  void _onThemeChanged() {
+      // Visual settings changed (High Contrast, Reduced Glow)
+      // Request repaint/update
+      requestBeamUpdate();
   }
 }
 

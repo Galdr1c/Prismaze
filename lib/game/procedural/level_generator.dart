@@ -236,8 +236,72 @@ class LevelGenerator {
   GenerationAttempt _generateBlueprint(
     EpisodeConfig config, int episode, int index, int seed, Random rng, int attemptNumber,
   ) {
-    // Check if we should use the new "Proper Blueprint" system
-    return _generateProperBlueprint(config, episode, index, seed, rng, attemptNumber);
+    // E6+ uses the new ProperBlueprint system (Path-based)
+    if (episode >= 6) {
+      return _generateProperBlueprint(config, episode, index, seed, rng, attemptNumber);
+    }
+    
+    LevelBlueprint? blueprint;
+    
+    // E3-E5 use specific blueprint strategies
+    if (episode == 3) {
+      blueprint = _buildTwoPhaseBlueprint(config, rng);
+    } else if (episode == 4) {
+      blueprint = _buildThreePhaseBlueprint(config, rng);
+    } else if (episode == 5) {
+      blueprint = _buildFourPhaseBlueprint(config, rng);
+    } else {
+      // Fallback for unexpected episodes
+      return _generateProperBlueprint(config, episode, index, seed, rng, attemptNumber);
+    }
+
+    // FIX: Null Pointer Check
+    if (blueprint == null) {
+      return GenerationAttempt(
+        success: false, 
+        rejectionReason: RejectionReason.blueprintCreationFailed, 
+        attemptNumber: attemptNumber
+      );
+    }
+
+    final moves = blueprint.plannedMoves;
+    
+    // Construct Level
+    final level = GeneratedLevel(
+      seed: seed, episode: episode, index: index,
+      source: blueprint.source,
+      targets: blueprint.targets,
+      walls: blueprint.walls,
+      mirrors: blueprint.mirrors,
+      prisms: blueprint.prisms,
+      meta: LevelMeta(
+        optimalMoves: blueprint.totalPlannedMoves,
+        difficultyBand: config.difficultyBand,
+        generationAttempts: attemptNumber + 1,
+      ),
+      solution: moves.expand((pm) => pm.toSolutionMoves()).toList(),
+    );
+
+    // Validation
+    // 1. Simulation Check
+    if (!_validatePlannedSolution(level, moves)) {
+       return GenerationAttempt(success: false, rejectionReason: RejectionReason.plannedSolutionFailed, attemptNumber: attemptNumber);
+    }
+
+    // 2. Shortcut Check
+    if (blueprint.totalPlannedMoves >= config.minMoves) {
+        final initialState = GameState.fromLevel(level);
+        final shortcutCheck = _solver.solveWithMaxDepth(
+          level, initialState,
+          maxDepth: (blueprint.totalPlannedMoves * 0.7).floor().clamp(1, config.minMoves - 1), // Check if solvable in 70% of intended moves
+          budget: 5000,
+        );
+        if (shortcutCheck.solvable) {
+          return GenerationAttempt(success: false, rejectionReason: RejectionReason.shortcutFound, attemptNumber: attemptNumber);
+        }
+    }
+
+    return GenerationAttempt(success: true, level: level, attemptNumber: attemptNumber);
   }
 
   /// THE PROPER BLUEPRINT FLOW

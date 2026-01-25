@@ -8,6 +8,7 @@ import 'mirror.dart';
 import 'prism.dart';
 import 'target.dart';
 import 'light_source.dart';
+import '../config/grid_constants.dart';
 
 /// Debug visualization component for showing hitboxes and ray paths
 /// Toggle via SettingsManager.debugModeEnabled
@@ -17,6 +18,8 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
   
   // Store current debug state
   bool _debugEnabled = false;
+  double _fps = 60.0;
+  final List<double> _fpsHistory = []; // Added for graph
   
   @override
   int get priority => 1000; // Render on top of everything
@@ -29,15 +32,30 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
     _intersectionPoints.clear();
   }
   
+  void toggleDebug() {
+    // Invalidate/clear history when toggling off
+    if (_debugEnabled) {
+       _fpsHistory.clear();
+    }
+  }
+  
   @override
   void update(double dt) {
-    // Check if debug mode changed (Force ON in debug builds for verification)
     _debugEnabled = gameRef.settingsManager.debugModeEnabled;
+    
+    // ✅ OPTIMIZATION: Stop all calculation if debug is disabled
+    if (!_debugEnabled) return;
     
     // Smooth FPS
     if (dt > 0) {
       final currentFps = 1.0 / dt;
       _fps = _fps * 0.9 + currentFps * 0.1; // Simple smoothing
+      
+      // Track history (last 60 frames)
+      _fpsHistory.add(currentFps);
+      if (_fpsHistory.length > 60) {
+        _fpsHistory.removeAt(0);
+      }
       
       _updateTimer += dt;
       if (_updateTimer > 0.5) { // Update text only twice per second
@@ -47,7 +65,6 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
     }
   }
   
-  double _fps = 60.0;
   double _updateTimer = 0.0;
   TextSpan? _cachedTextSpan;
   
@@ -56,6 +73,7 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
   
   @override
   void render(Canvas canvas) {
+    // ✅ OPTIMIZATION: Early return
     if (!_debugEnabled) return;
     
     // 1. Draw Play Area Boundary
@@ -90,12 +108,13 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
       
       // Metrics
       final fps = _fps.toStringAsFixed(1);
+      final avgFps = _fpsHistory.isEmpty ? 0 : (_fpsHistory.reduce((a, b) => a + b) / _fpsHistory.length).toStringAsFixed(1);
       final beams = gameRef.beamSystem.debugSegmentCount; 
       final particles = gameRef.beamSystem.debugParticleCount;
       final sfxPlayers = AudioManager().debugActiveSfxCount;
       
       final metricsBuffer = StringBuffer();
-      metricsBuffer.writeln('FPS: $fps');
+      metricsBuffer.writeln('FPS: $fps (Avg: $avgFps)');
       metricsBuffer.writeln('Beams: $beams');
       metricsBuffer.writeln('Particles: $particles');
       metricsBuffer.writeln('SFX Players: $sfxPlayers');
@@ -117,36 +136,47 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
       );
       
       _fpsPainter.paint(canvas, const Offset(15, 15));
+      
+      // Draw Mini FPS Graph
+      if (_fpsHistory.isNotEmpty) {
+          final graphPaint = Paint()..color = Colors.green..strokeWidth = 1..style = PaintingStyle.stroke;
+          final path = Path();
+          double startX = 15;
+          double baseY = 15 + _fpsPainter.height + 50; 
+          
+          for(int i=0; i<_fpsHistory.length; i++) {
+              double h = (_fpsHistory[i] / 60.0 * 30).clamp(0.0, 30.0);
+              if (i==0) path.moveTo(startX, baseY - h);
+              else path.lineTo(startX + i * 2, baseY - h);
+          }
+          canvas.drawPath(path, graphPaint);
+      }
   }
   
   void _drawPlayAreaBounds(Canvas canvas) {
     // Draw centered 14x7 grid (matches LevelLoader)
-    const gridSize = 85.0;
-    const double offsetX = 45.0;
-    const double offsetY = 62.5;
-    const int cols = 14;
-    const int rows = 7;
+    // Use constants from GridConstants
     
     final gridPaint = Paint()
       ..color = Colors.cyan.withOpacity(0.15)
       ..strokeWidth = 1;
     
     // Vertical lines
-    for (int i = 0; i <= cols; i++) {
-      final x = offsetX + i * gridSize;
+    for (int i = 0; i <= GridConstants.columns; i++) {
+      final x = GridConstants.offsetX + i * GridConstants.cellSize;
       canvas.drawLine(
-        Offset(x, offsetY),
-        Offset(x, offsetY + rows * gridSize),
+        Offset(x, GridConstants.offsetY),
+        Offset(x, GridConstants.offsetY + GridConstants.rows * GridConstants.cellSize),
         gridPaint,
       );
     }
     
     // Horizontal lines
-    for (int i = 0; i <= rows; i++) {
-      final y = offsetY + i * gridSize;
+    for (int i = 0; i <= GridConstants.rows; i++) {
+      final y = GridConstants.offsetY + i * GridConstants.cellSize;
       canvas.drawLine(
-        Offset(offsetX, y),
-        Offset(offsetX + cols * gridSize, y),
+        Offset(GridConstants.offsetX, y),
+        Offset(GridConstants.offsetX + GridConstants.columns * GridConstants.cellSize, y),
         gridPaint,
       );
     }

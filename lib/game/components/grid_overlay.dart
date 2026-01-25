@@ -20,10 +20,10 @@ class GridOverlay extends PositionComponent with HasGameRef<PrismazeGame> {
 
   @override
   Future<void> onLoad() async {
-    _cacheGrid();
+    await _cacheGrid();
   }
 
-  void _cacheGrid() {
+  Future<void> _cacheGrid() async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     
@@ -47,15 +47,15 @@ class GridOverlay extends PositionComponent with HasGameRef<PrismazeGame> {
     
     // Dots
     final dotPaint = Paint()..color = Colors.white.withOpacity(0.08)..style = PaintingStyle.fill;
-    for (int x = 0; x <= gridCols; x++) {
-      for (int y = 0; y <= gridRows; y++) {
-        canvas.drawCircle(Offset(offsetX + x * cellSize, offsetY + y * cellSize), 2, dotPaint);
+    for (int x = 0; x <= GridConstants.columns; x++) {
+      for (int y = 0; y <= GridConstants.rows; y++) {
+        canvas.drawCircle(Offset(GridConstants.offsetX + x * GridConstants.cellSize, GridConstants.offsetY + y * GridConstants.cellSize), 2, dotPaint);
       }
     }
     
     final picture = recorder.endRecording();
     // Convert to image (size matching camera viewport)
-    picture.toImage(1344, 756).then((img) => _cachedImage = img);
+    _cachedImage = await picture.toImage(1344, 756);
   }
 
   @override

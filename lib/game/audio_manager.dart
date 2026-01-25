@@ -347,9 +347,9 @@ class AudioManager {
       
       _activeSfx[id] = active..add(player);
 
-      player.onPlayerComplete.listen((_) {
-        player.dispose();
+      player.onPlayerComplete.listen((_) async {
         _activeSfx[id]?.remove(player);
+        await player.dispose();
       });
 
       await player.resume();
@@ -381,15 +381,15 @@ class AudioManager {
 
   /// Stop all active SFX players.
   Future<void> stopAllSfx() async {
-    for (final players in _activeSfx.values) {
-      for (final player in players) {
+    final allPlayers = _activeSfx.values.expand((set) => set).toList();
+    _activeSfx.clear();
+
+    for (final player in allPlayers) {
         try {
           await player.stop();
           await player.dispose();
         } catch (_) {}
-      }
     }
-    _activeSfx.clear();
     debugPrint('AudioManager: All SFX stopped');
   }
 
