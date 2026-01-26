@@ -70,45 +70,22 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
     final darkColor = Wall.getThemeColorStatic(theme, 'dark');
     final lightColor = Wall.getThemeColorStatic(theme, 'light');
     
-    // === SINGLE OUTER GLOW ===
-    if (!reducedGlow) {
-      canvas.drawPath(
-        _cachedOutlinePath!,
-        Paint()
-          ..color = glowColor.withOpacity(0.4 * globalOpacity)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 6,
-      );
-    }
+    // === SINGLE OUTER GLOW (Removed) ===
+    // Removed to match Wall.dart style
     
-    // === BODY GRADIENT / FALLBACK ===
-    final bounds = _cachedBodyPath!.getBounds();
+    // === BODY (Solid & Opaque) ===
     final Paint bodyPaint = Paint();
-    
-    if (bounds.width > 0 && bounds.height > 0) {
-      bodyPaint.shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          darkColor.withOpacity(0.95 * globalOpacity),
-          lightColor.withOpacity(0.9 * globalOpacity),
-          darkColor.withOpacity(0.95 * globalOpacity),
-        ],
-      ).createShader(bounds);
-    } else {
-      bodyPaint.color = darkColor.withOpacity(0.95 * globalOpacity);
-    }
+    bodyPaint.color = darkColor; // Match Wall.dart (Opaque Dark)
     
     canvas.drawPath(_cachedBodyPath!, bodyPaint);
     
-    // === SINGLE BORDER ===
+    // === SINGLE BORDER (Thicker) ===
     canvas.drawPath(
       _cachedOutlinePath!,
       Paint()
-        ..color = borderColor.withOpacity(0.9 * globalOpacity)
+        ..color = borderColor // Fully opaque
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
+        ..strokeWidth = 2.0, // Match Wall.dart
     );
   }
   

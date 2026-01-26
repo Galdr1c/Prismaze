@@ -378,8 +378,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
       // Calculate display level ID
       final displayLevelId = (targetEpisode - 1) * 200 + targetLevelIndex + 1;
       
-      return ScaleTransition(
-        scale: Tween(begin: 1.0, end: 1.05).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut)),
+      // Optimization: Cache expensive button + shadow rendering
+      final buttonBody = RepaintBoundary(
         child: GestureDetector(
             onTap: () {
                 AudioManager().playSfxId(SfxId.uiClick);
@@ -415,6 +415,20 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                 ),
             ),
         ),
+      );
+      
+      return AnimatedBuilder(
+        animation: _controller,
+        child: buttonBody,
+        builder: (_, child) {
+            final t = Curves.easeInOut.transform(_controller.value);
+            final s = 1.0 + 0.03 * t; 
+            return Transform.scale(
+                scale: s,
+                filterQuality: FilterQuality.low,
+                child: child,
+            );
+        },
       );
   }
   

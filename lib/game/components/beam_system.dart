@@ -44,6 +44,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   final int maxBounces = 10;
   final double maxRayLength = 2000;
   
+  
   // Data Storage
   final List<BeamSegment> _segments = [];
   final List<BeamParticle> _particles = [];
@@ -544,7 +545,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
         ..lineTo(seg.end.x, seg.end.y);
     }
     
-    // === LAYER 0: Wide outer glow ===
+    // === LAYER 0: Wide outer glow (Disabled in Reduced Glow) ===
     if (!reducedGlow) {
       _hazePaint.maskFilter = _blur15;
       _hazePaint.strokeWidth = 40;
@@ -556,17 +557,18 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
     }
     
     // === LAYER 1: Medium glow ===
-    _outerGlowPaint.maskFilter = reducedGlow ? _blur5 : const MaskFilter.blur(BlurStyle.normal, 10);
-    _outerGlowPaint.strokeWidth = reducedGlow ? 14 : 22;
+    // Critical Optimization: Disable blur on low-end devices
+    _outerGlowPaint.maskFilter = reducedGlow ? null : const MaskFilter.blur(BlurStyle.normal, 10);
+    _outerGlowPaint.strokeWidth = reducedGlow ? 10 : 22; // Reduced width
     
     for (final entry in batchedPaths.entries) {
-      _outerGlowPaint.color = entry.key.withOpacity(reducedGlow ? 0.4 : 0.35);
+      _outerGlowPaint.color = entry.key.withOpacity(reducedGlow ? 0.6 : 0.35); // Higher opacity if no blur
       canvas.drawPath(entry.value, _outerGlowPaint);
     }
     
     // === LAYER 2: Solid core beam ===
     _corePaint.maskFilter = null;
-    _corePaint.strokeWidth = 10;
+    _corePaint.strokeWidth = reducedGlow ? 8 : 10;
     
     for (final entry in batchedPaths.entries) {
       _corePaint.color = entry.key.withOpacity(0.95);
@@ -575,7 +577,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
     
     // === LAYER 3: White hot inner core ===
     _innerPaint.color = Colors.white.withOpacity(0.95);
-    _innerPaint.strokeWidth = 4;
+    _innerPaint.strokeWidth = reducedGlow ? 3 : 4;
     _innerPaint.maskFilter = null;
     
     for (final path in batchedPaths.values) {

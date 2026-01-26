@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../prismaze_game.dart';
 import 'wall.dart';
+import 'dart:developer' as dev;
 
 class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame> {
   // Theme Data
@@ -288,6 +289,8 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
 
   @override
   void render(Canvas canvas) {
+    assert(() { dev.Timeline.startSync('Background.render'); return true; }());
+    try {
     // High Contrast Check
     if (gameRef.settingsManager.highContrastEnabled) {
         canvas.drawRect(size.toRect(), Paint()..color = Colors.black);
@@ -338,23 +341,23 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     // FIX: Restore theme specific rendering
     switch (_currentTheme) {
         case 'theme_space':
-            _renderSpace(canvas);
+            _renderSpace(canvas, gameRef.settingsManager.reducedGlowEnabled);
             break;
         case 'theme_city':
         case 'theme_neon':
-            _renderCity(canvas);
+            _renderCity(canvas, gameRef.settingsManager.reducedGlowEnabled);
             break;
         case 'theme_ocean':
-            _renderOcean(canvas);
+            _renderOcean(canvas, gameRef.settingsManager.reducedGlowEnabled);
             break;
         case 'theme_halloween':
-            _renderHalloween(canvas);
+            _renderHalloween(canvas, gameRef.settingsManager.reducedGlowEnabled);
             break;
         case 'theme_aurora':
-            _renderAurora(canvas);
+            _renderAurora(canvas, gameRef.settingsManager.reducedGlowEnabled);
             break;
         case 'theme_galaxy':
-            _renderGalaxy(canvas);
+            _renderGalaxy(canvas, gameRef.settingsManager.reducedGlowEnabled);
             break;
     }
 
@@ -389,6 +392,9 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     // God rays removed for performance - was using expensive canvas rotation + gradient shaders
     // The vignette provides sufficient ambient lighting effect
     _drawVignette(canvas); 
+    } finally {
+      assert(() { dev.Timeline.finishSync(); return true; }());
+    }
   }
   
   void _generateDustParticles() {
@@ -503,19 +509,21 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
     canvas.drawOval(Rect.fromLTWH(size.x - vSize/2, size.y - vSize/2, vSize, vSize), cornerPaint);
   }
   
-    void _renderSpace(Canvas canvas) {
+  void _renderSpace(Canvas canvas, bool reducedGlow) {
       // User requested NO grid here as it exists in debug mode
   
       // Nebula clouds (Optimized)
-      for (final nebula in _nebulaClouds) {
-          // Use solid blur style which is slightly cheaper, or reduce sigma
-          canvas.drawCircle(
-            nebula.position.toOffset(),
-            nebula.radius,
-            Paint()
-              ..color = nebula.color
-              ..maskFilter = MaskFilter.blur(BlurStyle.normal, 40), // Fixed lower blur radius
-          );
+      if (!reducedGlow) {
+         for (final nebula in _nebulaClouds) {
+             // Use solid blur style which is slightly cheaper, or reduce sigma
+             canvas.drawCircle(
+               nebula.position.toOffset(),
+               nebula.radius,
+               Paint()
+                 ..color = nebula.color
+                 ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14), // 40 -> 14 for GPU Optimization
+             );
+         }
       }
       
       // Twinkling stars (Optimized)
@@ -546,7 +554,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       }
   }
   
-  void _renderCity(Canvas canvas) {
+  void _renderCity(Canvas canvas, bool reducedGlow) {
       if (_skylinePath != null) {
           canvas.drawPath(_skylinePath!, _skylinePaint!);
           
@@ -564,19 +572,21 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       }
   }
   
-  void _renderOcean(Canvas canvas) {
-      // Light rays from surface
-      for (final ray in _lightRays) {
-          final path = Path();
-          path.moveTo(ray.x, 0);
-          path.lineTo(ray.x + ray.width, 0);
-          path.lineTo(ray.x + ray.width * 1.5, size.y);
-          path.lineTo(ray.x - ray.width * 0.5, size.y);
-          path.close();
-          
-          canvas.drawPath(path, Paint()
-            ..color = Colors.cyan.withOpacity(ray.opacity)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20));
+  void _renderOcean(Canvas canvas, bool reducedGlow) {
+      if (!reducedGlow) {
+          // Light rays from surface
+          for (final ray in _lightRays) {
+              final path = Path();
+              path.moveTo(ray.x, 0);
+              path.lineTo(ray.x + ray.width, 0);
+              path.lineTo(ray.x + ray.width * 1.5, size.y);
+              path.lineTo(ray.x - ray.width * 0.5, size.y);
+              path.close();
+              
+              canvas.drawPath(path, Paint()
+                ..color = Colors.cyan.withOpacity(ray.opacity)
+                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20));
+          }
       }
       
       // Bioluminescent particles
@@ -676,18 +686,20 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       }
   }
   
-  void _renderHalloween(Canvas canvas) {
+  void _renderHalloween(Canvas canvas, bool reducedGlow) {
       // Full moon
       final moonCenter = Offset(size.x * 0.8, size.y * 0.2);
       
       // Moon glow
-      canvas.drawCircle(
-        moonCenter,
-        80,
-        Paint()
-          ..color = const Color(0xFFF5E6C8).withOpacity(0.15)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40),
-      );
+      if (!reducedGlow) {
+        canvas.drawCircle(
+          moonCenter,
+          80,
+          Paint()
+            ..color = const Color(0xFFF5E6C8).withOpacity(0.15)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40),
+        );
+      }
       
       // Moon body
       canvas.drawCircle(
@@ -717,13 +729,15 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
           final glowPulse = 0.7 + 0.3 * sin(pumpkin.glowPhase + _batPhase * 2);
           
           // Pumpkin glow
-          canvas.drawCircle(
-            Offset(pumpkin.x, pumpkin.y),
-            25 * pumpkin.scale,
-            Paint()
-              ..color = Colors.orange.withOpacity(0.3 * glowPulse)
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15),
-          );
+          if (!reducedGlow) {
+            canvas.drawCircle(
+              Offset(pumpkin.x, pumpkin.y),
+              25 * pumpkin.scale,
+              Paint()
+                ..color = Colors.orange.withOpacity(0.3 * glowPulse)
+                ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15),
+            );
+          }
           
           // Pumpkin body
           canvas.drawOval(
@@ -910,7 +924,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       }
   }
   
-  void _renderAurora(Canvas canvas) {
+  void _renderAurora(Canvas canvas, bool reducedGlow) {
       // Background stars
       final rng = Random(42);
       for (int i = 0; i < 80; i++) {
@@ -954,10 +968,12 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
               stops: const [0.0, 0.4, 1.0],
             ).createShader(Rect.fromLTWH(0, wave.yBase - wave.height, size.x, wave.height * 2)));
           
-          // Glow effect
-          canvas.drawPath(path, Paint()
-            ..color = wave.color.withOpacity(0.2)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20));
+          // Glow effect (Optimized)
+          if (!reducedGlow) {
+            canvas.drawPath(path, Paint()
+              ..color = wave.color.withOpacity(0.2)
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20));
+          }
       }
       
       // Snow-capped mountains silhouette
@@ -978,24 +994,30 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       canvas.drawPath(mountains, Paint()..color = const Color(0xFF0a0a15));
   }
   
-  void _renderGalaxy(Canvas canvas) {
+  void _renderGalaxy(Canvas canvas, bool reducedGlow) {
       final center = Offset(size.x * 0.5, size.y * 0.5);
       
-      // Bright galaxy core
-      canvas.drawCircle(
-        center,
-        60,
-        Paint()
-          ..color = Colors.amber.withOpacity(0.2)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 50),
-      );
-      canvas.drawCircle(
-        center,
-        30,
-        Paint()
-          ..color = Colors.white.withOpacity(0.3)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 25),
-      );
+      // Bright galaxy core (Optimized)
+      if (!reducedGlow) {
+        canvas.drawCircle(
+          center,
+          60,
+          Paint()
+            ..color = Colors.amber.withOpacity(0.2)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 50),
+        );
+        canvas.drawCircle(
+          center,
+          30,
+          Paint()
+            ..color = Colors.white.withOpacity(0.3)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 25),
+        );
+      } else {
+        // Simple core fallback
+        canvas.drawCircle(center, 40, Paint()..color = Colors.amber.withOpacity(0.3));
+      }
+      
       canvas.drawCircle(
         center,
         10,

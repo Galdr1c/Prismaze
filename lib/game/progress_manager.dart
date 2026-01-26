@@ -337,6 +337,8 @@ class ProgressManager extends ChangeNotifier {
       required bool vibrationOn,
       required Function(int) onTokenReward,
       required Function(String) onSkinReward,
+      bool isNewPerfect = false, // New flag: Only true if this level just became 3 stars
+      bool isUniqueCompletion = false, // New flag: Only true if this level wasn't completed before
   }) async {
       // 1. First Light (Finish Level 1)
       if (levelId == 1) _unlock('ach_first_light', onTokenReward);
@@ -406,7 +408,7 @@ class ProgressManager extends ChangeNotifier {
       }
       
       // 2. PERFECTION (3 Stars)
-      if (stars == 3) {
+      if (isNewPerfect) { // Changed condition: Only count if it's a NEW perfect level
            int perfectCount = (_prefs.getInt('perfect_levels_count') ?? 0) + 1;
            await _prefs.setInt('perfect_levels_count', perfectCount);
            if (perfectCount == 10) _unlock('ach_perfect_1', onTokenReward);

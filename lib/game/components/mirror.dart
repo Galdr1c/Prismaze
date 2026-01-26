@@ -183,8 +183,15 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
     final bool highContrast = gameRef.settingsManager.highContrastEnabled;
     
     if (highContrast) {
-      _basePaint.color = Colors.grey.shade800.withOpacity(opacity);
+      // High Contrast: Clean, solid rectangle with distinct border
+      _basePaint.color = Colors.black.withOpacity(0.8 * opacity);
       canvas.drawRRect(rrect, _basePaint);
+      
+      // Inner fill hint based on orientation to make it visible
+      _basePaint.color = Colors.white.withOpacity(0.2 * opacity);
+      final inner = rrect.deflate(4);
+      canvas.drawRRect(inner, _basePaint);
+
       _strokePaint
         ..color = Colors.white.withOpacity(opacity)
         ..strokeWidth = 2

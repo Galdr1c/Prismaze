@@ -195,22 +195,8 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   Widget _buildSoundSettings() {
     return Column(
       children: [
-        _sliderRow(LocalizationManager().getString('settings_audio_master'), _masterVol, (v) => setState(() => _masterVol = v), (v) { widget.settingsManager.setMasterVolume(v); AudioManager().setMasterVolume(v); AudioManager().updateBgmVolume(); }),
         _sliderRow(LocalizationManager().getString('settings_audio_music'), _musicVol, (v) => setState(() => _musicVol = v), (v) { widget.settingsManager.setMusicVolume(v); AudioManager().setMusicVolume(v); AudioManager().updateBgmVolume(); if (v > 0) AudioManager().setContext(AudioContext.menu); }),
         _sliderRow(LocalizationManager().getString('settings_audio_sfx'), _sfxVol, (v) => setState(() => _sfxVol = v), (v) { widget.settingsManager.setSfxVolume(v); AudioManager().setSfxVolume(v); }),
-        _sliderRow(LocalizationManager().getString('settings_audio_ambient'), _ambientVol, (v) => setState(() => _ambientVol = v), (v) => widget.settingsManager.setAmbientVolume(v)),
-        _sliderRow(LocalizationManager().getString('settings_audio_voice'), _voiceVol, (v) => setState(() => _voiceVol = v), (v) => widget.settingsManager.setVoiceVolume(v)),
-        _toggleRow(LocalizationManager().getString('settings_audio_mute_all'), _muteAll, (v) {
-          setState(() { _muteAll = v; _masterVol = v ? 0 : 1; });
-          widget.settingsManager.setMasterVolume(v ? 0 : 1);
-          AudioManager().setMasterVolume(v ? 0 : 1);
-          if (v) {
-            AudioManager().stopBgm();
-          } else {
-            AudioManager().updateBgmVolume();
-            AudioManager().setContext(AudioContext.menu);
-          }
-        }),
       ],
     );
   }

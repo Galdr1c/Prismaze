@@ -169,76 +169,20 @@ class Wall extends PositionComponent with HasGameRef<PrismazeGame> {
       return;
     }
 
-    // === LAYER 1: Outer Glow Haze (Optimized) ===
-    if (!reducedGlow) {
-         // Using optimized single-layer glow from VisualEffects
-         VisualEffects.drawCrystalGlow(
-            canvas,
-            rrect,
-            _glowColor,
-            intensity: 0.6 + 0.2 * sin(_time * 2),
-            opacity: opacity,
-            reducedGlow: false, // Internal logic is already optimized
-         );
-    }
+    // === LAYER 2: Base Body (Solid & Opaque) ===
+    // Opaque to prevent background interference
+    final bodyPaint = Paint()..color = _bodyColorDark; // Use Dark for better contrast with bright border
+    canvas.drawRRect(rrect, bodyPaint);
 
-    // === LAYER 2: Base Gradient Body ===
-    final bodyGradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        _bodyColorDark.withOpacity(0.95 * opacity),
-        _bodyColorLight.withOpacity(0.9 * opacity),
-        _bodyColorDark.withOpacity(0.95 * opacity),
-      ],
-      stops: const [0.0, 0.45, 1.0],
-    );
-    
-    canvas.drawRRect(
-      rrect,
-      Paint()..shader = bodyGradient.createShader(rect),
-    );
-
-    // === LAYER 3: Subtle Pattern Overlay (Removed for Performance) ===
-    // Pattern drawing with blend modes is very expensive on every frame.
-    // Removed to boost FPS.
-
-    // === LAYER 3: Bevel Effect (3D Depth) ===
-    VisualEffects.drawBeveledEdge(
-      canvas,
-      rect,
-      4,
-      highlightOpacity: 0.12,
-      shadowOpacity: 0.25,
-      opacity: opacity,
-    );
-
-    // === LAYER 4: Pulsing Neon Border ===
-    VisualEffects.drawPulsingBorder(
-      canvas,
-      rrect,
-      _time,
-      _borderColor,
-      baseOpacity: 0.2,
-      pulseAmplitude: 0.05,
-      pulseSpeed: 0.5,
-      strokeWidth: 0.5,
-      opacity: opacity,
-      reducedGlow: reducedGlow,
-    );
-    
-    // === LAYER 5: Inner Edge Highlight (Premium Touch) ===
-    final innerRRect = RRect.fromRectAndRadius(
-      rect.deflate(3),
-      const Radius.circular(2),
-    );
-    canvas.drawRRect(
-      innerRRect,
-      Paint()
-        ..color = _accentColor.withOpacity(0.08 * opacity)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.5,
-    );
+    // === LAYER 4: Clean Tech Border (Solid & Visible) ===
+    // Thicker border to prevent disappearance on some screens
+    final borderPaint = Paint()
+      ..color = _borderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0; // Increased to 2.0 for visibility
+      
+    // Deflate slightly so stroke is fully inside the component bounds
+    canvas.drawRRect(rrect.deflate(1.0), borderPaint);
   }
 
   // Helper for intersection

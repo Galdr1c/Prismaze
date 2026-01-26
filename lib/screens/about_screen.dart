@@ -14,6 +14,7 @@ import 'components/fast_page_route.dart';
 import '../game/privacy_manager.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
+import '../game/procedural/campaign_loader.dart';
 
 /// About Screen with Developer Credits and Hidden Debug Menu
 class AboutScreen extends StatefulWidget {
@@ -241,13 +242,17 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                           children: [
                             Expanded(child: _devButton('TÜM LEVELLERİ AÇ', Icons.lock_open, Colors.green, () async {
                               setModalState(() => _isLoadingDebug = true);
-                              try {
-                                // NEW: Use CampaignProgress for episode-based system (5 episodes x 200 levels = 1000 total)
-                                final progress = CampaignProgress();
-                                for (int episode = 1; episode <= 5; episode++) {
-                                  final levelCount = progress.getLevelCount(episode);
-                                  await progress.debugSetProgress(episode, levelCount, 3);
-                                }
+                                try {
+                                  // Ensure manifest is loaded so we know correct level counts
+                                  final manifest = await CampaignLevelLoader.loadManifest();
+                                  final progress = CampaignProgress();
+                                  await progress.initWithManifest(manifest ?? {'episodes': {}});
+
+                                  // NEW: Use CampaignProgress for episode-based system (5 episodes x 200 levels = 1000 total)
+                                  for (int episode = 1; episode <= 5; episode++) {
+                                    final levelCount = progress.getLevelCount(episode);
+                                    await progress.debugSetProgress(episode, levelCount, 3);
+                                  }
                                 
                                 AudioManager().playSfxId(SfxId.achievementUnlocked);
                                 if (mounted) {

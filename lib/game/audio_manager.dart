@@ -81,6 +81,17 @@ class AudioManager {
   /// Debug: Get total active SFX player count
   int get debugActiveSfxCount => _activeSfx.values.fold(0, (sum, set) => sum + set.length);
 
+  /// Debug: Get list of active SFX names
+  List<String> get debugActiveSfxNames {
+    final names = <String>[];
+    _activeSfx.forEach((id, players) {
+      if (players.isNotEmpty) {
+        names.add("${id.name} (${players.length})");
+      }
+    });
+    return names;
+  }
+
   // === CENTRAL PATH MAPPINGS ===
   static const Map<BgmId, String> _bgmPaths = {
     BgmId.menu: 'audio/bgm/main_menu_sound2.mp3',
@@ -348,11 +359,25 @@ class AudioManager {
       _activeSfx[id] = active..add(player);
 
       player.onPlayerComplete.listen((_) {
-        player.dispose();
-        _activeSfx[id]?.remove(player);
+        if (_activeSfx[id]?.contains(player) ?? false) {
+          player.dispose();
+          _activeSfx[id]?.remove(player);
+        }
       });
 
       await player.resume();
+      
+      // Safety Cleanup: Ensure player is removed even if onComplete fails
+      // (Common issue on some Android devices with short audio clips)
+      Future.delayed(const Duration(seconds: 5), () {
+        if (_activeSfx[id]?.contains(player) ?? false) {
+           // Only dispose if it's still active (hasn't completed normall)
+           debugPrint("AudioManager: Force cleaning up stuck SFX $id");
+           player.stop(); 
+           player.dispose();
+           _activeSfx[id]?.remove(player);
+        }
+      });
     } catch (e) {
       debugPrint('AudioManager: Failed to play SFX $id: $e');
     }

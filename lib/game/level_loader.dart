@@ -140,14 +140,18 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     }
 
     // 5. Walls
+    // 5. Walls
+    final List<Wall> gridWalls = [];
     for (final w in level.walls) {
       final pos = toPixel(w.position.x, w.position.y) - Vector2.all(cellSize / 2);
-      gameRef.world.add(Wall(
+      final wall = Wall(
         position: pos,
         size: Vector2.all(cellSize),
-      ));
+      );
+      gameRef.world.add(wall);
+      gridWalls.add(wall);
     }
-    _clusterWalls();
+    _clusterWalls(gridWalls);
     
     // 6. Solution (for Hints)
     // The HintManager expects formatted JSON solution steps for now
@@ -238,7 +242,6 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     gameRef.beamSystem.useRayTracerMode = true;
     
     _createBoundaries();
-    _clusterWalls();
     
     int idCounter = 0;
     
@@ -305,15 +308,19 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     
     // 5. Walls
     final walls = data['walls'] as List? ?? [];
+    final List<Wall> gridWalls = [];
     for (final w in walls) {
       final from = lds.GridPos(w['from']['x'], w['from']['y']);
       final to = lds.GridPos(w['to']['x'], w['to']['y']);
       final start = lds.GridConverter.gridToPixelTopLeft(from);
       final endBottomRight = lds.GridConverter.gridToPixelTopLeft(to) + Vector2.all(lds.GridConverter.cellSize);
       final size = endBottomRight - start;
-      gameRef.world.add(Wall(position: start, size: size));
+      
+      final wall = Wall(position: start, size: size);
+      gameRef.world.add(wall);
+      gridWalls.add(wall);
     }
-    _clusterWalls();
+    _clusterWalls(gridWalls);
     
     // 6. Solution
     final solutionSteps = data['solutionSteps'] as List? ?? [];
@@ -417,6 +424,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
      
      // 4. Walls
      print("DEBUG: Spawning ${def.walls.length} walls...");
+     final List<Wall> gridWalls = [];
      for(final w in def.walls) {
          // GridWall(from, to)
          final start = lds.GridConverter.gridToPixelTopLeft(w.from);
@@ -425,17 +433,19 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
          
          final size = endBottomRight - start;
          
-         // Wall expects position=TopLeft (checked in step 1707)
-         gameRef.world.add(Wall(  // FIXED
+         // Wall expects position=TopLeft
+         final wall = Wall(
              position: start,
              size: size
-         ));
+         );
+         gameRef.world.add(wall);
+         gridWalls.add(wall);
          print("DEBUG: Wall added at $start, size=$size");
      }
 
      // 6. Hint/Solution
      gameRef.hintManager.loadSolution(def.solutionSteps, objectMap);
-    _clusterWalls();
+    _clusterWalls(gridWalls);
     
     // CRITICAL: Refresh BeamSystem cache
      gameRef.beamSystem.refreshCache();
@@ -478,21 +488,14 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
 
   }
 
-  void _clusterWalls() {
-    final allWalls = gameRef.world.children.whereType<Wall>().toList();
+  void _clusterWalls(List<Wall> allWalls) {
     if (allWalls.isEmpty) return;
     
     // 1. Filter out boundary walls (which have opacity initialized to 1.0 and fixed positions)
-    // Actually, boundary walls are also Walls. 
-    // Usually clustering is for grid walls. 
-    // Boundary walls are large rectangles (1250x15, etc.) but clustering works by cell logic.
-    // I'll only cluster walls that have the default grid size (85x85) or are small enough.
-    
     final gridWalls = allWalls.where((w) => w.size.x < 100 && w.size.y < 100).toList();
     if (gridWalls.isEmpty) return;
     
     // 2. Group walls by adjacency (Simple grouping for now: all in one cluster is safe if they are visible)
-    // For even better optimization we could split into isolated islands, but one cluster handle disjoint walls fine.
     
     for (final wall in gridWalls) {
         wall.shouldRender = false; // Hide individual render

@@ -8,18 +8,44 @@ import 'mirror.dart';
 import 'prism.dart';
 import 'target.dart';
 import 'light_source.dart';
+import 'beam_system.dart';
 
-/// Debug visualization component for showing hitboxes and ray paths
-/// Toggle via SettingsManager.debugModeEnabled
-class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
-  // Intersection points collected during beam calculation
+import 'package:flame/events.dart'; // Added for TapCallbacks
+
+/// Enhanced Debug visualization with performance profiling
+class DebugOverlay extends Component with HasGameRef<PrismazeGame>, TapCallbacks {
   final List<Vector2> _intersectionPoints = [];
-  
-  // Store current debug state
   bool _debugEnabled = false;
   
   @override
-  int get priority => 1000; // Render on top of everything
+  int get priority => 1000;
+  
+  // FPS Tracking
+  double _fps = 60.0;
+  double _updateTimer = 0.0;
+  
+  // Frame Time Tracking (ms)
+  double _avgFrameTime = 0.0;
+  double _maxFrameTime = 0.0;
+  double _minFrameTime = 999.0;
+  int _frameCount = 0;
+  
+  // Component Counts
+  int _wallCount = 0;
+  int _mirrorCount = 0;
+  int _prismCount = 0;
+  int _targetCount = 0;
+  int _beamSegmentCount = 0;
+  int _particleCount = 0;
+  int _totalComponentCount = 0;
+  
+  // Performance Bottleneck Detection
+  double _lastUpdateTime = 0.0;
+  double _lastRenderTime = 0.0;
+  String _performanceWarning = '';
+  
+  // Text painters
+  final TextPainter _textPainter = TextPainter(textDirection: TextDirection.ltr);
   
   void addIntersectionPoint(Vector2 point) {
     _intersectionPoints.add(point);
@@ -31,96 +57,195 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
   
   @override
   void update(double dt) {
-    // Check if debug mode changed (Force ON in debug builds for verification)
+    super.update(dt);
+    
     _debugEnabled = gameRef.settingsManager.debugModeEnabled;
     
-    // Smooth FPS
     if (dt > 0) {
+      // FPS calculation
       final currentFps = 1.0 / dt;
-      _fps = _fps * 0.9 + currentFps * 0.1; // Simple smoothing
+      _fps = _fps * 0.9 + currentFps * 0.1;
       
+      // Frame time tracking (milliseconds)
+      final frameTimeMs = dt * 1000;
+      _avgFrameTime = _avgFrameTime * 0.95 + frameTimeMs * 0.05;
+      _maxFrameTime = frameTimeMs > _maxFrameTime ? frameTimeMs : _maxFrameTime * 0.99;
+      _minFrameTime = frameTimeMs < _minFrameTime ? frameTimeMs : _minFrameTime * 0.99;
+      _frameCount++;
+      
+      // Update component counts every 0.5s
       _updateTimer += dt;
-      if (_updateTimer > 0.5) { // Update text only twice per second
+      if (_updateTimer > 0.5) {
         _updateMetricsText();
         _updateTimer = 0;
+        
+        // Reset max frame time periodically
+        if (_frameCount % 60 == 0) {
+          _maxFrameTime = frameTimeMs;
+        }
       }
+      
+      // Performance warning detection
+      _detectPerformanceIssues(dt);
     }
   }
   
-  double _fps = 60.0;
-  double _updateTimer = 0.0;
-  TextSpan? _cachedTextSpan;
+  void _detectPerformanceIssues(double dt) {
+    _performanceWarning = '';
+    
+    // Check for frame drops (below 30 FPS)
+    if (_fps < 30) {
+      _performanceWarning = '⚠️ LOW FPS';
+    }
+    
+    // Check for long frame times (>33ms = <30 FPS)
+    if (dt > 0.033) {
+      _performanceWarning = '⚠️ FRAME SPIKE: ${(dt * 1000).toStringAsFixed(1)}ms';
+    }
+    
+    // Check for excessive components
+    if (_totalComponentCount > 200) {
+      _performanceWarning = '⚠️ TOO MANY COMPONENTS: $_totalComponentCount';
+    }
+    
+    // Check for excessive particles
+    if (_particleCount > 100) {
+      _performanceWarning = '⚠️ TOO MANY PARTICLES: $_particleCount';
+    }
+    
+    // Check for excessive beam segments
+    if (_beamSegmentCount > 50) {
+      _performanceWarning = '⚠️ TOO MANY BEAMS: $_beamSegmentCount';
+    }
+  }
   
-  // Text painters for metrics
-  final TextPainter _fpsPainter = TextPainter(textDirection: TextDirection.ltr);
+  void _updateMetricsText() {
+    // Count all components
+    _wallCount = gameRef.world.children.whereType<Wall>().length;
+    _mirrorCount = gameRef.world.children.whereType<Mirror>().length;
+    _prismCount = gameRef.world.children.whereType<Prism>().length;
+    _targetCount = gameRef.world.children.whereType<Target>().length;
+    _totalComponentCount = gameRef.world.children.length;
+    
+    // Get beam system metrics
+    _beamSegmentCount = gameRef.beamSystem.debugSegmentCount;
+    _particleCount = gameRef.beamSystem.debugParticleCount;
+    
+    final sfxPlayers = AudioManager().debugActiveSfxCount;
+    
+    // Build detailed metrics text
+    final metricsBuffer = StringBuffer();
+    
+    // === CRITICAL METRICS (Top Priority) ===
+    metricsBuffer.writeln('═══ PERFORMANCE ═══');
+    metricsBuffer.writeln('FPS: ${_fps.toStringAsFixed(1)} / 60');
+    metricsBuffer.writeln('Frame: ${_avgFrameTime.toStringAsFixed(2)}ms avg');
+    metricsBuffer.writeln('       ${_minFrameTime.toStringAsFixed(2)}ms min');
+    metricsBuffer.writeln('       ${_maxFrameTime.toStringAsFixed(2)}ms max');
+    
+    if (_performanceWarning.isNotEmpty) {
+      metricsBuffer.writeln('');
+      metricsBuffer.writeln(_performanceWarning);
+    }
+    
+    metricsBuffer.writeln('');
+    metricsBuffer.writeln('═══ COMPONENTS ═══');
+    metricsBuffer.writeln('Total: $_totalComponentCount');
+    metricsBuffer.writeln('Walls: $_wallCount');
+    metricsBuffer.writeln('Mirrors: $_mirrorCount');
+    metricsBuffer.writeln('Prisms: $_prismCount');
+    metricsBuffer.writeln('Targets: $_targetCount');
+    
+    metricsBuffer.writeln('');
+    metricsBuffer.writeln('═══ RENDERING ═══');
+    metricsBuffer.writeln('Beams: $_beamSegmentCount');
+    metricsBuffer.writeln('Particles: $_particleCount');
+    metricsBuffer.writeln('Draw Calls: ${gameRef.beamSystem.debugDrawCalls}');
+    
+    metricsBuffer.writeln('');
+    metricsBuffer.writeln('═══ AUDIO ═══');
+    metricsBuffer.writeln('SFX Players: $sfxPlayers');
+    
+    metricsBuffer.writeln('');
+    metricsBuffer.writeln('═══ SETTINGS ═══');
+    metricsBuffer.writeln('Reduced Glow: ${gameRef.settingsManager.reducedGlowEnabled}');
+    metricsBuffer.writeln('High Contrast: ${gameRef.settingsManager.highContrastEnabled}');
+    
+    final style = TextStyle(
+      color: _fps < 30 ? Colors.red : (_fps < 50 ? Colors.yellow : Colors.green),
+      fontSize: 11,
+      fontWeight: FontWeight.bold,
+      shadows: [
+        Shadow(blurRadius: 3, color: Colors.black, offset: Offset(1, 1))
+      ],
+    );
+    
+    _textPainter.text = TextSpan(
+      text: metricsBuffer.toString().trimRight(),
+      style: style,
+    );
+    _textPainter.layout();
+  }
   
   @override
   void render(Canvas canvas) {
     if (!_debugEnabled) return;
     
-    // 1. Draw Play Area Boundary
-    _drawPlayAreaBounds(canvas);
+    final renderStartTime = DateTime.now();
     
-    // 2. Draw Wall Hitboxes
-    _drawWallHitboxes(canvas);
-    
-    // 3. Draw Mirror Hitboxes
-    _drawMirrorHitboxes(canvas);
-    
-    // 4. Draw Prism Hitboxes
-    _drawPrismHitboxes(canvas);
-    
-    // 5. Draw Target Hitboxes
-    _drawTargetHitboxes(canvas);
-    
-    // 6. Draw Light Source Hitboxes
-    _drawLightSourceHitboxes(canvas);
-    
-    // 7. Draw Intersection Points
-    _drawIntersectionPoints(canvas);
-    
-    // 8. Draw Performance Metrics
+    // 1. Always Draw Performance Metrics (Metrics-Only Mode by default)
     _drawPerformanceMetrics(canvas);
+
+    // 2. Draw Heavy Visuals ONLY if Full Debug is enabled
+    if (_showFullDebug) {
+      _drawPlayAreaBounds(canvas);
+      _drawWallHitboxes(canvas);
+      _drawMirrorHitboxes(canvas);
+      _drawPrismHitboxes(canvas);
+      _drawTargetHitboxes(canvas);
+      _drawLightSourceHitboxes(canvas);
+      _drawIntersectionPoints(canvas);
+    }
+    
+    // Track render time
+    _lastRenderTime = DateTime.now().difference(renderStartTime).inMicroseconds / 1000.0;
   }
   
-  void _updateMetricsText() {
-      final style = TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, shadows: [
-          Shadow(blurRadius: 2, color: Colors.black, offset: Offset(1,1))
-      ]);
-      
-      // Metrics
-      final fps = _fps.toStringAsFixed(1);
-      final beams = gameRef.beamSystem.debugSegmentCount; 
-      final particles = gameRef.beamSystem.debugParticleCount;
-      final sfxPlayers = AudioManager().debugActiveSfxCount;
-      
-      final metricsBuffer = StringBuffer();
-      metricsBuffer.writeln('FPS: $fps');
-      metricsBuffer.writeln('Beams: $beams');
-      metricsBuffer.writeln('Particles: $particles');
-      metricsBuffer.writeln('SFX Players: $sfxPlayers');
-      
-      _fpsPainter.text = TextSpan(
-          text: metricsBuffer.toString().trimRight(),
-          style: style,
-      );
-      _fpsPainter.layout();
+  // Toggle for full debug mode
+  bool _showFullDebug = false;
+  
+  @override
+  void onTapDown(TapDownEvent event) {
+     // Simple way to toggle: Tap the overlay
+     _showFullDebug = !_showFullDebug;
   }
   
   void _drawPerformanceMetrics(Canvas canvas) {
-      if (_fpsPainter.text == null) _updateMetricsText(); // Ensure init
-      
-      // Draw background
-      canvas.drawRect(
-          Rect.fromLTWH(10, 10, _fpsPainter.width + 10, _fpsPainter.height + 10),
-          Paint()..color = Colors.black.withOpacity(0.7)
-      );
-      
-      _fpsPainter.paint(canvas, const Offset(15, 15));
+    if (_textPainter.text == null) _updateMetricsText();
+    
+    // Background with warning color
+    final bgColor = _fps < 30 
+        ? Colors.red.withOpacity(0.5)
+        : (_fps < 50 ? Colors.orange.withOpacity(0.5) : Colors.black.withOpacity(0.5));
+    
+    canvas.drawRect(
+      Rect.fromLTWH(10, 10, _textPainter.width + 20, _textPainter.height + 20),
+      Paint()..color = bgColor
+    );
+    
+    // Border
+    canvas.drawRect(
+      Rect.fromLTWH(10, 10, _textPainter.width + 20, _textPainter.height + 20),
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2
+    );
+    
+    _textPainter.paint(canvas, const Offset(20, 20));
   }
   
   void _drawPlayAreaBounds(Canvas canvas) {
-    // Draw centered 14x7 grid (matches LevelLoader)
     const gridSize = 85.0;
     const double offsetX = 45.0;
     const double offsetY = 62.5;
@@ -158,41 +283,14 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 
-    // 1. Draw Clustered Walls (Unified)
     for (final cluster in gameRef.world.children.whereType<WallCluster>()) {
       canvas.drawPath(cluster.outlinePath, paint);
-      
-      // Optional: Draw interior grid lines of the cluster in very faint red
-      canvas.drawPath(
-        cluster.bodyPath,
-        Paint()
-          ..color = Colors.red.withOpacity(0.1)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1,
-      );
     }
     
-    // 2. Draw Standalone Walls (that are not clustered)
     for (final wall in gameRef.world.children.whereType<Wall>()) {
-      // Only draw if NOT clustered (shouldRender is true for standalone)
       if (!wall.shouldRender) continue;
-
-      final rect = Rect.fromLTWH(
-        wall.position.x,
-        wall.position.y,
-        wall.size.x,
-        wall.size.y,
-      );
+      final rect = Rect.fromLTWH(wall.position.x, wall.position.y, wall.size.x, wall.size.y);
       canvas.drawRect(rect, paint);
-      
-      // Draw corner points
-      for (final corner in wall.corners) {
-        canvas.drawCircle(
-          corner.toOffset(),
-          4,
-          Paint()..color = Colors.red,
-        );
-      }
     }
   }
   
@@ -203,34 +301,12 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
       ..strokeWidth = 2;
     
     for (final mirror in gameRef.world.children.whereType<Mirror>()) {
-      // Draw collision rect
       final rect = Rect.fromCenter(
         center: Offset(mirror.position.x, mirror.position.y),
         width: mirror.size.x + 10,
         height: mirror.size.y + 10,
       );
       canvas.drawRect(rect, paint);
-      
-      // Draw reflection line
-      canvas.drawLine(
-        mirror.startPoint.toOffset(),
-        mirror.endPoint.toOffset(),
-        Paint()
-          ..color = Colors.greenAccent
-          ..strokeWidth = 3,
-      );
-      
-      // Draw normal vector
-      final center = (mirror.startPoint + mirror.endPoint) / 2;
-      final surfaceDir = mirror.endPoint - mirror.startPoint;
-      final normal = Vector2(-surfaceDir.y, surfaceDir.x).normalized() * 20;
-      canvas.drawLine(
-        center.toOffset(),
-        (center + normal).toOffset(),
-        Paint()
-          ..color = Colors.yellow
-          ..strokeWidth = 2,
-      );
     }
   }
   
@@ -241,31 +317,12 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
       ..strokeWidth = 2;
     
     for (final prism in gameRef.world.children.whereType<Prism>()) {
-      // Draw hitbox rect matching sprite bounds (60x60)
       final rect = Rect.fromCenter(
         center: Offset(prism.position.x, prism.position.y),
         width: prism.size.x,
         height: prism.size.y,
       );
       canvas.drawRect(rect, paint);
-      
-      // Draw center point
-      canvas.drawCircle(
-        Offset(prism.position.x, prism.position.y),
-        4,
-        Paint()..color = Colors.purple,
-      );
-      
-      // Draw corner points for hitbox
-      final corners = [
-        Offset(rect.left, rect.top),
-        Offset(rect.right, rect.top),
-        Offset(rect.right, rect.bottom),
-        Offset(rect.left, rect.bottom),
-      ];
-      for (final corner in corners) {
-        canvas.drawCircle(corner, 3, Paint()..color = Colors.purpleAccent);
-      }
     }
   }
   
@@ -281,31 +338,11 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
         target.size.x / 2,
         paint,
       );
-      
-      // Show status
-      final statusText = target.isLit ? 'LIT' : 'OFF';
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: statusText,
-          style: TextStyle(
-            color: target.isLit ? Colors.green : Colors.red,
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      
-      textPainter.paint(
-        canvas,
-        Offset(target.position.x - 10, target.position.y + target.size.y / 2 + 5),
-      );
     }
   }
   
   void _drawLightSourceHitboxes(Canvas canvas) {
     for (final source in gameRef.world.children.whereType<LightSource>()) {
-      // Draw position
       canvas.drawCircle(
         source.position.toOffset(),
         10,
@@ -314,22 +351,11 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
-      
-      // Draw beam direction
-      final dir = Vector2(1, 0)..rotate(source.beamAngle);
-      canvas.drawLine(
-        source.position.toOffset(),
-        (source.position + dir * 30).toOffset(),
-        Paint()
-          ..color = Colors.white
-          ..strokeWidth = 3,
-      );
     }
   }
   
   void _drawIntersectionPoints(Canvas canvas) {
     for (final point in _intersectionPoints) {
-      // Outer ring
       canvas.drawCircle(
         point.toOffset(),
         8,
@@ -338,7 +364,6 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
-      // Inner dot
       canvas.drawCircle(
         point.toOffset(),
         3,
@@ -347,4 +372,3 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame> {
     }
   }
 }
-

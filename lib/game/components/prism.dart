@@ -2,6 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame/sprite.dart';
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import '../audio_manager.dart';
 import '../prismaze_game.dart';
 import 'dart:math';
@@ -54,6 +55,8 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
   
   // Color of the light hitting this prism (for glow effect)
   Color _hitLightColor = const Color(0xFF88DDFF);
+  
+  ui.Image? _hitboxMask; // Alpha channel mask for accurate hit testing
 
   // === OPTIMIZATION: CACHED PAINTS ===
   final Paint _basePaint = Paint();
@@ -121,6 +124,12 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
   Future<void> onLoad() async {
     // Load the appropriate prism sprite based on selected skin
     await _loadPrismSprite();
+    await _generateHitboxMask();
+  }
+  
+  Future<void> _generateHitboxMask() async {
+    if (_prismSprite?.image == null) return;
+    _hitboxMask = _prismSprite!.image;
   }
   
   Future<void> _loadPrismSprite() async {
@@ -197,20 +206,44 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
     final glowColor = _hitLightColor;
 
     if (highContrast) {
-      // High Contrast: Simple diamond with white border
-      final path = Path()
-        ..moveTo(w / 2, 0)
-        ..lineTo(w, h / 2)
-        ..lineTo(w / 2, h)
-        ..lineTo(0, h / 2)
-        ..close();
-      _basePaint.color = Colors.grey.shade700.withOpacity(opacity);
-      canvas.drawPath(path, _basePaint);
-      
-      _strokePaint
-        ..color = Colors.white.withOpacity(opacity)
-        ..strokeWidth = 2;
-      canvas.drawPath(path, _strokePaint);
+      // High Contrast: Show sprite with strong white outline
+      if (_prismSprite != null) {
+          // Draw sprite slightly transparent
+          _prismSprite!.render(
+            canvas,
+            position: Vector2.zero(),
+            size: size,
+            overridePaint: Paint()..color = Colors.white.withOpacity(0.9 * opacity),
+          );
+          
+          // Draw bounding box outline for clarity
+          final path = Path()
+            ..moveTo(w / 2, 0)
+            ..lineTo(w, h / 2)
+            ..lineTo(w / 2, h)
+            ..lineTo(0, h / 2)
+            ..close();
+            
+          _strokePaint
+            ..color = Colors.white.withOpacity(opacity)
+            ..strokeWidth = 2;
+          canvas.drawPath(path, _strokePaint);
+      } else {
+          // Fallback if sprite missing
+          final path = Path()
+            ..moveTo(w / 2, 0)
+            ..lineTo(w, h / 2)
+            ..lineTo(w / 2, h)
+            ..lineTo(0, h / 2)
+            ..close();
+          _basePaint.color = Colors.grey.shade800.withOpacity(opacity);
+          canvas.drawPath(path, _basePaint);
+          
+          _strokePaint
+            ..color = Colors.white.withOpacity(opacity)
+            ..strokeWidth = 2;
+          canvas.drawPath(path, _strokePaint);
+      }
       canvas.restore();
       return;
     }
@@ -379,13 +412,29 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
     bool hasAssist = gameRef.settingsManager.motorAssistEnabled;
     if (hasAssist) {
         // Expand hitbox by 50%
-        // Standard check is within size rect? or custom?
-        // Default impl checks size. 
-        // We can just check Rect with padding.
         final r = size.toRect().inflate(20); // +20px padding all sides
         return r.contains(point.toOffset());
     }
-    return super.containsLocalPoint(point);
+    
+    if (_hitboxMask == null) {
+      // Fallback: default behavior
+      return size.toRect().contains(point.toOffset());
+    }
+    
+    // Calculate pixel coords
+    final x = (point.x).toInt();
+    final y = (point.y).toInt();
+    
+    // Check bounds
+    if (x < 0 || y < 0 || x >= size.x || y >= size.y) {
+      return false;
+    }
+    
+    // Approximate circular check for prism shape
+    final centerDist = (point - size / 2).length;
+    final maxRadius = size.x * 0.4; // Prism visible radius
+    
+    return centerDist <= maxRadius;
   }
 }
 

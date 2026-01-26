@@ -178,6 +178,29 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     ],
                   ),
                 ),
+                
+                // === LEFT SIDE ZOOM CONTROLS (Debug Only) ===
+                if (SettingsManager().debugModeEnabled)
+                  Positioned(
+                    left: 16,
+                    bottom: 50,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildCircleButton(
+                          icon: Icons.add,
+                          onTap: () => _game.zoomIn(),
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildCircleButton(
+                          icon: Icons.remove,
+                          onTap: () => _game.zoomOut(),
+                          color: Colors.white,
+                        ),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),

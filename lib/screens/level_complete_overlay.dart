@@ -226,15 +226,45 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
           ? loc.getString('level_complete_success') 
           : loc.getString('level_complete_fail');
           
-      return Text(
-        widget.result.customTitle ?? defaultTitle,
-        textAlign: TextAlign.center,
-        style: GoogleFonts.dynaPuff(
-          fontSize: 22, // Adjusted for fit
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          shadows: [const Shadow(color: Colors.cyanAccent, blurRadius: 10)],
-        ),
+      return Column(
+        children: [
+           Text(
+            widget.result.customTitle ?? defaultTitle,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.dynaPuff(
+              fontSize: 22, 
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              shadows: [const Shadow(color: Colors.cyanAccent, blurRadius: 10)],
+            ),
+          ),
+          if (widget.result.stars > widget.result.oldStars && widget.result.stars > 0 && widget.result.oldStars > 0)
+              Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0.8, end: 1.1),
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeInOut,
+                      builder: (context, scale, child) {
+                          return Transform.scale(
+                              scale: scale,
+                              child: Text(
+                                  "YENİ REKOR!", // "NEW SCORE!"
+                                  style: GoogleFonts.dynaPuff(
+                                      fontSize: 18,
+                                      color: Colors.yellowAccent,
+                                      fontWeight: FontWeight.w900,
+                                      shadows: [
+                                          BoxShadow(color: Colors.orangeAccent.withOpacity(0.8), blurRadius: 15, spreadRadius: 5)
+                                      ]
+                                  )
+                              ),
+                          );
+                      },
+                      onEnd: () {}, // Loop? For now single pulse or handled by builder loop if stateful
+                  )
+              ),
+        ],
       );
   }
   
@@ -242,14 +272,33 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(3, (index) {
-            bool earned = index < widget.result.stars;
+            // Logic:
+            // Index 0, 1, 2.
+            // Star 1 is Index 0.
+            // If oldStars = 1, then Index 0 is "Old".
+            // If newStars = 3. Index 1, 2 are "New".
+            
+            bool achieved = index < widget.result.stars;
+            bool isNew = achieved && (index >= widget.result.oldStars);
+            
             return Container(
                 width: 60, height: 60,
                 alignment: Alignment.center,
-                child: earned 
+                child: achieved 
                     ? ScaleTransition(
                         scale: _starScales[index],
-                        child: const Icon(Icons.star, color: Colors.amber, size: 45),
+                        child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                                Icon(Icons.star, 
+                                    color: isNew ? Colors.yellowAccent : const Color(0xFFFFD700), // Brighter if new
+                                    size: 45
+                                ),
+                                if (isNew) 
+                                    const Icon(Icons.star, color: Colors.white54, size: 45) // Shine overlay
+                                    // Or add Glow
+                            ],
+                        ),
                       )
                     : const Icon(Icons.star_border, color: Colors.white24, size: 45),
             );

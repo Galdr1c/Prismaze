@@ -4,6 +4,7 @@ import 'package:flame/events.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:developer' as dev;
 import 'dart:async';
 import 'components/beam_system.dart';
 import 'components/background.dart';
@@ -47,7 +48,10 @@ class LevelResult {
       required this.par,
       required this.earnedTokens,
       this.customTitle,
+      this.oldStars = 0, // Default to 0 (new level)
   });
+  
+  final int oldStars;
 }
 
 class PrismazeGame extends FlameGame with HasCollisionDetection {
@@ -113,7 +117,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       currentLevelId = (episode! - 1) * 1000 + (levelIndex! + 1); // For display/IDs
     }
   }
-
+  
   bool _needsBeamUpdate = true;
   
   void requestBeamUpdate() {
@@ -126,31 +130,37 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       usedHint = false;
       usedUndo = false;
   }
+
+  // Zoom Controls
+  double _targetZoom = 1.0;
   
-  // NOTE: This usually goes to BeamSystem, but since BeamSystem assumes update() loop...
-  // We can just add a simple pulse method to BeamSystem if we can access it.
-  // BeamSystem is late final.
+  void zoomIn() {
+    _targetZoom = (_targetZoom + 0.2).clamp(0.5, 2.0); // Min 0.5x, Max 2.0x
+  }
   
-  // Actually, let's implement the pulse logic inside BeamSystem.
-  // But wait, BeamSystem is in components/beam_system.dart. 
-  // I need to update THAT file first.
-  // For now, I'll just skip the pulse CALL here and update the BeamSystem file next.
-  // Placeholder in game class won't work if method doesn't exist.
-  // I will comment out the call for now and enable it after updating BeamSystem.
-  
-  // beamSystem.pulseBeams(); // TODO: Implement in BeamSystem
+  void zoomOut() {
+    _targetZoom = (_targetZoom - 0.2).clamp(0.5, 2.0);
+  }
   
   @override
   void update(double dt) {
       super.update(dt * timeScale);
+      
+      // Smooth Zoom
+      if ((camera.viewfinder.zoom - _targetZoom).abs() > 0.01) {
+          final newZoom = camera.viewfinder.zoom + (_targetZoom - camera.viewfinder.zoom) * dt * 5.0;
+          camera.viewfinder.zoom = newZoom;
+      }
       
       if (!_isLevelCompleted) {
           levelTime += dt * timeScale;
           levelTimeNotifier.value = levelTime; // Update UI
           
           // FIX: Always update beams when level has started (ensures beams render after intro)
-          if (hasStartedLevel.value || _needsBeamUpdate) {
+          if (_needsBeamUpdate) {
+             assert(() { dev.Timeline.startSync('BeamSystem.updateBeams'); return true; }());
              beamSystem.updateBeams();
+             assert(() { dev.Timeline.finishSync(); return true; }());
              _needsBeamUpdate = false;
           }
           
@@ -216,14 +226,26 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       
       // Calculate Stars & Progress
       int stars = 0;
+      int oldStars = 0;
+      
       if (isCampaignMode && currentLevelMeta != null) {
           stars = currentLevelMeta!.getStars(moves);
           if (currentEpisode != null && currentLevelIdx != null) {
-              await CampaignProgress().completeLevel(currentEpisode!, currentLevelIdx!, stars);
+              // Fetch OLD stars first
+              oldStars = CampaignProgress().getEpisodeProgress(currentEpisode!).getStars(currentLevelIdx!);
+              
+              if (stars > oldStars) {
+                   await CampaignProgress().completeLevel(currentEpisode!, currentLevelIdx!, stars);
+              }
           }
       } else {
+          oldStars = progressManager.getStarsForLevel(currentLevelId);
           stars = await progressManager.completeLevel(currentLevelId, moves, currentLevelPar, usedHint, levelTime);
       }
+      
+      // Determine flags
+      bool isNewPerfect = (stars == 3 && oldStars < 3);
+      bool isUniqueCompletion = (oldStars == 0); // Was 0 stars before
       
       // Update Missions
       missionManager.onLevelComplete(
@@ -243,15 +265,16 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           economyManager.tokens
       );
       
-      print("Level Complete! Stars: $stars, Time: ${levelTime.toStringAsFixed(2)}s");
+      print("Level Complete! Stars: $stars (Old: $oldStars), Time: ${levelTime.toStringAsFixed(2)}s");
       
       analyticsManager.logLevelComplete(
           currentLevelId, 
           stars, 
           moves, 
           levelTime, 
-          usedHint
+          usedHint // Corrected signature
       );
+      
       
       // Video Guide Triggers (Level 30, 60)
       if (currentLevelId == 30) {
@@ -297,7 +320,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           stars: stars,
           moves: moves,
           duration: levelTime,
-          attempts: _retryCount + 1,
+          attempts: 1, // Reset on complete
           usedHints: usedHint,
           musicOn: sm.musicVolume > 0,
           sfxOn: sm.sfxVolume > 0,
@@ -305,12 +328,12 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           onTokenReward: (amount) {
               economyManager.addTokens(amount);
               AudioManager().playSfx('coin_collect.mp3');
-              // Show notification?
           },
           onSkinReward: (skinId) {
-              customizationManager.unlockSkin(skinId); // Assuming method exists
-              // Show notification?
-          }
+              customizationManager.unlockSkin(skinId); 
+          },
+          isNewPerfect: isNewPerfect,
+          isUniqueCompletion: isUniqueCompletion
       );
       
       
@@ -321,6 +344,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           par: currentLevelPar,
           earnedTokens: earned,
           customTitle: currentLevelId == 1 ? "Harika! İşte böyle!" : null,
+          oldStars: oldStars,
       );
       
       // Auto-progression handled by UI now
@@ -880,15 +904,6 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       } else {
           levelNotifier.value = currentLevelId;
       }
-  }
-  void zoomIn() {
-      double newZoom = camera.viewfinder.zoom + 0.2; 
-      if (newZoom <= 3.0) camera.viewfinder.zoom = newZoom;
-  }
-  
-  void zoomOut() {
-      double newZoom = camera.viewfinder.zoom - 0.2;
-      if (newZoom >= 0.5) camera.viewfinder.zoom = newZoom;
   }
   @override
   void onDispose() {

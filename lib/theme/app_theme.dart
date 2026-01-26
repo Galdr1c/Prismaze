@@ -205,8 +205,8 @@ class PrismazeTheme {
   static List<BoxShadow> getGlow(Color primary, Color accent) {
      if (_sm.reducedGlowEnabled || _sm.highContrastEnabled) return [];
      return [
-        BoxShadow(color: primary.withOpacity(0.6), blurRadius: 25, spreadRadius: 5),
-        BoxShadow(color: accent.withOpacity(0.4), blurRadius: 40, spreadRadius: 10),
+        BoxShadow(color: primary.withOpacity(0.45), blurRadius: 14, spreadRadius: 2),
+        BoxShadow(color: accent.withOpacity(0.25), blurRadius: 18, spreadRadius: 4),
      ];
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'tools/fps_overlay.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -85,11 +87,31 @@ class _PrismazeAppState extends State<PrismazeApp> {
             widget.settingsManager.highContrastEnabled,
           ),
           builder: (context, child) {
-            // Apply Big Text scaling
             final scale = widget.settingsManager.bigTextEnabled ? 1.5 : 1.0;
-            return MediaQuery(
+          
+            final content = MediaQuery(
               data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
               child: child!,
+            );
+          
+            // Debug + Profile modda göster (istersen sadece kDebugMode bırak)
+            if (!(kDebugMode || kProfileMode)) return content;
+          
+            return Stack(
+              children: [
+                content,
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: EdgeInsets.all(8),
+                      child: DebugFpsOverlay(
+                        settingsManager: widget.settingsManager,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             );
           },
           home: const SplashScreen(),
