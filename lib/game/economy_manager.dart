@@ -6,14 +6,14 @@ import 'models/daily_reward.dart';
 
 /// Comeback bonus for returning players
 class ComebackReward {
-  final int hintTokens;
+  final int amount;
   final String? freeSkinId;
   final String message;
   final int daysAway;
   final bool isLongAbsence;
 
   const ComebackReward({
-    required this.hintTokens,
+    required this.amount,
     this.freeSkinId,
     required this.message,
     required this.daysAway,
@@ -22,45 +22,68 @@ class ComebackReward {
 }
 
 class EconomyManager extends ChangeNotifier {
-  static const String keyTokens = 'hint_tokens_enc'; // Changed key for encrypted
-  static const String keyTokensChecksum = 'hint_tokens_cs';
+  static const String keyHints = 'hint_count_enc'; 
+  static const String keyHintsChecksum = 'hint_count_cs';
+  
+  // Legacy keys for migration
+  static const String keyLegacyTokens = 'hint_tokens_enc'; 
+  static const String keyLegacyTokensChecksum = 'hint_tokens_cs';
+  
   static const String keyLastLogin = 'last_login_date';
   static const String keyDailyStreak = 'daily_streak';
   static const String keyLastPlayedDate = 'last_played_date';
   static const String keyComebackClaimed = 'comeback_claimed';
   
   late SharedPreferences _prefs;
-  int _tokens = 0;
-  final ValueNotifier<int> tokenNotifier = ValueNotifier(0);
+  int _hints = 0;
+  final ValueNotifier<int> hintNotifier = ValueNotifier(0);
   
   // Comeback bonus state
   ComebackReward? _pendingComebackReward;
   ComebackReward? get pendingComebackReward => _pendingComebackReward;
   bool get hasComebackReward => _pendingComebackReward != null;
   
-  int get tokens => _tokens;
+  int get hints => _hints;
   
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
     
-    // Try to load encrypted tokens
-    final encoded = _prefs.getString(keyTokens);
-    if (encoded != null) {
-        final decoded = SecurityUtils.decodeValue(encoded);
-        if (decoded != null) {
-            _tokens = decoded;
-        } else {
-            // Tampered - reset to 0
-            print("[Security] Token data tampered, resetting.");
-            _tokens = 0;
-            await _saveTokensSecurely();
+    // 1. Try to load NEW hint key
+    if (_prefs.containsKey(keyHints)) {
+        final encoded = _prefs.getString(keyHints);
+        if (encoded != null) {
+            final decoded = SecurityUtils.decodeValue(encoded);
+            if (decoded != null) {
+                _hints = decoded;
+            } else {
+                print("[Security] Hint data tampered, resetting.");
+                _hints = 0;
+                await _saveHintsSecurely();
+            }
         }
-    } else if (!_prefs.containsKey(keyTokens)) {
-        // New user
-        addTokens(10);
+    } 
+    // 2. Migration: Check for OLD token key
+    else if (_prefs.containsKey(keyLegacyTokens)) {
+        print("[Economy] Migrating legacy tokens to hints...");
+        final encoded = _prefs.getString(keyLegacyTokens);
+        if (encoded != null) {
+            final decoded = SecurityUtils.decodeValue(encoded);
+            if (decoded != null) {
+                _hints = decoded;
+            }
+        }
+        // Save to new key and remove old
+        await _saveHintsSecurely();
+        await _prefs.remove(keyLegacyTokens);
+        await _prefs.remove(keyLegacyTokensChecksum);
+        print("[Economy] Migration complete. Hints: $_hints");
+    }
+    // 3. New User
+    else {
+        addHints(10);
     }
     
-    tokenNotifier.value = _tokens;
+    hintNotifier.value = _hints;
     
     // Check for comeback bonus
     await _checkComebackBonus();
@@ -72,18 +95,13 @@ class EconomyManager extends ChangeNotifier {
   Future<void> _checkComebackBonus() async {
     final lastPlayedStr = _prefs.getString(keyLastPlayedDate);
     if (lastPlayedStr == null) {
-      // First time user - no comeback bonus
       await _updateLastPlayedDate();
       return;
     }
     
-    // Check if already claimed comeback this session
     final comebackDate = _prefs.getString(keyComebackClaimed);
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    if (comebackDate == todayStr) {
-      // Already claimed today
-      return;
-    }
+    if (comebackDate == todayStr) return;
     
     final lastPlayed = DateTime.tryParse(lastPlayedStr);
     if (lastPlayed == null) {
@@ -94,74 +112,64 @@ class EconomyManager extends ChangeNotifier {
     final daysSinceLastPlay = DateTime.now().difference(lastPlayed).inDays;
     
     if (daysSinceLastPlay >= 30) {
-      // Long absence - big reward
       _pendingComebackReward = ComebackReward(
-        hintTokens: 100,
+        amount: 100,
         freeSkinId: 'skin_comeback_special',
         message: 'Seni özledik! İşte özel bir hediye!',
         daysAway: daysSinceLastPlay,
         isLongAbsence: true,
       );
     } else if (daysSinceLastPlay >= 3) {
-      // Short absence - regular reward
       _pendingComebackReward = ComebackReward(
-        hintTokens: 50,
+        amount: 50,
         message: 'Tekrar hoş geldin! İşte bir hediye!',
         daysAway: daysSinceLastPlay,
       );
     }
     
-    // Update last played date
     await _updateLastPlayedDate();
     notifyListeners();
   }
   
-  /// Update last played date (call this when user plays)
   Future<void> _updateLastPlayedDate() async {
     await _prefs.setString(keyLastPlayedDate, DateTime.now().toIso8601String());
   }
   
-  /// Mark that user has played today
   Future<void> updateLastPlayed() async {
     await _updateLastPlayedDate();
   }
   
-  /// Claim comeback bonus
   Future<ComebackReward?> claimComebackReward() async {
     if (_pendingComebackReward == null) return null;
     
     final reward = _pendingComebackReward!;
     
-    // Grant tokens
-    await addTokensSecure(reward.hintTokens, source: 'comeback_bonus_${reward.daysAway}_days');
+    await addHintsSecure(reward.amount, source: 'comeback_bonus_${reward.daysAway}_days');
     
-    // Mark as claimed today
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
     await _prefs.setString(keyComebackClaimed, todayStr);
     
     _pendingComebackReward = null;
     notifyListeners();
     
-    print("Economy: Comeback bonus claimed - ${reward.hintTokens} tokens after ${reward.daysAway} days");
+    print("Economy: Comeback bonus claimed - ${reward.amount} hints");
     return reward;
   }
 
   Future<void> giveTutorialBonus() async {
-      // Check if already given? For now just give it.
-      // Ideal: check a flag.
       bool given = _prefs.getBool('tutorial_bonus_given') ?? false;
       if (!given) {
-          await addTokens(3);
+          await addHints(3);
           await _prefs.setBool('tutorial_bonus_given', true);
       }
   }
   
-  // --- Daily Login System (Enhanced) ---
+  // --- Daily Login System ---
   
   bool _canClaimDailyLogin = false;
   int _dailyStreak = 0;
   bool _wasStreakBroken = false;
-  int _previousStreak = 0; // For streak restore
+  int _previousStreak = 0;
   DateTime? _lastClaimTime;
   
   bool get canClaimDailyLogin => _canClaimDailyLogin;
@@ -170,9 +178,7 @@ class EconomyManager extends ChangeNotifier {
   int get previousStreak => _previousStreak;
   bool get canRestoreStreak => _wasStreakBroken && _previousStreak > 1;
   
-  /// Check daily login status using Local Calendar Days (Midnight Reset)
   Future<void> _checkDailyLogin() async {
-      // Use Local time for consistent daily resets at user's midnight
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
       
@@ -183,7 +189,6 @@ class EconomyManager extends ChangeNotifier {
       _wasStreakBroken = false;
       
       if (lastClaimStr == null) {
-          // First time user
           _canClaimDailyLogin = true;
           _dailyStreak = 0;
           notifyListeners();
@@ -198,83 +203,67 @@ class EconomyManager extends ChangeNotifier {
           return;
       }
       
-      // Compare Calendar Days
       final lastClaimLocal = _lastClaimTime!.toLocal();
       final lastDate = DateTime(lastClaimLocal.year, lastClaimLocal.month, lastClaimLocal.day);
       
       final diffDays = today.difference(lastDate).inDays;
       
       if (diffDays == 0) {
-          // Already claimed today
           _canClaimDailyLogin = false;
       } else if (diffDays == 1) {
-          // Claimed yesterday -> Can claim today (Streak continues)
           _canClaimDailyLogin = true;
-          
-          // Cycle wrap correction: If streak was 7, next claim starts 1
           if (_dailyStreak >= 7) {
               _dailyStreak = 0; 
           }
       } else {
-          // diffDays > 1: Missed at least one day -> Streak Broken
           _canClaimDailyLogin = true;
-          
-          // Only mark broken if we had a meaningful streak
           if (_dailyStreak > 1) {
               _previousStreak = _dailyStreak;
               _wasStreakBroken = true;
               await _prefs.setInt('previous_streak', _dailyStreak);
           }
-          _dailyStreak = 0; // Reset to Day 1
+          _dailyStreak = 0; 
       }
       notifyListeners();
   }
   
-  /// Get the current reward that would be claimed
   DailyReward getCurrentReward() {
       final day = _canClaimDailyLogin ? (_dailyStreak + 1) : _dailyStreak;
       return DailyReward.getForDay(day.clamp(1, 7));
   }
   
-  /// Get preview of next day's reward
   DailyReward getNextReward() {
       final nextDay = (_dailyStreak + 1) > 7 ? 1 : (_dailyStreak + 1);
       return DailyReward.getForDay(nextDay);
   }
   
-  /// Get hours until next claim is available (Midnight)
   int getHoursUntilNextClaim() {
       if (_canClaimDailyLogin) return 0;
-      // Count down to next midnight
       final now = DateTime.now();
       final midnight = DateTime(now.year, now.month, now.day + 1);
       final diff = midnight.difference(now);
-      return diff.inHours + 1; // Round up slightly for display
+      return diff.inHours + 1;
   }
   
-  /// Claim daily login reward
   Future<DailyReward?> claimDailyLoginReward() async {
       if (!_canClaimDailyLogin) return null;
       
       final nowUtc = DateTime.now().toUtc();
       
       _dailyStreak++;
-      if (_dailyStreak > 7) _dailyStreak = 1; // Cycle reset
+      if (_dailyStreak > 7) _dailyStreak = 1;
       
-      // Save state with ISO timestamp (UTC)
       await _prefs.setString(keyLastLogin, nowUtc.toIso8601String());
       await _prefs.setInt('login_streak_count', _dailyStreak);
       
-      // Clear streak broken state after successful claim
       _wasStreakBroken = false;
       _previousStreak = 0;
       await _prefs.remove('previous_streak');
       
-      // Get reward for current day
       final reward = DailyReward.getForDay(_dailyStreak);
       
-      // Grant tokens
-      await addTokensSecure(reward.hintTokens, source: 'daily_login_day_$_dailyStreak');
+      // Grant hints
+      await addHintsSecure(reward.hintAmount, source: 'daily_login_day_$_dailyStreak');
       
       _canClaimDailyLogin = false;
       _lastClaimTime = nowUtc;
@@ -283,16 +272,16 @@ class EconomyManager extends ChangeNotifier {
       return reward;
   }
   
-  /// Restore broken streak by spending 50 tokens
-  Future<bool> restoreStreakWithTokens() async {
+  Future<bool> restoreStreakWithHints() async {
       if (!canRestoreStreak) return false;
-      if (_tokens < StreakRestoreOption.tokenCost) return false;
       
-      // Spend tokens
-      final spent = await spendTokens(StreakRestoreOption.tokenCost);
+      // Cost to restore streak: 50 Hints? Or maybe less now? 
+      // Keeping constant for now
+      if (_hints < StreakRestoreOption.hintCost) return false;
+      
+      final spent = await spendHints(StreakRestoreOption.hintCost);
       if (!spent) return false;
       
-      // Restore previous streak
       _dailyStreak = _previousStreak;
       _wasStreakBroken = false;
       _previousStreak = 0;
@@ -301,15 +290,12 @@ class EconomyManager extends ChangeNotifier {
       await _prefs.remove('previous_streak');
       
       notifyListeners();
-      print("Economy: Streak restored to day $_dailyStreak via tokens");
       return true;
   }
   
-  /// Restore broken streak after watching ad (called by AdManager)
   Future<bool> restoreStreakWithAd() async {
       if (!canRestoreStreak) return false;
       
-      // Restore previous streak
       _dailyStreak = _previousStreak;
       _wasStreakBroken = false;
       _previousStreak = 0;
@@ -318,45 +304,43 @@ class EconomyManager extends ChangeNotifier {
       await _prefs.remove('previous_streak');
       
       notifyListeners();
-      print("Economy: Streak restored to day $_dailyStreak via ad");
       return true;
   }
 
-  Future<void> addTokensSecure(int amount, {String source = 'unknown'}) async {
-      _tokens += amount;
-      tokenNotifier.value = _tokens;
+  Future<void> addHintsSecure(int amount, {String source = 'unknown'}) async {
+      _hints += amount;
+      hintNotifier.value = _hints;
       notifyListeners();
-      await _saveTokensSecurely();
+      await _saveHintsSecurely();
       
-      print("Economy: Added $amount tokens (Source: $source)");
+      print("Economy: Added $amount hints (Source: $source)");
   }
   
-  // Backward compatibility alias
-  Future<void> addTokens(int amount) async {
-      await addTokensSecure(amount, source: 'legacy_add');
+  Future<void> addHints(int amount) async {
+      await addHintsSecure(amount, source: 'legacy_add');
   }
 
-  Future<void> _saveTokensSecurely() async {
-      final encoded = SecurityUtils.encodeValue(_tokens);
-      final checksum = SecurityUtils.generateChecksum(_tokens, DateTime.now().millisecondsSinceEpoch);
-      await _prefs.setString(keyTokens, encoded);
-      await _prefs.setString(keyTokensChecksum, checksum);
+  Future<void> _saveHintsSecurely() async {
+      final encoded = SecurityUtils.encodeValue(_hints);
+      final checksum = SecurityUtils.generateChecksum(_hints, DateTime.now().millisecondsSinceEpoch);
+      await _prefs.setString(keyHints, encoded);
+      await _prefs.setString(keyHintsChecksum, checksum);
   }
   
-  Future<bool> spendTokens(int amount) async {
-      if (_tokens >= amount) {
-          _tokens -= amount;
-          tokenNotifier.value = _tokens;
+  Future<bool> spendHints(int amount) async {
+      if (_hints >= amount) {
+          _hints -= amount;
+          hintNotifier.value = _hints;
           notifyListeners();
-          await _saveTokensSecurely(); 
+          await _saveHintsSecurely(); 
           return true;
       }
       return false;
   }
   
   Future<void> resetData() async {
-      _tokens = 0;
-      await _saveTokensSecurely();
+      _hints = 0;
+      await _saveHintsSecurely();
       await _prefs.remove(keyLastLogin);
       await _prefs.remove(keyDailyStreak);
       notifyListeners();
@@ -373,24 +357,24 @@ class EconomyManager extends ChangeNotifier {
       int earned = 0;
       List<String> earnedRewards = [];
       
-      // === CHAPTER FINALE REWARDS (Level 30, 60, 100, 150, 200) ===
+      // === CHAPTER FINALE REWARDS ===
       final chapterFinaleLevels = [30, 60, 100, 150, 200];
       if (chapterFinaleLevels.contains(levelId)) {
           earned += 20;
-          earnedRewards.add("Bölüm Finali +20 Jeton");
+          earnedRewards.add("Bölüm Finali +20 İpucu");
       }
       
-      // === MINI-BOSS REWARDS (Level 20, 40, 70, 80, 90) ===
+      // === MINI-BOSS REWARDS ===
       final miniBossLevels = [20, 40, 70, 80, 90];
       if (miniBossLevels.contains(levelId) && moves <= parMoves) {
           earned += 10;
-          earnedRewards.add("Mini-Boss +10 Jeton");
+          earnedRewards.add("Mini-Boss +10 İpucu");
       }
       
       // === SINGLE MOVE BONUS ===
       if (moves == 1) {
           earned += 2;
-          earnedRewards.add("Tek Hamle +2 Jeton");
+          earnedRewards.add("Tek Hamle +2 İpucu");
           
           int singleMoveCount = (_prefs.getInt('single_move_count') ?? 0) + 1;
           await _prefs.setInt('single_move_count', singleMoveCount);
@@ -400,31 +384,28 @@ class EconomyManager extends ChangeNotifier {
           
           if (singleMoveStreak % 5 == 0) {
               earned += 5;
-              earnedRewards.add("5 Ardışık Tek Hamle +5 Jeton");
+              earnedRewards.add("5 Ardışık Tek Hamle +5 İpucu");
           }
       } else {
           await _prefs.setInt('single_move_streak', 0);
       }
       
-      // "Her 10 level: 3 jeton bonus"
       if (levelId % 10 == 0 && !chapterFinaleLevels.contains(levelId)) {
           earned += 3;
-          earnedRewards.add("Kilometre Taşı +3 Jeton");
+          earnedRewards.add("Kilometre Taşı +3 İpucu");
       }
       
-      // "Mükemmel çözüm (minimum hamle ile): 2 ekstra jeton"
       if (moves <= parMoves) {
           earned += 2;
-          earnedRewards.add("Mükemmel Çözüm +2 Jeton");
+          earnedRewards.add("Mükemmel Çözüm +2 İpucu");
       }
       
-      // "Üst üste 5 level tek denemede: 5 jeton"
       int streak = _prefs.getInt(keyDailyStreak) ?? 0;
       if (moves <= parMoves) {
           streak++;
           if (streak % 5 == 0) { 
               earned += 5;
-              earnedRewards.add("Seri Bonus +5 Jeton");
+              earnedRewards.add("Seri Bonus +5 İpucu");
           }
       } else {
           streak = 0;
@@ -432,16 +413,13 @@ class EconomyManager extends ChangeNotifier {
       await _prefs.setInt(keyDailyStreak, streak);
       
       if (earned > 0) {
-          // Use secure add
-          await addTokensSecure(earned, source: 'level_complete_$levelId');
+          await addHintsSecure(earned, source: 'level_complete_$levelId');
           for (var reward in earnedRewards) {
               print("Ödül: $reward");
           }
       }
       return earned;
   }
-  
-  // NOTE: Logic for purchaseProduct and watchAdForTokens has been moved to IAPManager and AdManager.
-  // This ensures better separation of concerns and simpler testing.
 }
+
 

@@ -115,10 +115,10 @@ class IAPManager extends ChangeNotifier {
 
   Future<void> _deliverProduct(String productId) async {
       switch (productId) {
-           case pidHint50: await _economyManager.addTokensSecure(50, source: 'iap'); break;
-           case pidHint150: await _economyManager.addTokensSecure(150, source: 'iap'); break;
-           case pidHint500: await _economyManager.addTokensSecure(500, source: 'iap'); break;
-           case pidHint1500: await _economyManager.addTokensSecure(1500, source: 'iap'); break;
+           case pidHint50: await _economyManager.addHintsSecure(50, source: 'iap'); break;
+           case pidHint150: await _economyManager.addHintsSecure(150, source: 'iap'); break;
+           case pidHint500: await _economyManager.addHintsSecure(500, source: 'iap'); break;
+           case pidHint1500: await _economyManager.addHintsSecure(1500, source: 'iap'); break;
            
            case pidNoAds:
                // Need to change AdManager state. 
@@ -135,7 +135,7 @@ class IAPManager extends ChangeNotifier {
                break;
                
            case pidFullGame:
-                await _economyManager.addTokensSecure(500, source: 'iap');
+                await _economyManager.addHintsSecure(500, source: 'iap');
                 await _prefs.setBool('remove_ads', true);
                 break;
                 

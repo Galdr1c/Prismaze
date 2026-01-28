@@ -4,13 +4,9 @@ import '../game/localization_manager.dart';
 
 class LevelIntroOverlay extends StatefulWidget {
   final int levelId;
-  final bool autoStart;
-  final VoidCallback onStart;
-
   const LevelIntroOverlay({
     super.key, 
     required this.levelId, 
-    required this.autoStart, 
     required this.onStart
   });
 
@@ -40,16 +36,11 @@ class _LevelIntroOverlayState extends State<LevelIntroOverlay> with SingleTicker
     Future.delayed(const Duration(seconds: 2), () {
         if (!mounted || _cancelled) return;
         
-        if (widget.autoStart) {
-            // Auto Start: Fade Out
-            setState(() => _opacity = 0.0);
-            Future.delayed(const Duration(milliseconds: 500), () {
-               if (mounted && !_cancelled) widget.onStart();
-            }); 
-        } else {
-            // Manual Start: Show Button
-            setState(() => _showButton = true);
-        }
+        // Auto Start: Fade Out
+        setState(() => _opacity = 0.0);
+        Future.delayed(const Duration(milliseconds: 500), () {
+           if (mounted && !_cancelled) widget.onStart();
+        });
     });
   }
   

@@ -2,8 +2,6 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../prismaze_game.dart';
 import '../audio_manager.dart';
-import 'wall.dart';
-import 'wall_cluster.dart';
 import 'mirror.dart';
 import 'prism.dart';
 import 'target.dart';
@@ -31,7 +29,6 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame>, TapCallbacks
   int _frameCount = 0;
   
   // Component Counts
-  int _wallCount = 0;
   int _mirrorCount = 0;
   int _prismCount = 0;
   int _targetCount = 0;
@@ -121,7 +118,6 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame>, TapCallbacks
   
   void _updateMetricsText() {
     // Count all components
-    _wallCount = gameRef.world.children.whereType<Wall>().length;
     _mirrorCount = gameRef.world.children.whereType<Mirror>().length;
     _prismCount = gameRef.world.children.whereType<Prism>().length;
     _targetCount = gameRef.world.children.whereType<Target>().length;
@@ -142,34 +138,6 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame>, TapCallbacks
     metricsBuffer.writeln('Frame: ${_avgFrameTime.toStringAsFixed(2)}ms avg');
     metricsBuffer.writeln('       ${_minFrameTime.toStringAsFixed(2)}ms min');
     metricsBuffer.writeln('       ${_maxFrameTime.toStringAsFixed(2)}ms max');
-    
-    if (_performanceWarning.isNotEmpty) {
-      metricsBuffer.writeln('');
-      metricsBuffer.writeln(_performanceWarning);
-    }
-    
-    metricsBuffer.writeln('');
-    metricsBuffer.writeln('═══ COMPONENTS ═══');
-    metricsBuffer.writeln('Total: $_totalComponentCount');
-    metricsBuffer.writeln('Walls: $_wallCount');
-    metricsBuffer.writeln('Mirrors: $_mirrorCount');
-    metricsBuffer.writeln('Prisms: $_prismCount');
-    metricsBuffer.writeln('Targets: $_targetCount');
-    
-    metricsBuffer.writeln('');
-    metricsBuffer.writeln('═══ RENDERING ═══');
-    metricsBuffer.writeln('Beams: $_beamSegmentCount');
-    metricsBuffer.writeln('Particles: $_particleCount');
-    metricsBuffer.writeln('Draw Calls: ${gameRef.beamSystem.debugDrawCalls}');
-    
-    metricsBuffer.writeln('');
-    metricsBuffer.writeln('═══ AUDIO ═══');
-    metricsBuffer.writeln('SFX Players: $sfxPlayers');
-    
-    metricsBuffer.writeln('');
-    metricsBuffer.writeln('═══ SETTINGS ═══');
-    metricsBuffer.writeln('Reduced Glow: ${gameRef.settingsManager.reducedGlowEnabled}');
-    metricsBuffer.writeln('High Contrast: ${gameRef.settingsManager.highContrastEnabled}');
     
     final style = TextStyle(
       color: _fps < 30 ? Colors.red : (_fps < 50 ? Colors.yellow : Colors.green),
@@ -199,7 +167,6 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame>, TapCallbacks
     // 2. Draw Heavy Visuals ONLY if Full Debug is enabled
     if (_showFullDebug) {
       _drawPlayAreaBounds(canvas);
-      _drawWallHitboxes(canvas);
       _drawMirrorHitboxes(canvas);
       _drawPrismHitboxes(canvas);
       _drawTargetHitboxes(canvas);
@@ -274,23 +241,6 @@ class DebugOverlay extends Component with HasGameRef<PrismazeGame>, TapCallbacks
         Offset(offsetX + cols * gridSize, y),
         gridPaint,
       );
-    }
-  }
-  
-  void _drawWallHitboxes(Canvas canvas) {
-    final paint = Paint()
-      ..color = Colors.red.withOpacity(0.5)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-
-    for (final cluster in gameRef.world.children.whereType<WallCluster>()) {
-      canvas.drawPath(cluster.outlinePath, paint);
-    }
-    
-    for (final wall in gameRef.world.children.whereType<Wall>()) {
-      if (!wall.shouldRender) continue;
-      final rect = Rect.fromLTWH(wall.position.x, wall.position.y, wall.size.x, wall.size.y);
-      canvas.drawRect(rect, paint);
     }
   }
   

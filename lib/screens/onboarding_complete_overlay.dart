@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 
 class OnboardingCompleteOverlay extends StatelessWidget {
   final VoidCallback onContinue;
-  final int bonusTokens;
+  final int bonusHints;
 
   const OnboardingCompleteOverlay({
     super.key, 
     required this.onContinue,
-    this.bonusTokens = 10,
+    this.bonusHints = 10,
   });
 
   @override
@@ -62,7 +62,7 @@ class OnboardingCompleteOverlay extends StatelessWidget {
                       const Icon(Icons.lightbulb, color: Colors.yellowAccent, size: 30),
                       const SizedBox(width: 10),
                       Text(
-                        "+$bonusTokens", 
+                        "+$bonusHints", 
                         style: const TextStyle(color: Colors.yellowAccent, fontSize: 32, fontWeight: FontWeight.bold)
                       ),
                     ],

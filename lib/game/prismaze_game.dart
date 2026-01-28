@@ -39,14 +39,14 @@ class LevelResult {
   final int stars;
   final int moves;
   final int par;
-  final int earnedTokens;
+  final int earnedHints;
   final String? customTitle; // Added
   
   LevelResult({
       required this.stars,
       required this.moves,
       required this.par,
-      required this.earnedTokens,
+      required this.earnedHints,
       this.customTitle,
       this.oldStars = 0, // Default to 0 (new level)
   });
@@ -218,7 +218,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       if (isEndlessMode) {
           // Endless Mode Reward Logic
           earned = 10 + (currentLevelId / 5).floor(); // Base 10 + scaling
-          economyManager.addTokens(earned);
+          economyManager.addHints(earned);
       } else {
           // Standard Campaign
           earned = await economyManager.onLevelComplete(currentLevelId, moves, currentLevelPar);
@@ -262,7 +262,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       CloudSaveManager().saveProgress(
           progressManager.totalStars, 
           currentLevelId, 
-          economyManager.tokens
+          economyManager.hints
       );
       
       print("Level Complete! Stars: $stars (Old: $oldStars), Time: ${levelTime.toStringAsFixed(2)}s");
@@ -283,8 +283,8 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
            activeVideoNotifier.value = 'advanced_tactics';
       }
       
-      // Update Total Tokens Earned Stats
-      await progressManager.trackTokensEarned(earned);
+      // Update Total Hints Earned Stats
+      await progressManager.trackHintsEarned(earned);
       
       // === EASTER EGG CHECK ===
       final easterEgg = EasterEggManager().checkLevelEvent(currentLevelId);
@@ -325,8 +325,8 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           musicOn: sm.musicVolume > 0,
           sfxOn: sm.sfxVolume > 0,
           vibrationOn: sm.vibrationEnabled,
-          onTokenReward: (amount) {
-              economyManager.addTokens(amount);
+          onHintReward: (amount) {
+              economyManager.addHints(amount);
               AudioManager().playSfx('coin_collect.mp3');
           },
           onSkinReward: (skinId) {
@@ -342,7 +342,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           stars: stars,
           moves: moves,
           par: currentLevelPar,
-          earnedTokens: earned,
+          earnedHints: earned,
           customTitle: currentLevelId == 1 ? "Harika! İşte böyle!" : null,
           oldStars: oldStars,
       );
@@ -353,7 +353,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
            // Delay slightly then show Onboarding Complete
            Future.delayed(const Duration(milliseconds: 1500), () {
                onboardingCompleteNotifier.value = true;
-               economyManager.addTokens(10); // Graduation Gift
+               economyManager.addHints(10); // Graduation Gift
            });
       }
   }
@@ -816,8 +816,8 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
   void onVideoComplete(String videoId) {
       if (!progressManager.isVideoWatched(videoId)) {
           progressManager.markVideoWatched(videoId);
-          economyManager.addTokens(5);
-          print("Video Watched: $videoId (+5 Tokens)");
+          economyManager.addHints(5);
+          print("Video Watched: $videoId (+5 Hints)");
       }
       activeVideoNotifier.value = null; // Close overlay
   }

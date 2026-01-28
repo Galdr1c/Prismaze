@@ -79,7 +79,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
               children: [
                 Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 16),
                 const SizedBox(width: 4),
-                Text('${economy.tokens}', style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                Text('${economy.hints}', style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
               ],
             ),
           ),

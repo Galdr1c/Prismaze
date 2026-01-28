@@ -253,7 +253,7 @@ class MissionManager extends ChangeNotifier {
   Future<void> claimReward(Mission m) async {
       if (m.isCompleted && !m.claimed) {
           m.claimed = true;
-          await economyManager.addTokens(m.reward);
+          await economyManager.addHints(m.reward);
           await _saveMissions();
           notifyListeners();
       }
@@ -263,7 +263,7 @@ class MissionManager extends ChangeNotifier {
   Future<bool> claimBonusReward() async {
       if (bonusAvailable) {
           bonusClaimed = true;
-          await economyManager.addTokens(bonusReward);
+          await economyManager.addHints(bonusReward);
           await _prefs.setBool(keyBonusClaimed, true);
           notifyListeners();
           return true;

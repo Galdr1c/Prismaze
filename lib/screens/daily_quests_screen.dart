@@ -87,7 +87,7 @@ class _DailyQuestsScreenState extends State<DailyQuestsScreen> {
                   Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 16),
                   const SizedBox(width: 4),
                   Text(
-                    '${widget.economyManager.tokens}',
+                    '${widget.economyManager.hints}',
                     style: GoogleFonts.dynaPuff(
                       color: Colors.white,
                       fontSize: 12,

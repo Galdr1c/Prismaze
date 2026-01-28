@@ -10,7 +10,9 @@ class ProgressManager extends ChangeNotifier {
   static const String keyLevelsCompleted = 'levels_completed';
   static const String keyConsecutive3Stars = 'consecutive_3_stars';
   static const String keyAchievements = 'achievements';
-  static const String keyLastPlayedLevel = 'last_played_level_id'; // New key
+  static const String keyLastPlayedLevel = 'last_played_level_id'; // Absolute numerical ID
+  static const String keyLastPlayedEpisode = 'last_played_episode_id';
+  static const String keyLastPlayedIndex = 'last_played_level_index';
   
   late SharedPreferences _prefs;
   
@@ -25,10 +27,14 @@ class ProgressManager extends ChangeNotifier {
   int getStarsForLevel(int levelId) => _levelStars[levelId] ?? 0;
   
   // Last played level (default to next playable if none)
-  int get lastPlayedLevelId => _prefs.getInt(keyLastPlayedLevel) ?? getNextPlayableLevel();
+  int get lastPlayedLevelId => _prefs.getInt(keyLastPlayedLevel) ?? 1;
+  int get lastPlayedEpisode => _prefs.getInt(keyLastPlayedEpisode) ?? 1;
+  int get lastPlayedLevelIndex => _prefs.getInt(keyLastPlayedIndex) ?? 0;
   
-  Future<void> setLastPlayedLevel(int levelId) async {
+  Future<void> setLastPlayedLevel(int levelId, {int? episode, int? index}) async {
       await _prefs.setInt(keyLastPlayedLevel, levelId);
+      if (episode != null) await _prefs.setInt(keyLastPlayedEpisode, episode);
+      if (index != null) await _prefs.setInt(keyLastPlayedIndex, index);
       notifyListeners();
   }
   
@@ -92,6 +98,10 @@ class ProgressManager extends ChangeNotifier {
     if (levelId <= 1) return true;
     // Level is unlocked if previous level is completed (stars > 0)
     return getStarsForLevel(levelId - 1) > 0;
+  }
+  
+  bool isAchievementUnlocked(String id) {
+    return _unlockedAchievements.contains(id);
   }
   
   bool isWorldUnlocked(int worldId) {
@@ -186,9 +196,10 @@ class ProgressManager extends ChangeNotifier {
   int get fastestLevelTime => _prefs.getInt('stat_fastest_time') ?? 9999;
   int get leastMoves => _prefs.getInt('stat_least_moves') ?? 9999;
   int get totalHintsUsed => _prefs.getInt('stat_total_hints') ?? 0;
-  int get totalTokensEarned => _prefs.getInt('stat_total_tokens_earned') ?? 0; // Need to track this
+
+  int get totalHintsEarned => _prefs.getInt('stat_total_tokens_earned') ?? 0; 
   int get longestStreak => _prefs.getInt('stat_longest_streak') ?? 0;
-  int get levelsWithoutHints => _prefs.getInt('stat_levels_without_hints') ?? 0; // Track this separately
+  int get levelsWithoutHints => _prefs.getInt('stat_levels_without_hints') ?? 0; 
   // Favorite color is complex, sticking to simple metrics for now.
   
   // Activity Data (simple JSON or key-list)
@@ -271,8 +282,8 @@ class ProgressManager extends ChangeNotifier {
       return hours.take(3).map((e) => e.key).toList();
   }
   
-  Future<void> trackTokensEarned(int amount) async {
-       int current = totalTokensEarned + amount;
+  Future<void> trackHintsEarned(int amount) async {
+       int current = totalHintsEarned + amount;
        await _prefs.setInt('stat_total_tokens_earned', current);
   }
   
@@ -335,61 +346,85 @@ class ProgressManager extends ChangeNotifier {
       required bool musicOn,
       required bool sfxOn,
       required bool vibrationOn,
-      required Function(int) onTokenReward,
+      required Function(int) onHintReward,
       required Function(String) onSkinReward,
       bool isNewPerfect = false, // New flag: Only true if this level just became 3 stars
       bool isUniqueCompletion = false, // New flag: Only true if this level wasn't completed before
   }) async {
       // 1. First Light (Finish Level 1)
-      if (levelId == 1) _unlock('ach_first_light', onTokenReward);
+      if (levelId == 1) _unlock('ach_first_light', 3, onHintReward);
       
       // 2. Quick Thinker (10s)
-      if (duration <= 10.0) _unlock('ach_quick_thinker', onTokenReward);
+      if (duration <= 10.0) _unlock('ach_quick_thinker', 3, onHintReward);
       
       // 3. Perfectionist (5 consecutive 3 stars)
       if (stars == 3) {
           int streak = _prefs.getInt(keyConsecutive3Stars) ?? 0;
           streak++;
           await _prefs.setInt(keyConsecutive3Stars, streak);
-          if (streak >= 5) _unlock('ach_perfectionist', onTokenReward);
+          if (streak >= 5) _unlock('ach_perfectionist', 5, onHintReward);
       } else {
           await _prefs.setInt(keyConsecutive3Stars, 0);
       }
 
-      // 4. Patient (No hints 20 levels)
+      // 4. Patient (No hints 20 levels) & Independent Branch
       if (!usedHints) {
           int count = _prefs.getInt('levels_without_hints') ?? 0;
+          
+          // Only increment if we haven't tracked this level in this run? 
+          // Actually, 'count' is cumulative levels.
+          // Note: existing logic might double count if we replay? 
+          // Assuming 'isUniqueCompletion' covers replaying same level for stars.
+          // But strict "levels without hints" usually implies distinct levels.
+          // For simplicity, we just increment. (Refining this would require tracking set of levelIDs).
           count++;
           await _prefs.setInt('levels_without_hints', count);
-          if (count >= 20) _unlock('ach_patient', onTokenReward);
+          
+          if (count == 5) _unlock('ach_self_starter', 3, onHintReward);
+          if (count == 20) _unlock('ach_patient', 5, onHintReward);
+          if (count == 25) _unlock('ach_independent_1', 5, onHintReward);
+          if (count == 50) _unlock('ach_problem_solver', 5, onHintReward);
+          if (count == 100) {
+              _unlock('ach_independent_master', 10, onHintReward);
+              onSkinReward('skin_mentalist');
+          }
       }
       
       // 5. Marathon (Session)
       _sessionLevelsCount++;
-      if (_sessionLevelsCount >= 25) _unlock('ach_marathon_1', onTokenReward);
+      if (_sessionLevelsCount == 3) _unlock('ach_warmup', 3, onHintReward);
+      if (_sessionLevelsCount == 10) _unlock('ach_marathon_1', 3, onHintReward); // Already existing name, mapped locally
+      if (_sessionLevelsCount == 25) _unlock('ach_marathon_2', 5, onHintReward); // Assuming this key exists or maps to something
+      if (_sessionLevelsCount == 50) _unlock('ach_focused', 5, onHintReward);
+      if (_sessionLevelsCount == 100) {
+          _unlock('ach_marathon_master', 10, onHintReward);
+          onSkinReward('skin_void');
+      }
       
-      // 6. Light Apprentice (Total Levels)
-      int levelsCompleted = 0; 
+      // 6. Star Hunter & Light Apprentice (Total Levels)
+      // Check total stars
+      int tStars = totalStars;
+      if (tStars >= 50) _unlock('ach_star_hunter', 5, onHintReward);
       
       // --- SECRET ACHIEVEMENTS ---
-      if (!musicOn && !sfxOn && !vibrationOn) _unlock('ach_darkness', onTokenReward);
+      if (!musicOn && !sfxOn && !vibrationOn) _unlock('ach_darkness', 5, onHintReward);
       if (moves == 1) {
-          _unlock('ach_minimalist', onTokenReward);
+          _unlock('ach_minimalist', 10, onHintReward);
           
           // Track for One-Shot Master (5 single-move completions)
           int oneShotCount = (_prefs.getInt('one_shot_count') ?? 0) + 1;
           await _prefs.setInt('one_shot_count', oneShotCount);
-          if (oneShotCount >= 5) _unlock('ach_one_shot_master', onTokenReward);
+          if (oneShotCount >= 5) _unlock('ach_one_shot_master', 10, onHintReward);
       }
-      if (attempts == 7) _unlock('ach_lucky_7', onTokenReward);
+      if (attempts == 7) _unlock('ach_lucky_7', 3, onHintReward);
       
       final now = DateTime.now();
       if (now.hour >= 2 && now.hour < 4) {
           int count = (_prefs.getInt('night_owl_count') ?? 0) + 1;
           await _prefs.setInt('night_owl_count', count);
-          if (count >= 10) _unlock('ach_night_owl', onTokenReward);
+          if (count >= 10) _unlock('ach_night_owl', 5, onHintReward);
       }
-      if (duration >= 600) _unlock('ach_patience_stone', onTokenReward);
+      if (duration >= 600) _unlock('ach_patience_stone', 5, onHintReward);
       
       // Update General Stats
       await updateStats(duration: duration, moves: moves, usedHint: usedHints);
@@ -400,60 +435,41 @@ class ProgressManager extends ChangeNotifier {
       if (duration < 20.0) {
           int speedCount = (_prefs.getInt('speed_levels_count') ?? 0) + 1;
           await _prefs.setInt('speed_levels_count', speedCount);
-          if (speedCount == 5) _unlock('ach_speed_1', onTokenReward);
+          if (speedCount == 5) _unlock('ach_speed_1', 5, onHintReward);
           if (speedCount == 50) {
-              _unlock('ach_speed_master', onTokenReward);
+              _unlock('ach_speed_master', 10, onHintReward);
               onSkinReward('skin_flash'); 
           }
       }
       
       // 2. PERFECTION (3 Stars)
-      if (isNewPerfect) { // Changed condition: Only count if it's a NEW perfect level
+      if (isNewPerfect) { 
            int perfectCount = (_prefs.getInt('perfect_levels_count') ?? 0) + 1;
            await _prefs.setInt('perfect_levels_count', perfectCount);
-           if (perfectCount == 10) _unlock('ach_perfect_1', onTokenReward);
+           if (perfectCount == 10) _unlock('ach_perfect_1', 5, onHintReward);
            if (perfectCount == 200) {
-              _unlock('ach_perfect_master', onTokenReward);
+              _unlock('ach_perfect_master', 10, onHintReward);
               onSkinReward('skin_diamond'); 
            }
-      }
-      
-      // 3. MARATHON (Session)
-      // Already incremented in section 5
-      if (_sessionLevelsCount == 10) _unlock('ach_marathon_1', onTokenReward);
-      if (_sessionLevelsCount == 100) {
-          _unlock('ach_marathon_master', onTokenReward);
-          onSkinReward('skin_void');
-      }
-      
-      // 4. INDEPENDENT (No Hints)
-      if (!usedHints) {
-          int count = (_prefs.getInt('hintless_levels_count') ?? 0) + 1;
-          await _prefs.setInt('hintless_levels_count', count);
-          if (count == 25) _unlock('ach_independent_1', onTokenReward);
-          if (count == 100) {
-              _unlock('ach_independent_master', onTokenReward);
-              onSkinReward('skin_mentalist');
-          }
       }
       
       // LEGEND Check
       if (_unlockedAchievements.length >= 20) { 
            if (!_isRewardClaimed('ultra_skin')) {
-               _unlock('ach_legend', onTokenReward);
+               _unlock('ach_legend', 10, onHintReward);
                onSkinReward('skin_cosmic_god'); 
            }
       }
   }
 
   // Helper for internal use
-  Future<void> _unlock(String title, Function(int) onTokenReward) async {
+  Future<void> _unlock(String title, int rewardAmount, Function(int) onHintReward) async {
       if (!_unlockedAchievements.contains(title)) {
           _unlockedAchievements.add(title);
           await _prefs.setStringList(keyAchievements, _unlockedAchievements.toList()); // FIX: Await save
-          print("ACHIEVEMENT UNLOCKED: $title");
-          // Reward: 20 tokens per achievement
-          onTokenReward(20);
+          print("ACHIEVEMENT UNLOCKED: $title (+$rewardAmount Hints)");
+          // Reward: variable hints per achievement
+          onHintReward(rewardAmount);
       }
   }
   

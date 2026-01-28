@@ -20,9 +20,7 @@ class SettingsManager extends ChangeNotifier {
   static const String keyHighContrast = 'settings_high_contrast';
 
   static const String keyVibrationStrength = 'settings_vibration_strength';
-  static const String keyMotorAssist = 'settings_motor_assist';
   static const String keyNotifSettings = 'settings_notif_mode'; 
-  static const String keyAutoStart = 'settings_auto_start'; 
   static const String keyColorBlind = 'settings_color_blind'; 
   static const String keyReducedGlow = 'settings_reduced_glow';
   static const String keyNotifDaily = 'settings_notif_daily';
@@ -46,12 +44,10 @@ class SettingsManager extends ChangeNotifier {
   bool _allowBackgroundAudio = false; // When true, game music is off
 
   String _notifMode = 'all'; 
-  bool _autoStartLevel = true;
   int _colorBlindIndex = 0;
   bool _bigTextEnabled = false;
   bool _highContrastEnabled = false;
   double _vibrationStrength = 1.0; 
-  bool _motorAssistEnabled = false;
   
   bool _analyticsOptOut = false;
   bool _adTrackingOptOut = false;
@@ -72,7 +68,6 @@ class SettingsManager extends ChangeNotifier {
   
   // Getters - Other
   String get notifMode => _notifMode;
-  bool get autoStartLevel => _autoStartLevel;
   int get colorBlindIndex => _colorBlindIndex;
   bool get bigTextEnabled => _bigTextEnabled;
   bool get highContrastEnabled => _highContrastEnabled;
@@ -81,7 +76,6 @@ class SettingsManager extends ChangeNotifier {
   bool get notifEvents => _notifEvents;
   bool get notifReminders => _notifReminders;
   double get vibrationStrength => _vibrationStrength;
-  bool get motorAssistEnabled => _motorAssistEnabled;
   bool get analyticsOptOut => _analyticsOptOut;
   bool get adTrackingOptOut => _adTrackingOptOut;
   
@@ -103,7 +97,6 @@ class SettingsManager extends ChangeNotifier {
 
     _languageCode = _prefs.getString(keyLanguage) ?? 'tr';
     _notifMode = _prefs.getString(keyNotifSettings) ?? 'all';
-    _autoStartLevel = _prefs.getBool(keyAutoStart) ?? true;
     _colorBlindIndex = _prefs.getInt(keyColorBlind) ?? 0;
     _bigTextEnabled = _prefs.getBool(keyBigText) ?? false;
     _highContrastEnabled = _prefs.getBool(keyHighContrast) ?? false;
@@ -111,7 +104,6 @@ class SettingsManager extends ChangeNotifier {
     _notifDaily = _prefs.getBool(keyNotifDaily) ?? true;
     _notifEvents = _prefs.getBool(keyNotifEvents) ?? true;
     _notifReminders = _prefs.getBool(keyNotifReminders) ?? true;
-    _motorAssistEnabled = _prefs.getBool(keyMotorAssist) ?? false;
     _snapToGrid = _prefs.getBool(keySnapToGrid) ?? false;
     _debugModeEnabled = _prefs.getBool(keyDebugMode) ?? false;
     
@@ -168,12 +160,6 @@ class SettingsManager extends ChangeNotifier {
       notifyListeners();
   }
   
-  Future<void> setMotorAssist(bool enabled) async {
-      _motorAssistEnabled = enabled;
-      await _prefs.setBool(keyMotorAssist, enabled);
-      notifyListeners();
-  }
-  
   Future<void> setBigText(bool enabled) async {
       _bigTextEnabled = enabled;
       await _prefs.setBool(keyBigText, enabled);
@@ -189,12 +175,6 @@ class SettingsManager extends ChangeNotifier {
   Future<void> setColorBlindMode(int index) async {
       _colorBlindIndex = index;
       await _prefs.setInt(keyColorBlind, index);
-      notifyListeners();
-  }
-  
-  Future<void> setAutoStartLevel(bool enabled) async {
-      _autoStartLevel = enabled;
-      await _prefs.setBool(keyAutoStart, enabled);
       notifyListeners();
   }
   

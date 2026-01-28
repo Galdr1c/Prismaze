@@ -54,8 +54,8 @@ class IAPProduct {
 /// IAP Catalog - All available products
 class IAPCatalog {
   
-  // === TOKEN PACKS ===
-  static const tokenSmall = IAPProduct(
+  // === HINT PACKS ===
+  static const hintSmall = IAPProduct(
     id: 'hint_pack_50',
     name: 'prod_name_hint_50',
     description: 'prod_desc_hint_50',
@@ -64,7 +64,7 @@ class IAPCatalog {
     contents: ['cont_50_tokens'],
   );
   
-  static const tokenMedium = IAPProduct(
+  static const hintMedium = IAPProduct(
     id: 'hint_pack_150',
     name: 'prod_name_hint_150',
     description: 'prod_desc_hint_150',
@@ -75,7 +75,7 @@ class IAPCatalog {
     savings: 15,
   );
   
-  static const tokenLarge = IAPProduct(
+  static const hintLarge = IAPProduct(
     id: 'hint_pack_500',
     name: 'prod_name_hint_500',
     description: 'prod_desc_hint_500',
@@ -86,7 +86,7 @@ class IAPCatalog {
     savings: 30,
   );
   
-  static const tokenMega = IAPProduct(
+  static const hintMega = IAPProduct(
     id: 'hint_pack_1500',
     name: 'prod_name_hint_1500',
     description: 'prod_desc_hint_1500',
@@ -244,10 +244,10 @@ class IAPCatalog {
   
   // === ALL PRODUCTS LIST ===
   static List<IAPProduct> get allProducts => [
-    tokenSmall,
-    tokenMedium,
-    tokenLarge,
-    tokenMega,
+    hintSmall,
+    hintMedium,
+    hintLarge,
+    hintMega,
     starterPack,
     fullBundle,
     monthlyPremium,
@@ -261,7 +261,7 @@ class IAPCatalog {
     removeAds,
   ];
   
-  static List<IAPProduct> get tokenProducts => allProducts.where((p) => p.type == ProductType.consumable).toList();
+  static List<IAPProduct> get hintProducts => allProducts.where((p) => p.type == ProductType.consumable).toList();
   static List<IAPProduct> get bundleProducts => allProducts.where((p) => p.type == ProductType.bundle).toList();
   static List<IAPProduct> get subscriptionProducts => allProducts.where((p) => p.type == ProductType.subscription).toList();
   static List<IAPProduct> get seasonalProducts => allProducts.where((p) => p.isLimited).toList();

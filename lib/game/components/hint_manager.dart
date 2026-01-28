@@ -73,7 +73,7 @@ class HintManager extends Component with HasGameRef<PrismazeGame> {
   
   /// Show a light hint - highlights the next object to change.
   void showLightHint({VoidCallback? onComplete}) {
-    if (!_checkAndSpendTokens(1)) return;
+    if (!_checkAndSpendHints(1)) return;
     
     if (useProceduralHints) {
       _showProceduralHint(proc.HintType.light, onComplete: onComplete);
@@ -84,7 +84,7 @@ class HintManager extends Component with HasGameRef<PrismazeGame> {
   
   /// Show a medium hint - shows next 3 moves with animation.
   void showMediumHint({VoidCallback? onComplete}) {
-    if (!_checkAndSpendTokens(2)) return;
+    if (!_checkAndSpendHints(2)) return;
     
     if (useProceduralHints) {
       _showProceduralHint(proc.HintType.medium, animate: true, onComplete: onComplete);
@@ -95,7 +95,7 @@ class HintManager extends Component with HasGameRef<PrismazeGame> {
   
   /// Show full hint - shows complete solution with animation.
   void showFullHint({VoidCallback? onComplete}) {
-    if (!_checkAndSpendTokens(3)) return;
+    if (!_checkAndSpendHints(3)) return;
     
     if (useProceduralHints) {
       _showProceduralHint(proc.HintType.full, animate: true, onComplete: onComplete);
@@ -104,17 +104,17 @@ class HintManager extends Component with HasGameRef<PrismazeGame> {
     }
   }
   
-  /// Check token balance and spend if sufficient.
-  bool _checkAndSpendTokens(int cost) {
+  /// Check hint balance and spend if sufficient.
+  bool _checkAndSpendHints(int cost) {
     final unlimited = gameRef.economyManager.hasUnlimitedHints();
     
     if (!unlimited) {
-      if (gameRef.economyManager.tokens < cost) {
-        debugPrint("Not enough tokens for hint (need $cost, have ${gameRef.economyManager.tokens})");
-        // Could trigger "Out of Tokens" UI here
+      if (gameRef.economyManager.hints < cost) {
+        debugPrint("Not enough hints for hint (need $cost, have ${gameRef.economyManager.hints})");
+        // Could trigger "Out of Hints" UI here
         return false;
       }
-      gameRef.economyManager.spendTokens(cost);
+      gameRef.economyManager.spendHints(cost);
     } else {
       debugPrint("Using Unlimited Hint!");
     }

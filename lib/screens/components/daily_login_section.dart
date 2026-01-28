@@ -57,8 +57,8 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
     }
   }
 
-  Future<void> _restoreStreakWithTokens() async {
-    if (widget.economyManager.tokens < StreakRestoreOption.tokenCost) {
+  Future<void> _restoreStreakWithHints() async {
+    if (widget.economyManager.hints < StreakRestoreOption.hintCost) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(LocalizationManager().getString('not_enough_tokens'))),
       );
@@ -66,7 +66,7 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
     }
     
     setState(() => _isRestoring = true);
-    final success = await widget.economyManager.restoreStreakWithTokens();
+    final success = await widget.economyManager.restoreStreakWithHints();
     if (success) {
       AudioManager().playSfxId(SfxId.starEarned);
     }
@@ -213,10 +213,10 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Pay Tokens
+              // Pay Hints
               Expanded(
                 child: GestureDetector(
-                  onTap: _isRestoring ? null : _restoreStreakWithTokens,
+                  onTap: _isRestoring ? null : _restoreStreakWithHints,
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
@@ -228,7 +228,7 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
                       children: [
                         Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 16),
                         const SizedBox(width: 4),
-                        Text('${StreakRestoreOption.tokenCost}', style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10)),
+                        Text('${StreakRestoreOption.hintCost}', style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10)),
                       ],
                     ),
                   ),
@@ -291,14 +291,30 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
                   if (isClaimed)
                     Icon(Icons.check_circle, color: Colors.green, size: 18)
                   else ...[
-                    if (reward.hasSpecialReward)
-                      Icon(Icons.star, color: _getRarityColor(reward.rarity), size: 14)
-                    else
-                      Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 14),
-                    Text(
-                      '${reward.hintTokens}',
-                      style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                  if (reward.label != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(
+                        reward.label!,
+                        style: GoogleFonts.dynaPuff(
+                          color: PrismazeTheme.accentPink,
+                          fontSize: 9, 
+                          fontWeight: FontWeight.bold
+                        ),
+                      ),
                     ),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lightbulb, color: _getHintColor(day, reward.hintAmount), size: 20),
+                      const SizedBox(width: 2),
+                      Text(
+                        '${reward.hintAmount}',
+                        style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
                   ],
                 ],
               ),
@@ -316,6 +332,12 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
       default: return Colors.grey;
     }
   }
+
+  Color _getHintColor(int day, int amount) {
+    if (day >= 6 || amount >= 30) return PrismazeTheme.accentPink; // High mystery
+    if (day >= 3 || amount >= 15) return PrismazeTheme.accentCyan; // Medium mystery
+    return PrismazeTheme.warningYellow; // Basic
+  }
   
   Widget _buildClaimSection(LocalizationManager loc) {
     if (_claimed) {
@@ -332,12 +354,12 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
             Icon(Icons.check_circle, color: Colors.green, size: 20),
             const SizedBox(width: 8),
             Text(
-              '+${_claimedReward?.hintTokens ?? 0} ${loc.getString('tokens')}',
+              '+${_claimedReward?.hintAmount ?? 0} ${loc.getString('lbl_tokens')}',
               style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
             ),
             if (_claimedReward?.hasSpecialReward == true) ...[
               const SizedBox(width: 8),
-              Icon(Icons.star, color: PrismazeTheme.accentPink, size: 16),
+              Icon(Icons.card_giftcard, color: PrismazeTheme.accentPink, size: 16),
             ],
           ],
         ),
@@ -383,12 +405,12 @@ class _DailyLoginSectionState extends State<DailyLoginSection> {
             const SizedBox(width: 8),
             Icon(Icons.lightbulb, color: Colors.white, size: 16),
             Text(
-              ' +${currentReward.hintTokens}',
+              ' +${currentReward.hintAmount}',
               style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
             ),
             if (currentReward.hasSpecialReward) ...[
               const SizedBox(width: 4),
-              Icon(Icons.star, color: Colors.amber, size: 14),
+              Icon(Icons.card_giftcard, color: Colors.amber, size: 14),
             ],
           ],
         ),

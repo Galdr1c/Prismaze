@@ -10,6 +10,8 @@ import 'components/styled_back_button.dart';
 import 'components/fast_page_route.dart';
 import 'game_screen.dart';
 
+import '../widgets/cute_menu_button.dart';
+
 /// Endless Mode Entry Screen
 class EndlessModeScreen extends StatefulWidget {
   const EndlessModeScreen({super.key});
@@ -25,7 +27,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   bool _isLoading = true;
   
   int _highestEndlessLevel = 0;
-  int _totalEndlessTokens = 0;
+  int _totalEndlessHints = 0;
   
   @override
   void initState() {
@@ -42,7 +44,7 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
     
     // Load endless stats (would come from progress manager)
     _highestEndlessLevel = 0; // TODO: Load from prefs
-    _totalEndlessTokens = 0;
+    _totalEndlessHints = 0;
     
     setState(() => _isLoading = false);
   }
@@ -130,22 +132,22 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          StyledBackButton(),
+          const StyledBackButton(),
           const Spacer(),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               color: PrismazeTheme.backgroundCard,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: PrismazeTheme.warningYellow.withOpacity(0.4), width: 2),
+              borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusMedium),
+              border: Border.all(color: PrismazeTheme.warningYellow.withOpacity(0.3), width: 1.5),
             ),
             child: Row(
               children: [
                 Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  '${_economy.tokens}',
-                  style: GoogleFonts.dynaPuff(color: Colors.white, fontWeight: FontWeight.w700),
+                  '${_economy.hints}',
+                  style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -188,23 +190,21 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   Widget _buildStats() {
     final loc = LocalizationManager();
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 40),
+      margin: const EdgeInsets.symmetric(horizontal: 24), // Slightly more compact
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: PrismazeTheme.backgroundCard,
-        borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusMedium),
-        border: Border.all(color: PrismazeTheme.primaryPurple.withOpacity(0.3), width: 2),
-        boxShadow: [
-          BoxShadow(color: PrismazeTheme.primaryPurple.withOpacity(0.2), blurRadius: 15),
-        ],
+        borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusLarge),
+        border: Border.all(color: PrismazeTheme.primaryPurple.withOpacity(0.3), width: 1.5),
+        boxShadow: PrismazeTheme.getShadow(PrismazeTheme.primaryPurple, opacity: 0.15),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildStatItem(loc.getString('stat_highest'), '$_highestEndlessLevel', Icons.emoji_events),
-          Container(width: 1, height: 40, color: Colors.white24),
-          _buildStatItem(loc.getString('lbl_earnings'), '$_totalEndlessTokens 🪙', Icons.monetization_on),
-          Container(width: 1, height: 40, color: Colors.white24),
+          Container(width: 1, height: 40, color: Colors.white12),
+          _buildStatItem(loc.getString('lbl_earnings'), '$_totalEndlessHints', Icons.stars),
+          Container(width: 1, height: 40, color: Colors.white12),
           _buildStatItem(loc.getString('stat_difficulty'), _getDifficultyText(), Icons.trending_up),
         ],
       ),
@@ -214,10 +214,10 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
   Widget _buildStatItem(String label, String value, IconData icon) {
     return Column(
       children: [
-        Icon(icon, color: Colors.cyanAccent, size: 24),
+        Icon(icon, color: PrismazeTheme.accentCyan, size: 24),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+        Text(value, style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+        Text(label, style: GoogleFonts.dynaPuff(color: PrismazeTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -239,40 +239,23 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
         children: [
           // Continue Button (if progress exists)
           if (_highestEndlessLevel > 0)
-            SizedBox(
+            CuteMenuButton(
+              label: loc.getString('btn_continue_level').replaceAll('{0}', '${_highestEndlessLevel + 1}'),
+              baseColor: PrismazeTheme.primaryPurple,
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => _startEndless(continueProgress: true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purpleAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-                child: Text(loc.getString('btn_continue_level').replaceAll('{0}', '${_highestEndlessLevel + 1}')),
-              ),
+              fontSize: 16,
+              onTap: () => _startEndless(continueProgress: true),
             ),
           
-          if (_highestEndlessLevel > 0) const SizedBox(height: 12),
+          if (_highestEndlessLevel > 0) const SizedBox(height: 16),
           
           // New Game Button
-          SizedBox(
+          CuteMenuButton(
+            label: _highestEndlessLevel > 0 ? loc.getString('btn_start_new') : loc.getString('btn_start'),
+            baseColor: _highestEndlessLevel > 0 ? Colors.grey : PrismazeTheme.accentCyan,
             width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () => _startEndless(continueProgress: false),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _highestEndlessLevel > 0 
-                  ? Colors.white.withOpacity(0.1) 
-                  : Colors.cyanAccent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                side: BorderSide(
-                  color: _highestEndlessLevel > 0 ? Colors.white24 : Colors.transparent,
-                ),
-              ),
-              child: Text(_highestEndlessLevel > 0 ? loc.getString('btn_start_new') : loc.getString('btn_start')),
-            ),
+            fontSize: 16,
+            onTap: () => _startEndless(continueProgress: false),
           ),
         ],
       ),

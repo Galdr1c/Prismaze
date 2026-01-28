@@ -338,41 +338,41 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                             Expanded(child: _devButton('+100', Icons.add_circle, Colors.amber, () async {
                               final prefs = await SharedPreferences.getInstance();
                               // Decode current tokens
-                              final encoded = prefs.getString('hint_tokens_enc');
+                              final encoded = prefs.getString('hint_count_enc');
                               int currentTokens = 0;
                               if (encoded != null) {
                                 currentTokens = SecurityUtils.decodeValue(encoded) ?? 0;
                               }
                               // Add and re-encode
                               final newTokens = currentTokens + 100;
-                              await prefs.setString('hint_tokens_enc', SecurityUtils.encodeValue(newTokens));
+                              await prefs.setString('hint_count_enc', SecurityUtils.encodeValue(newTokens));
                               AudioManager().playSfxId(SfxId.coin);
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('+100 jeton ($newTokens toplam)! Hot restart yapın.'), backgroundColor: Colors.amber));
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('+100 ipucu ($newTokens toplam)! Hot restart yapın.'), backgroundColor: Colors.amber));
                               }
                             })),
                             const SizedBox(width: 6),
                             Expanded(child: _devButton('+500', Icons.monetization_on, Colors.amber.shade700, () async {
                               final prefs = await SharedPreferences.getInstance();
-                              final encoded = prefs.getString('hint_tokens_enc');
+                              final encoded = prefs.getString('hint_count_enc');
                               int currentTokens = 0;
                               if (encoded != null) {
                                 currentTokens = SecurityUtils.decodeValue(encoded) ?? 0;
                               }
                               final newTokens = currentTokens + 500;
-                              await prefs.setString('hint_tokens_enc', SecurityUtils.encodeValue(newTokens));
+                              await prefs.setString('hint_count_enc', SecurityUtils.encodeValue(newTokens));
                               AudioManager().playSfxId(SfxId.coin);
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('+500 jeton ($newTokens toplam)! Hot restart yapın.'), backgroundColor: Colors.amber));
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('+500 ipucu ($newTokens toplam)! Hot restart yapın.'), backgroundColor: Colors.amber));
                               }
                             })),
                             const SizedBox(width: 6),
                             Expanded(child: _devButton('SIFIRLA', Icons.money_off, Colors.red, () async {
                               final prefs = await SharedPreferences.getInstance();
-                              await prefs.setString('hint_tokens_enc', SecurityUtils.encodeValue(0));
+                              await prefs.setString('hint_count_enc', SecurityUtils.encodeValue(0));
                               AudioManager().playSfx('trash.mp3');
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Jetonlar sıfırlandı! Hot restart yapın.'), backgroundColor: Colors.red));
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('İpuçları sıfırlandı! Hot restart yapın.'), backgroundColor: Colors.red));
                               }
                             })),
                           ],

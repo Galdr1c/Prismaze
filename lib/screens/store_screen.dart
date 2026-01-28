@@ -8,6 +8,7 @@ import 'dart:async'; // Added for Timer
 import 'package:google_fonts/google_fonts.dart';
 import '../game/localization_manager.dart';
 import 'components/styled_back_button.dart';
+import '../widgets/cute_menu_button.dart';
 
 /// In-App Purchase Store Screen
 class StoreScreen extends StatefulWidget {
@@ -88,7 +89,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
         controller: _tabController,
         children: [
           _buildBundlesTab(),
-          _buildTokensTab(),
+          _buildTokensTab(), // Now displays Hints
           _buildSubscriptionTab(),
           _buildSeasonalTab(),
         ],
@@ -152,7 +153,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: IAPCatalog.tokenProducts.map((p) => _buildProductCard(p)).toList(),
+        children: IAPCatalog.hintProducts.map((p) => _buildProductCard(p)).toList(),
       ),
     );
   }
@@ -371,37 +372,14 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                         const SizedBox(height: 12),
                         
                         // Action Button
-                        GestureDetector(
+                        CuteMenuButton(
+                          label: isSubscription ? loc.getString('btn_subscribe') : loc.getString('btn_buy'),
                           onTap: () => _purchaseProduct(product),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: featured 
-                                  ? [Colors.purpleAccent, const Color(0xFFAB47BC)] 
-                                  : [Colors.cyanAccent, const Color(0xFF00ACC1)],
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: (featured ? Colors.purpleAccent : Colors.cyanAccent).withOpacity(0.4),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Text(
-                                isSubscription ? loc.getString('btn_subscribe') : loc.getString('btn_buy'),
-                                style: GoogleFonts.dynaPuff(
-                                  color: featured ? Colors.white : Colors.black, // High contrast
-                                  fontWeight: FontWeight.w800, 
-                                  fontSize: 12
-                                ),
-                              ),
-                            ),
-                          ),
+                          baseColor: featured ? Colors.purpleAccent : Colors.cyanAccent,
+                          textColor: featured ? Colors.white : Colors.black, // High contrast
+                          height: 44,
+                          fontSize: 13,
+                          width: double.infinity,
                         ),
                       ],
                     ),

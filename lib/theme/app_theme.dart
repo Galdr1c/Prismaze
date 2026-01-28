@@ -101,6 +101,7 @@ class PrismazeTheme {
   static TextStyle get bodyLarge => GoogleFonts.dynaPuff(fontSize: 16, fontWeight: FontWeight.w500, color: textPrimary);
   static TextStyle get bodyMedium => GoogleFonts.dynaPuff(fontSize: 14, fontWeight: FontWeight.w400, color: textSecondary);
   static TextStyle get bodySmall => GoogleFonts.dynaPuff(fontSize: 12, fontWeight: FontWeight.w400, color: textMuted);
+  static TextStyle get labelLarge => GoogleFonts.dynaPuff(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white);
 
   // === TEXT COLORS (Dynamic) ===
   static Color get textPrimary => _sm.highContrastEnabled ? Colors.white : const Color(0xFFFFFFFF);

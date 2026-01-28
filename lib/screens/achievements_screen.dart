@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../game/progress_manager.dart';
 import '../game/localization_manager.dart';
+import '../theme/app_theme.dart';
 import 'components/styled_back_button.dart';
 
 /// Achievements Display Screen
@@ -12,12 +13,14 @@ class AchievementsScreen extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
+    final loc = LocalizationManager();
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0D1A),
+      backgroundColor: PrismazeTheme.backgroundDark,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(LocalizationManager().getString('ach_title'), style: GoogleFonts.dynaPuff(fontWeight: FontWeight.bold)),
+        title: Text(loc.getString('ach_title'), style: GoogleFonts.dynaPuff(fontWeight: FontWeight.bold)),
         leadingWidth: 100,
         leading: Padding(
           padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
@@ -33,49 +36,54 @@ class AchievementsScreen extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.all(16),
                 children: [
-                  _buildCategoryColumn('Hız', Icons.speed, Colors.orangeAccent, [
-                    _Achievement('Hızlı Düşünür', 'Bir leveli 10 saniyede bitir', 'ach_quick_thinker'),
-                    _Achievement('Işık Hızı', '5 level altında 20 saniye', 'ach_speed_1'),
-                    _Achievement('Hız Ustası', '50 level altında 20 saniye', 'ach_speed_master'),
-                  ]),
+                  _buildCategoryColumn(loc.getString('cat_speed'), Icons.speed, Colors.orangeAccent, [
+                    _Achievement(loc.getString('ach_quick_thinker'), loc.getString('ach_desc_quick_thinker'), 'ach_quick_thinker', 3),
+                    _Achievement(loc.getString('ach_speed_1'), loc.getString('ach_desc_one_shot_master'), 'ach_speed_1', 5), 
+                    _Achievement(loc.getString('ach_speed_master'), '50 level < 20s', 'ach_speed_master', 10),
+                  ], loc),
                   const SizedBox(width: 16),
                   
-                  _buildCategoryColumn('Mükemmellik', Icons.star, Colors.amber, [
-                    _Achievement('Mükemmeliyetçi', '5 art arda 3 yıldız', 'ach_perfectionist'),
-                    _Achievement('Altın Yol', '10 level 3 yıldız', 'ach_perfect_1'),
-                    _Achievement('Mükemmellik Ustası', '200 level 3 yıldız', 'ach_perfect_master'),
-                  ]),
+                  _buildCategoryColumn(loc.getString('cat_perfection'), Icons.star, Colors.amber, [
+                    _Achievement(loc.getString('ach_perfectionist'), loc.getString('ach_desc_perfectionist'), 'ach_perfectionist', 5),
+                    _Achievement(loc.getString('ach_star_hunter'), loc.getString('ach_desc_star_hunter'), 'ach_star_hunter', 5),
+                    _Achievement(loc.getString('ach_perfect_1'), '10 level 3 star', 'ach_perfect_1', 5),
+                    _Achievement(loc.getString('ach_clean_sweep'), loc.getString('ach_desc_clean_sweep'), 'ach_clean_sweep', 10),
+                    _Achievement(loc.getString('ach_perfect_master'), '200 level 3 star', 'ach_perfect_master', 10),
+                  ], loc),
                   const SizedBox(width: 16),
                   
-                  _buildCategoryColumn('Maraton', Icons.directions_run, Colors.greenAccent, [
-                    _Achievement('Devamlılık', '10 level tek oturumda', 'ach_marathon_1'),
-                    _Achievement('Maraton Koşucusu', '25 level tek oturumda', 'ach_marathon_2'),
-                    _Achievement('Maraton Ustası', '100 level tek oturumda', 'ach_marathon_master'),
-                  ]),
+                  _buildCategoryColumn(loc.getString('cat_marathon'), Icons.directions_run, Colors.greenAccent, [
+                    _Achievement(loc.getString('ach_warmup'), loc.getString('ach_desc_warmup'), 'ach_warmup', 3),
+                    _Achievement(loc.getString('ach_marathon_1'), '10 level session', 'ach_marathon_1', 3),
+                    _Achievement(loc.getString('ach_focused'), loc.getString('ach_desc_focused'), 'ach_focused', 5),
+                    _Achievement(loc.getString('ach_marathon_master'), '100 level session', 'ach_marathon_master', 10),
+                  ], loc),
                   const SizedBox(width: 16),
                   
-                  _buildCategoryColumn('Bağımsızlık', Icons.lightbulb_outline, Colors.cyanAccent, [
-                    _Achievement('Tereddütsüz', '20 level ipuçsuz', 'ach_patient'),
-                    _Achievement('Bağımsız', '25 level ipuçsuz', 'ach_independent_1'),
-                    _Achievement('Bağımsızlık Ustası', '100 level ipuçsuz', 'ach_independent_master'),
-                  ]),
+                  _buildCategoryColumn(loc.getString('cat_independence'), Icons.lightbulb_outline, Colors.cyanAccent, [
+                    _Achievement(loc.getString('ach_self_starter'), loc.getString('ach_desc_self_starter'), 'ach_self_starter', 3),
+                    _Achievement(loc.getString('ach_patient'), loc.getString('ach_desc_patient'), 'ach_patient', 5),
+                    _Achievement(loc.getString('ach_independent_1'), '25 level no hint', 'ach_independent_1', 5),
+                    _Achievement(loc.getString('ach_problem_solver'), loc.getString('ach_desc_problem_solver'), 'ach_problem_solver', 5),
+                    _Achievement(loc.getString('ach_independent_master'), '100 level no hint', 'ach_independent_master', 10),
+                  ], loc),
                   const SizedBox(width: 16),
                   
-                  _buildCategoryColumn('Gizli', Icons.visibility_off, Colors.purpleAccent, [
-                    _Achievement('Karanlık', 'Tüm sesleri kapat', 'ach_darkness'),
-                    _Achievement('Minimalist', 'Bir leveli 1 hamlede bitir', 'ach_minimalist'),
-                    _Achievement('Şanslı 7', '7. denemede bitir', 'ach_lucky_7'),
-                    _Achievement('Gece Kuşu', '10 kez gece 2-4 arası oyna', 'ach_night_owl'),
-                    _Achievement('Sabır Taşı', 'Bir levelde 10 dakika geçir', 'ach_patience_stone'),
-                  ]),
+                  _buildCategoryColumn(loc.getString('cat_secret'), Icons.visibility_off, Colors.purpleAccent, [
+                    _Achievement(loc.getString('ach_darkness'), loc.getString('ach_desc_darkness'), 'ach_darkness', 5),
+                    _Achievement(loc.getString('ach_minimalist'), loc.getString('ach_desc_minimalist'), 'ach_minimalist', 10),
+                    _Achievement(loc.getString('ach_lucky_7'), '7 attempts', 'ach_lucky_7', 3),
+                    _Achievement(loc.getString('ach_night_owl'), '10x 02:00-04:00', 'ach_night_owl', 5),
+                    _Achievement(loc.getString('ach_patience_stone'), '10 min level', 'ach_patience_stone', 5),
+                  ], loc),
                   const SizedBox(width: 16),
                   
-                  _buildCategoryColumn('Efsane', Icons.auto_awesome, Colors.amber, [
-                    _Achievement('İlk Işık', 'Level 1\'i bitir', 'ach_first_light'),
-                    _Achievement('Işık Çırağı', '100 level bitir', 'ach_light_apprentice'),
-                    _Achievement('Işık Ustası', '200 level bitir', 'ach_light_master'),
-                    _Achievement('Efsane', '20 başarı aç', 'ach_legend'),
-                  ]),
+                  _buildCategoryColumn(loc.getString('cat_legend'), Icons.auto_awesome, Colors.amber, [
+                    _Achievement(loc.getString('ach_first_light'), loc.getString('ach_desc_first_light'), 'ach_first_light', 3),
+                    _Achievement(loc.getString('ach_light_apprentice'), loc.getString('ach_desc_light_apprentice'), 'ach_light_apprentice', 5),
+                    _Achievement(loc.getString('ach_light_master'), '200 Level', 'ach_light_master', 10),
+                    _Achievement(loc.getString('ach_legend'), '20 Achievements', 'ach_legend', 10),
+                  ], loc),
                 ],
               ),
             ),
@@ -85,7 +93,7 @@ class AchievementsScreen extends StatelessWidget {
     );
   }
   
-  Widget _buildCategoryColumn(String title, IconData icon, Color color, List<_Achievement> achievements) {
+  Widget _buildCategoryColumn(String title, IconData icon, Color color, List<_Achievement> achievements, LocalizationManager loc) {
     return Container(
       width: 280, // Fixed width for horizontal scroll
       child: Column(
@@ -105,7 +113,7 @@ class AchievementsScreen extends StatelessWidget {
           Expanded(
             child: ListView(
               shrinkWrap: true,
-              children: achievements.map((a) => _buildAchievementCard(a, color)).toList(),
+              children: achievements.map((a) => _buildAchievementCard(a, color, loc)).toList(),
             ),
           ),
         ],
@@ -113,19 +121,21 @@ class AchievementsScreen extends StatelessWidget {
     );
   }
   
-  Widget _buildAchievementCard(_Achievement achievement, Color categoryColor) {
-    // Check if unlocked (stub - would check progressManager)
-    final isUnlocked = false; // TODO: Check actual unlock status
+  Widget _buildAchievementCard(_Achievement achievement, Color categoryColor, LocalizationManager loc) {
+    final isUnlocked = progressManager.isAchievementUnlocked(achievement.id);
     
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isUnlocked ? categoryColor.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+        color: isUnlocked ? categoryColor.withOpacity(0.2) : PrismazeTheme.backgroundCard,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isUnlocked ? categoryColor.withOpacity(0.5) : Colors.white12,
         ),
+        boxShadow: isUnlocked ? [
+           BoxShadow(color: categoryColor.withOpacity(0.1), blurRadius: 8)
+        ] : null,
       ),
       child: Row(
         children: [
@@ -156,13 +166,14 @@ class AchievementsScreen extends StatelessWidget {
                   style: GoogleFonts.dynaPuff(
                     color: isUnlocked ? Colors.white : Colors.white70,
                     fontWeight: FontWeight.bold,
+                    fontSize: 13,
                   ),
                 ),
                 Text(
                   achievement.description,
                   style: GoogleFonts.dynaPuff(
                     color: isUnlocked ? Colors.white70 : Colors.white38,
-                    fontSize: 12,
+                    fontSize: 11,
                   ),
                 ),
               ],
@@ -171,7 +182,12 @@ class AchievementsScreen extends StatelessWidget {
           
           // Reward
           if (isUnlocked)
-            const Text('+20 🪙', style: TextStyle(color: Colors.amber)),
+            Row(
+              children: [
+                Icon(Icons.lightbulb, size: 12, color: PrismazeTheme.warningYellow),
+                Text('+${achievement.reward}', style: GoogleFonts.dynaPuff(color: PrismazeTheme.warningYellow, fontSize: 12, fontWeight: FontWeight.bold)),
+              ],
+            ),
         ],
       ),
     );
@@ -182,7 +198,8 @@ class _Achievement {
   final String title;
   final String description;
   final String id;
+  final int reward;
   
-  const _Achievement(this.title, this.description, this.id);
+  const _Achievement(this.title, this.description, this.id, this.reward);
 }
 

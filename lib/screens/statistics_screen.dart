@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../game/prismaze_game.dart'; 
 import '../game/progress_manager.dart';
+import '../game/mission_manager.dart';
 import '../game/localization_manager.dart';
 import '../theme/app_theme.dart';
 import 'components/styled_back_button.dart';
@@ -9,7 +11,13 @@ import 'dart:math';
 
 class StatisticsScreen extends StatefulWidget {
   final ProgressManager progressManager;
-  const StatisticsScreen({Key? key, required this.progressManager}) : super(key: key);
+  final MissionManager missionManager;
+  
+  const StatisticsScreen({
+      Key? key, 
+      required this.progressManager,
+      required this.missionManager
+  }) : super(key: key);
 
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
@@ -17,12 +25,14 @@ class StatisticsScreen extends StatefulWidget {
 
 class _StatisticsScreenState extends State<StatisticsScreen> {
   late ProgressManager pm;
+  late MissionManager mm;
   bool _loading = false;
 
   @override
   void initState() {
     super.initState();
     pm = widget.progressManager;
+    mm = widget.missionManager;
   }
 
   @override
@@ -34,97 +44,146 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final pieData = pm.getLikelyAchievementProgress();
     
     return Scaffold(
+      extendBodyBehindAppBar: false,
       backgroundColor: PrismazeTheme.backgroundDark,
       appBar: AppBar(
         title: Text(loc.getString('stat_title'), style: PrismazeTheme.headingMedium),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        centerTitle: false,
-        leadingWidth: 100,
+        centerTitle: true,
+        leadingWidth: 100, // Increased width for "Back" text
         leading: Padding(
-          padding: const EdgeInsets.only(left: 8, top: 8, bottom: 8),
+          padding: const EdgeInsets.all(8.0),
           child: StyledBackButton(),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Personal Stats Grid
-            Text(loc.getString('stat_personal'), style: PrismazeTheme.headingSmall),
-            const SizedBox(height: 8),
-            GridView.count(
-                crossAxisCount: 3,
-                shrinkWrap: true,
-                childAspectRatio: 2.5, // More square
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                    _buildStatCard(loc.getString('stat_playtime'), "${(pm.totalPlayTime / 60).toStringAsFixed(1)} dk", Icons.timer),
-                    _buildStatCard(loc.getString('stat_completed'), "${pm.levelsCompleted}", Icons.check_circle_outline),
-                    _buildStatCard(loc.getString('stat_3stars'), "${pm.totalThreeStars}", Icons.star),
-                    _buildStatCard(loc.getString('stat_fastest'), "${pm.fastestLevelTime}s", Icons.flash_on),
-                    _buildStatCard(loc.getString('stat_hints'), "${pm.totalHintsUsed}", Icons.lightbulb_outline),
-                    _buildStatCard(loc.getString('stat_tokens'), "${pm.totalTokensEarned}", Icons.monetization_on),
-                ],
-            ),
-            
-            const SizedBox(height: 30),
-            
-            // 2. Weekly Activity Chart
-            Text(loc.getString('stat_weekly'), style: PrismazeTheme.headingSmall),
-            const SizedBox(height: 8),
+      body: Stack(
+        children: [
+            // Background Gradient
             Container(
-                height: 150,
-                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                    color: PrismazeTheme.backgroundCard,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: PrismazeTheme.primaryPurpleLight.withOpacity(0.2))
-                ),
-                child: CustomPaint(
-                    size: const Size(double.infinity, 200),
-                    painter: BarChartPainter(weeklyData),
+                    gradient: PrismazeTheme.backgroundGradient
                 ),
             ),
             
-            const SizedBox(height: 30),
-            
-            // 3. Achievement Progress (Pieish)
-            Text(loc.getString('stat_distribution'), style: PrismazeTheme.headingSmall),
-            const SizedBox(height: 8),
-            _buildDistributionBars(pieData),
-            
-            const SizedBox(height: 20),
-          ],
-        ),
+            // Content
+            SafeArea(
+                child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. Personal Stats Grid
+                        _buildSectionHeader(loc.getString('stat_personal'), Icons.person),
+                        const SizedBox(height: 12),
+                        GridView.count(
+                            crossAxisCount: 6, // 3 cols is better than 6
+                            shrinkWrap: true,
+                            childAspectRatio: 1.5,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: [
+                                _buildStatCard(loc.getString('stat_playtime'), "${(pm.totalPlayTime / 60).toStringAsFixed(1)} dk", Icons.timer, Colors.cyan),
+                                _buildStatCard(loc.getString('stat_completed'), "${pm.levelsCompleted}", Icons.check_circle_outline, Colors.green),
+                                _buildStatCard(loc.getString('stat_3stars'), "${pm.totalThreeStars}", Icons.star, Colors.amber),
+                                _buildStatCard(loc.getString('stat_fastest'), "${pm.fastestLevelTime}s", Icons.flash_on, Colors.orange),
+                                _buildStatCard(loc.getString('stat_hints'), "${pm.totalHintsUsed}", Icons.lightbulb_outline, Colors.purpleAccent),
+                                _buildStatCard(loc.getString('stat_tokens'), "${pm.totalHintsEarned}", Icons.lightbulb, Colors.yellowAccent),
+                            ],
+                        ),
+                        
+                        const SizedBox(height: 30),
+                        
+                        // 3. Weekly Activity Chart
+                        _buildSectionHeader(loc.getString('stat_weekly'), Icons.bar_chart),
+                        const SizedBox(height: 12),
+                        Container(
+                            height: 180,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3), // Lightweight transparency
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: PrismazeTheme.primaryPurpleLight.withOpacity(0.3))
+                            ),
+                            child: CustomPaint(
+                                size: const Size(double.infinity, 200),
+                                painter: BarChartPainter(weeklyData),
+                            ),
+                        ),
+                        
+                        const SizedBox(height: 30),
+                        
+                        // 4. Achievement Progress
+                        _buildSectionHeader(loc.getString('stat_distribution'), Icons.pie_chart),
+                        const SizedBox(height: 12),
+                        Container(
+                             padding: const EdgeInsets.all(16),
+                             decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: PrismazeTheme.accentCyan.withOpacity(0.3))
+                             ),
+                             child: _buildDistributionBars(pieData),
+                        ),
+                        
+                        const SizedBox(height: 40),
+                      ],
+                    ),
+                ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon) {
+  Widget _buildSectionHeader(String title, IconData icon) {
+      return Row(
+          children: [
+              Icon(icon, color: Colors.white70, size: 20),
+              const SizedBox(width: 8),
+              Text(title, style: PrismazeTheme.headingSmall.copyWith(fontSize: 18, color: Colors.white)),
+          ],
+      );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon, Color accentColor) {
       return Container(
           decoration: BoxDecoration(
-              color: PrismazeTheme.backgroundCard,
+              color: Colors.black.withOpacity(0.3),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: PrismazeTheme.primaryPurpleLight.withOpacity(0.2))
+              border: Border.all(color: accentColor.withOpacity(0.3), width: 1.5),
+              boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4, offset: const Offset(0, 2))
+              ]
           ),
-          padding: const EdgeInsets.all(12),
-          child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
               children: [
-                  Icon(icon, color: PrismazeTheme.primaryPurpleLight, size: 24),
-                  const SizedBox(height: 8),
-                  Text(value, style: PrismazeTheme.bodyLarge.copyWith(fontWeight: FontWeight.bold, fontSize: 18)),
-                  const SizedBox(height: 4),
-                  Text(
-                    label, 
-                    style: PrismazeTheme.bodySmall.copyWith(color: Colors.white60), 
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis
+                  Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                          color: accentColor.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: accentColor, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                            Text(value, style: GoogleFonts.dynaPuff(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            Text(
+                                label, 
+                                style: GoogleFonts.dynaPuff(color: Colors.white60, fontSize: 10), 
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis
+                            ),
+                        ],
+                    ),
                   ),
               ],
           ),
@@ -140,23 +199,30 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           children: data.entries.map((e) {
               final pct = e.value / maxVal;
               return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
+                  padding: const EdgeInsets.only(bottom: 10.0),
                   child: Row(
                       children: [
-                          SizedBox(width: 100, child: Text(e.key, style: PrismazeTheme.bodyMedium)),
+                          SizedBox(width: 90, child: Text(e.key, style: PrismazeTheme.bodyMedium.copyWith(fontSize: 12))),
                           Expanded(
                               child: Stack(
                                   children: [
-                                      Container(height: 12, decoration: BoxDecoration(color: PrismazeTheme.backgroundOverlay, borderRadius: BorderRadius.circular(6))),
+                                      Container(height: 8, decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(4))),
                                       FractionallySizedBox(
                                           widthFactor: pct.clamp(0.01, 1.0),
-                                          child: Container(height: 12, decoration: BoxDecoration(color: PrismazeTheme.primaryPurple, borderRadius: BorderRadius.circular(6))),
+                                          child: Container(
+                                              height: 8, 
+                                              decoration: BoxDecoration(
+                                                  color: PrismazeTheme.accentCyan, 
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  boxShadow: [BoxShadow(color: PrismazeTheme.accentCyan.withOpacity(0.5), blurRadius: 4)]
+                                              )
+                                          ),
                                       ),
                                   ],
                               ),
                           ),
-                          const SizedBox(width: 10),
-                          Text("${e.value.toInt()}", style: PrismazeTheme.bodyMedium)
+                          const SizedBox(width: 12),
+                          SizedBox(width: 30, child: Text("${e.value.toInt()}", style: PrismazeTheme.bodyMedium.copyWith(fontSize: 12), textAlign: TextAlign.end))
                       ],
                   ),
               );
@@ -171,9 +237,9 @@ class BarChartPainter extends CustomPainter {
     
     @override
     void paint(Canvas canvas, Size size) {
-        final paint = Paint()..color = Colors.cyanAccent;
+        final paint = Paint()..color = PrismazeTheme.accentPink;
         final axisPaint = Paint()..color = Colors.white24..strokeWidth = 1;
-        final textStyle = const TextStyle(color: Colors.white70, fontSize: 10);
+        final textStyle = GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 10);
         final textPainter = TextPainter(textDirection: TextDirection.ltr);
         
         // Draw Axis
@@ -188,23 +254,25 @@ class BarChartPainter extends CustomPainter {
         int i = 0;
         data.forEach((label, value) {
             final x = i * spacing + spacing/2;
-            final h = (value / maxVal) * (size.height - 20); // 20px buffer for text
+            final h = (value / maxVal) * (size.height - 30); 
             
             // Bar
-            final r = RRect.fromRectAndRadius(
-                Rect.fromLTWH(x - barWidth/2, size.height - h - 20, barWidth, h),
-                const Radius.circular(4)
-            );
-            canvas.drawRRect(r, paint);
+            if (value > 0) {
+                 final r = RRect.fromRectAndRadius(
+                    Rect.fromLTWH(x - barWidth/2, size.height - h - 20, barWidth, h),
+                    const Radius.circular(4)
+                );
+                canvas.drawRRect(r, paint);
+             }
             
-            // Label
+            // Label (X)
             textPainter.text = TextSpan(text: label, style: textStyle);
             textPainter.layout();
             textPainter.paint(canvas, Offset(x - textPainter.width/2, size.height - 15));
             
-            // Value
+            // Value (Y)
             if (value > 0) {
-                 textPainter.text = TextSpan(text: "$value", style: textStyle.copyWith(color: Colors.white));
+                 textPainter.text = TextSpan(text: "$value", style: textStyle.copyWith(color: Colors.white, fontWeight: FontWeight.bold));
                  textPainter.layout();
                  textPainter.paint(canvas, Offset(x - textPainter.width/2, size.height - h - 35));
             }

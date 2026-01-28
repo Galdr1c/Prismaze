@@ -409,13 +409,6 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
   
   @override
   bool containsLocalPoint(Vector2 point) {
-    bool hasAssist = gameRef.settingsManager.motorAssistEnabled;
-    if (hasAssist) {
-        // Expand hitbox by 50%
-        final r = size.toRect().inflate(20); // +20px padding all sides
-        return r.contains(point.toOffset());
-    }
-    
     if (_hitboxMask == null) {
       // Fallback: default behavior
       return size.toRect().contains(point.toOffset());

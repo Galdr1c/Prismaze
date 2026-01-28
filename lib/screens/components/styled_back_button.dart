@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../game/audio_manager.dart';
 import '../../game/localization_manager.dart';
+import '../../widgets/bouncing_button.dart';
 
 /// Styled Back Button matching the game's theme.
 /// Used across all screens for consistent navigation.
@@ -13,7 +14,7 @@ class StyledBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loc = LocalizationManager();
-    return GestureDetector(
+    return BouncingButton(
       onTap: () {
         AudioManager().playSfxId(SfxId.uiClick);
         if (onTap != null) {

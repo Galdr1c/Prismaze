@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../game/prismaze_game.dart';
 import '../game/audio_manager.dart';
 import '../game/localization_manager.dart';
+import '../theme/app_theme.dart';
 
 class LevelCompleteOverlay extends StatefulWidget {
   final LevelResult result;
@@ -135,17 +136,14 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
                       ),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF16213E), Color(0xFF0F3460)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                        // Performance: Use solid color or simple gradient from theme, NO BoxShadow
+                        gradient: PrismazeTheme.backgroundGradient,
+                        borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusLarge),
+                        border: Border.all(
+                            color: PrismazeTheme.textSecondary.withOpacity(0.3), 
+                            width: 1.5
                         ),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white24, width: 2),
-                        boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 20, spreadRadius: 5),
-                            const BoxShadow(color: Colors.cyanAccent, blurRadius: 10, spreadRadius: -5),
-                        ],
+                        // Removed BoxShadow for performance as requested
                       ),
                       child: SingleChildScrollView(
                         child: isLandscape 
@@ -220,6 +218,8 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
   
   // --- Component Widgets ---
   
+  // --- Component Widgets ---
+  
   Widget _buildTitle() {
       final loc = LocalizationManager();
       String defaultTitle = widget.result.stars > 0 
@@ -231,11 +231,9 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
            Text(
             widget.result.customTitle ?? defaultTitle,
             textAlign: TextAlign.center,
-            style: GoogleFonts.dynaPuff(
-              fontSize: 22, 
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: [const Shadow(color: Colors.cyanAccent, blurRadius: 10)],
+            style: PrismazeTheme.headingMedium.copyWith(
+              color: PrismazeTheme.textPrimary,
+              shadows: [], // Removed glow for performance
             ),
           ),
           if (widget.result.stars > widget.result.oldStars && widget.result.stars > 0 && widget.result.oldStars > 0)
@@ -250,18 +248,15 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
                               scale: scale,
                               child: Text(
                                   "YENİ REKOR!", // "NEW SCORE!"
-                                  style: GoogleFonts.dynaPuff(
-                                      fontSize: 18,
-                                      color: Colors.yellowAccent,
+                                  style: PrismazeTheme.headingSmall.copyWith(
+                                      color: PrismazeTheme.starGold,
                                       fontWeight: FontWeight.w900,
-                                      shadows: [
-                                          BoxShadow(color: Colors.orangeAccent.withOpacity(0.8), blurRadius: 15, spreadRadius: 5)
-                                      ]
+                                      shadows: [], // Removed glow
                                   )
                               ),
                           );
                       },
-                      onEnd: () {}, // Loop? For now single pulse or handled by builder loop if stateful
+                      onEnd: () {},
                   )
               ),
         ],
@@ -272,12 +267,6 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: List.generate(3, (index) {
-            // Logic:
-            // Index 0, 1, 2.
-            // Star 1 is Index 0.
-            // If oldStars = 1, then Index 0 is "Old".
-            // If newStars = 3. Index 1, 2 are "New".
-            
             bool achieved = index < widget.result.stars;
             bool isNew = achieved && (index >= widget.result.oldStars);
             
@@ -287,20 +276,12 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
                 child: achieved 
                     ? ScaleTransition(
                         scale: _starScales[index],
-                        child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                                Icon(Icons.star, 
-                                    color: isNew ? Colors.yellowAccent : const Color(0xFFFFD700), // Brighter if new
-                                    size: 45
-                                ),
-                                if (isNew) 
-                                    const Icon(Icons.star, color: Colors.white54, size: 45) // Shine overlay
-                                    // Or add Glow
-                            ],
+                        child: Icon(Icons.star, 
+                            color: isNew ? PrismazeTheme.starGold : PrismazeTheme.starGold.withOpacity(0.8),
+                            size: 45
                         ),
                       )
-                    : const Icon(Icons.star_border, color: Colors.white24, size: 45),
+                    : Icon(Icons.star_border, color: PrismazeTheme.textMuted.withOpacity(0.3), size: 45),
             );
         }),
       );
@@ -315,8 +296,8 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
               children: [
                   _buildStatRow(loc.getString('lbl_moves'), "${widget.result.moves} ", "/ ${widget.result.par}"),
                   const Divider(color: Colors.white10),
-                  if (widget.result.earnedTokens > 0)
-                      _buildStatRow(loc.getString('lbl_earnings'), "+${widget.result.earnedTokens} ", loc.getString('lbl_tokens')),
+                  if (widget.result.earnedHints > 0)
+                      _buildStatRow(loc.getString('lbl_earnings'), "+${widget.result.earnedHints} ", loc.getString('lbl_tokens')),
               ],
           ),
       );
@@ -332,23 +313,33 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
                   scale: _buttonVisible ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.elasticOut,
-                  child: ElevatedButton(
-                    onPressed: widget.onNext,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.pinkAccent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                      elevation: 10,
-                      shadowColor: Colors.pinkAccent,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: PrismazeTheme.buttonGradient, // Use Theme Gradient
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                    child: Text(loc.getString('btn_next_level'), style: GoogleFonts.dynaPuff(fontSize: 16, fontWeight: FontWeight.bold)),
+                    child: ElevatedButton(
+                      onPressed: widget.onNext,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent, // Transparent for gradient
+                        foregroundColor: Colors.white,
+                        shadowColor: Colors.transparent, // No shadow for performance
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: Text(loc.getString('btn_next_level'), style: PrismazeTheme.labelLarge),
+                    ),
                   ),
               )
           else
               ElevatedButton(
                     onPressed: widget.onReplay,
-                    child: Text(loc.getString('btn_try_again'), style: GoogleFonts.dynaPuff(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: PrismazeTheme.primaryPurple,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    ),
+                    child: Text(loc.getString('btn_try_again'), style: PrismazeTheme.labelLarge),
               ),
           
           const SizedBox(height: 10),
@@ -361,13 +352,13 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   TextButton.icon(
-                    icon: const Icon(Icons.refresh, color: Colors.white70, size: 20),
-                    label: Text(loc.getString('btn_replay'), style: GoogleFonts.dynaPuff(color: Colors.white70)),
+                    icon: Icon(Icons.refresh, color: PrismazeTheme.textSecondary, size: 20),
+                    label: Text(loc.getString('btn_replay'), style: PrismazeTheme.bodyMedium),
                     onPressed: widget.onReplay,
                   ),
                   TextButton.icon(
-                    icon: const Icon(Icons.menu, color: Colors.white70, size: 20),
-                    label: Text(loc.getString('btn_menu'), style: GoogleFonts.dynaPuff(color: Colors.white70)),
+                    icon: Icon(Icons.menu, color: PrismazeTheme.textSecondary, size: 20),
+                    label: Text(loc.getString('btn_menu'), style: PrismazeTheme.bodyMedium),
                     onPressed: widget.onMenu,
                   ),
                 ],
@@ -383,11 +374,11 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: GoogleFonts.dynaPuff(color: Colors.white54, fontSize: 13)),
+            Text(label, style: PrismazeTheme.bodyMedium),
             Row(
                 children: [
-                    Text(value, style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    Text(suffix, style: GoogleFonts.dynaPuff(color: Colors.white54, fontSize: 13)),
+                    Text(value, style: PrismazeTheme.bodyLarge.copyWith(fontWeight: FontWeight.bold)),
+                    Text(suffix, style: PrismazeTheme.bodySmall),
                 ],
             ),
           ],

@@ -32,6 +32,8 @@ import 'components/daily_login_overlay.dart';
 import 'components/fast_page_route.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'components/age_gate_dialog.dart';
+import '../widgets/cute_menu_button.dart';
+import '../widgets/bouncing_button.dart';
 
 class MainMenuScreen extends StatefulWidget {
   const MainMenuScreen({super.key});
@@ -214,41 +216,41 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                 decoration: BoxDecoration(
                   color: PrismazeTheme.backgroundCard,
                   shape: BoxShape.circle,
-                  border: Border.all(color: PrismazeTheme.primaryPurple.withOpacity(0.4), width: 2),
+                  border: Border.all(color: PrismazeTheme.primaryPurple.withOpacity(0.3), width: 1.5),
                 ),
                 child: IconButton(
                   icon: Icon(Icons.settings, color: PrismazeTheme.primaryPurpleLight, size: 20),
                   padding: const EdgeInsets.all(8),
                   constraints: const BoxConstraints(),
                   onPressed: () {
-                       showDialog(
-                           context: context,
-                           barrierDismissible: true,
-                           builder: (ctx) => SettingsOverlay(
-                               settingsManager: SettingsManager(),
-                               progressManager: progress,
-                               onClose: () {
-                                   Navigator.pop(ctx);
-                                   setState(() { _isLoading = true; });
-                                   _loadData(); // Reload data in case of reset
-                               },
-                           ),
-                       );
+                    showDialog(
+                      context: context,
+                      barrierDismissible: true,
+                      builder: (ctx) => SettingsOverlay(
+                        settingsManager: SettingsManager(),
+                        progressManager: progress,
+                        onClose: () {
+                          Navigator.pop(ctx);
+                          setState(() { _isLoading = true; });
+                          _loadData(); 
+                        },
+                      ),
+                    );
                   },
                 ),
               ),
               const SizedBox(width: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: PrismazeTheme.backgroundCard,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: PrismazeTheme.starGold.withOpacity(0.4), width: 2),
+                  borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusMedium),
+                  border: Border.all(color: PrismazeTheme.starGold.withOpacity(0.3), width: 1.5),
                 ),
                 child: Row(
                   children: [
                     Icon(Icons.star, color: PrismazeTheme.starGold, size: 18),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 6),
                     Text(
                       '${CampaignProgress().getTotalStars()}', 
                       style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
@@ -267,15 +269,15 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: PrismazeTheme.backgroundCard,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: PrismazeTheme.warningYellow.withOpacity(0.4), width: 2),
+                  borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusMedium),
+                  border: Border.all(color: PrismazeTheme.warningYellow.withOpacity(0.3), width: 1.5),
                 ),
                 child: Row(
                   children: [
                     Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 18),
                     const SizedBox(width: 6),
                     Text(
-                      '${economy.tokens}',
+                      '${economy.hints}',
                       style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                   ],
@@ -293,7 +295,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                   decoration: BoxDecoration(
                     color: PrismazeTheme.backgroundCard,
                     shape: BoxShape.circle,
-                    border: Border.all(color: PrismazeTheme.accentCyan.withOpacity(0.4), width: 2),
+                    border: Border.all(color: PrismazeTheme.accentCyan.withOpacity(0.3), width: 1.5),
                   ),
                   child: Icon(Icons.shopping_cart, color: PrismazeTheme.accentCyan, size: 20),
                 ),
@@ -345,9 +347,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   
   Widget _buildLastPlayedInfo() {
       final loc = LocalizationManager();
-      final lastPlayed = progress.lastPlayedLevelId;
+      final episode = progress.lastPlayedEpisode;
+      final levelIndex = progress.lastPlayedLevelIndex;
+      final levelId = levelIndex + 1;
+      
+      // Target: "Last Played: Episode 1 - Level 123"
+      final episodeStr = "${loc.getString('episode_prefix') ?? 'Episode'} $episode";
+      final levelStr = "${loc.getString('level_prefix')} $levelId";
+      
       return Text(
-          "${loc.getString('last_played')}: ${loc.getString('level_prefix')} $lastPlayed",
+          "${loc.getString('last_played')}: $episodeStr - $levelStr",
           style: GoogleFonts.dynaPuff(
             color: PrismazeTheme.textSecondary, 
             letterSpacing: 2,
@@ -358,14 +367,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   }
   
   Widget _buildContinueButton() {
-      // Get current campaign progress
       final campaignProgress = CampaignProgress();
       final episodeIds = campaignProgress.episodeIds;
-      
-      // Find the current episode/level to play
       int targetEpisode = 1;
       int targetLevelIndex = 0;
-      
       for (final ep in episodeIds) {
         final epProgress = campaignProgress.getEpisodeProgress(ep);
         if (epProgress.currentLevelIndex < epProgress.totalLevels) {
@@ -374,194 +379,121 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
           break;
         }
       }
-      
-      // Calculate display level ID
       final displayLevelId = (targetEpisode - 1) * 200 + targetLevelIndex + 1;
       
-      // Optimization: Cache expensive button + shadow rendering
-      final buttonBody = RepaintBoundary(
-        child: GestureDetector(
-            onTap: () {
-                AudioManager().playSfxId(SfxId.uiClick);
-                Navigator.push(context, FastPageRoute(page: GameScreen(
-                    levelId: displayLevelId,
-                    episode: targetEpisode,
-                    levelIndex: targetLevelIndex,
-                )))
-                  .then((_) {
-                       AudioManager().setContext(AudioContext.menu);       
-                       _loadData();
-                  });
-            },
-            child: Container(
-                width: 220,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                    gradient: PrismazeTheme.buttonGradient,
-                    borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusXL),
-                    boxShadow: PrismazeTheme.getGlow(PrismazeTheme.primaryPurple, PrismazeTheme.accentPink),
-                    border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
-                ),
-                child: Center(
-                    child: Text(
-                        LocalizationManager().getString('continue'),
-                        style: GoogleFonts.dynaPuff(
-                          color: Colors.white, 
-                          fontSize: 18, 
-                          fontWeight: FontWeight.w800, 
-                          letterSpacing: 1,
-                        ),
-                    ),
-                ),
-            ),
-        ),
-      );
-      
-      return AnimatedBuilder(
-        animation: _controller,
-        child: buttonBody,
-        builder: (_, child) {
-            final t = Curves.easeInOut.transform(_controller.value);
-            final s = 1.0 + 0.03 * t; 
-            return Transform.scale(
-                scale: s,
-                filterQuality: FilterQuality.low,
-                child: child,
-            );
+      return CuteMenuButton(
+        label: LocalizationManager().getString('continue'),
+        baseColor: PrismazeTheme.primaryPurple,
+        onTap: () {
+            AudioManager().playSfxId(SfxId.uiClick);
+            Navigator.push(context, FastPageRoute(page: GameScreen(
+                levelId: displayLevelId,
+                episode: targetEpisode,
+                levelIndex: targetLevelIndex,
+            )))
+              .then((_) {
+                   AudioManager().setContext(AudioContext.menu);       
+                   _loadData();
+              });
         },
       );
   }
   
   Widget _buildLevelsButton() {
-     return GestureDetector(
-         onTap: () {
-           AudioManager().playSfxId(SfxId.uiClick);
-           Navigator.push(context, FastPageRoute(page: const CampaignScreen()))
-             .then((_) {
-                  AudioManager().setContext(AudioContext.menu);
-                  _loadData();
-             });
-         },
-         child: Container(
-           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-           decoration: BoxDecoration(
-             color: PrismazeTheme.backgroundCard,
-             borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusLarge),
-             border: Border.all(color: PrismazeTheme.primaryPurpleLight.withOpacity(0.5), width: 2),
-             boxShadow: [
-               BoxShadow(color: PrismazeTheme.primaryPurple.withOpacity(0.2), blurRadius: 15),
-             ],
-           ),
-           child: Text(
-             LocalizationManager().getString('levels'), 
-             style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
-           ),
-         ),
+     return CuteMenuButton(
+       label: LocalizationManager().getString('levels'),
+       baseColor: PrismazeTheme.accentCyan,
+       width: 160,
+       fontSize: 16,
+       onTap: () {
+         AudioManager().playSfxId(SfxId.uiClick);
+         Navigator.push(context, FastPageRoute(page: const CampaignScreen()))
+           .then((_) {
+                AudioManager().setContext(AudioContext.menu);
+                _loadData();
+           });
+       },
      );
   }
   
   Widget _buildEndlessModeButton() {
-     return GestureDetector(
-         onTap: () {
-             AudioManager().playSfxId(SfxId.mirrorMove);
-             Navigator.push(context, FastPageRoute(page: const EndlessModeScreen()))
-               .then((_) {
-                    AudioManager().setContext(AudioContext.menu);
-                    _loadData();
-               });
-         },
-         child: Container(
-             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-             decoration: BoxDecoration(
-                 gradient: PrismazeTheme.accentGradient,
-                 borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusLarge),
-                 border: Border.all(color: Colors.white.withOpacity(0.2), width: 2),
-                 boxShadow: [
-                   BoxShadow(color: PrismazeTheme.accentCyan.withOpacity(0.4), blurRadius: 20, spreadRadius: 2),
-                 ],
-             ),
-             child: Row(
-                 mainAxisSize: MainAxisSize.min,
-                 children: [
-                     Text('∞', style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
-                     const SizedBox(width: 8),
-                     Text(LocalizationManager().getString('endless_mode'), style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
-                 ],
-             ),
-         ),
+     return CuteMenuButton(
+       label: LocalizationManager().getString('endless_mode'),
+       baseColor: const Color(0xFFFF9800), // Orange for contrast
+       width: 160,
+       fontSize: 14,
+       onTap: () {
+           AudioManager().playSfxId(SfxId.mirrorMove);
+           Navigator.push(context, FastPageRoute(page: const EndlessModeScreen()))
+             .then((_) {
+                  AudioManager().setContext(AudioContext.menu);
+                  _loadData();
+             });
+       },
      );
   }
   
   Widget _buildBottomBar() {
       return Padding(
-          padding: const EdgeInsets.only(bottom: 12, left: 60, right: 60),
-          child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                  color: PrismazeTheme.backgroundCard.withOpacity(0.8),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
-                    width: 1,
-                  ),
-              ),
-              child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                      // Daily Quests Button with notification dot
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          MenuIconButton(icon: Icons.assignment, onTap: () {
-                              AudioManager().playSfxId(SfxId.uiClick);
-                              Navigator.push(context, FastPageRoute(
-                                  page: DailyQuestsScreen(
-                                      missionManager: missionManager,
-                                      economyManager: economy,
-                                  ),
-                              )).then((_) => setState(() {})); // Refresh dot after returning
-                          }),
-                          // Notification dot if unclaimed rewards OR daily login available
-                          if (missionManager.missions.any((m) => m.isCompleted && !m.claimed) || economy.canClaimDailyLogin)
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.black, width: 1),
-                                ),
+          padding: const EdgeInsets.only(bottom: 24, left: 30, right: 30),
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                  // Daily Quests Button with notification dot
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      _buildAssetButton('assets/images/ui/icon_quests.png', () {
+                          AudioManager().playSfxId(SfxId.uiClick);
+                          Navigator.push(context, FastPageRoute(
+                              page: DailyQuestsScreen(
+                                  missionManager: missionManager,
+                                  economyManager: economy,
                               ),
+                          )).then((_) => setState(() {}));
+                      }),
+                      if (missionManager.missions.any((m) => m.isCompleted && !m.claimed) || economy.canClaimDailyLogin)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: BoxDecoration(
+                              color: PrismazeTheme.errorRed,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
                             ),
-                        ],
-                      ),
-                      MenuIconButton(icon: Icons.palette, onTap: () {
-                          AudioManager().playSfxId(SfxId.uiClick);
-                          final cm = CustomizationManager(progress);
-                          cm.init().then((_) {
-                              Navigator.push(context, FastPageRoute(
-                                  page: CustomizationScreen(customizationManager: cm),
-                              ));
-                          });
-                      }),
-                      MenuIconButton(icon: Icons.emoji_events, onTap: () {
-                          AudioManager().playSfxId(SfxId.uiClick);
+                          ),
+                        ),
+                    ],
+                  ),
+                  _buildAssetButton('assets/images/ui/icon_palette.png', () {
+                      AudioManager().playSfxId(SfxId.uiClick);
+                      final cm = CustomizationManager(progress);
+                      cm.init().then((_) {
                           Navigator.push(context, FastPageRoute(
-                              page: AchievementsScreen(progressManager: progress),
+                              page: CustomizationScreen(customizationManager: cm),
                           ));
-                      }),
-                      MenuIconButton(icon: Icons.bar_chart, onTap: () {
-                          AudioManager().playSfxId(SfxId.uiClick);
-                          Navigator.push(context, FastPageRoute(
-                              page: StatisticsScreen(progressManager: progress),
-                          ));
-                      }),
+                      });
+                  }),
+                  _buildAssetButton('assets/images/ui/icon_trophy.png', () {
+                      AudioManager().playSfxId(SfxId.uiClick);
+                      Navigator.push(context, FastPageRoute(
+                          page: AchievementsScreen(progressManager: progress),
+                      ));
+                  }),
+                  _buildAssetButton('assets/images/ui/icon_stats.png', () {
+                      AudioManager().playSfxId(SfxId.uiClick);
+                      Navigator.push(context, FastPageRoute(
+                          page: StatisticsScreen(
+                            progressManager: progress,
+                            missionManager: missionManager,
+                          ),
+                      ));
+                  }),
 
-                  ],
-              ),
+              ],
           ),
       );
   }
@@ -609,28 +541,50 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF202020),
-        title: Text(loc.getString('privacy_consent_title'), style: GoogleFonts.outfit(color: Colors.white)),
-        content: Text(loc.getString('privacy_consent_body'), style: GoogleFonts.outfit(color: Colors.white70)),
+        backgroundColor: PrismazeTheme.backgroundCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusLarge),
+          side: BorderSide(color: PrismazeTheme.primaryPurple.withOpacity(0.3), width: 1.5),
+        ),
+        title: Text(loc.getString('privacy_consent_title'), style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 18)),
+        content: Text(loc.getString('privacy_consent_body'), style: GoogleFonts.dynaPuff(color: PrismazeTheme.textSecondary, fontSize: 14)),
         actions: [
             TextButton(
                 onPressed: () {
                     PrivacyManager().denyConsent();
                     Navigator.pop(ctx);
                 },
-                child: Text(loc.getString('privacy_decline'), style: GoogleFonts.outfit(color: Colors.redAccent))
+                child: Text(loc.getString('privacy_decline'), style: GoogleFonts.dynaPuff(color: PrismazeTheme.errorRed))
             ),
             ElevatedButton(
                 onPressed: () {
                     PrivacyManager().setConsent(analytics: true, personalizedAds: true);
                     Navigator.pop(ctx);
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00E5FF)),
-                child: Text(loc.getString('privacy_accept'), style: GoogleFonts.outfit(color: Colors.black)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: PrismazeTheme.accentPink,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusSmall)),
+                ),
+                child: Text(loc.getString('privacy_accept'), style: GoogleFonts.dynaPuff(color: Colors.white)),
             ),
         ],
       ),
     );
+  }
+
+  Widget _buildAssetButton(String assetPath, VoidCallback onTap) {
+      return BouncingButton(
+          onTap: onTap,
+          child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Image.asset(
+                  assetPath,
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.contain,
+              ),
+          ),
+      );
   }
 }
 

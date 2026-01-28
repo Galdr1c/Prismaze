@@ -38,9 +38,8 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   bool _isSyncing = false;
 
   // Gameplay
-  bool _autoStart = true;
+  // Gameplay - Removed
   double _vibStrength = 1.0;
-  bool _motorAssist = false;
 
   // Accessibility
   int _colorBlindIdx = 0;
@@ -75,9 +74,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
     _sfxVol = s.sfxVolume;
     _ambientVol = s.ambientVolume;
     _voiceVol = s.voiceVolume;
-    _autoStart = s.autoStartLevel;
     _vibStrength = s.vibrationStrength;
-    _motorAssist = s.motorAssistEnabled;
     _colorBlindIdx = s.colorBlindIndex;
     _bigText = s.bigTextEnabled;
     _highContrast = s.highContrastEnabled;
@@ -112,11 +109,11 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                     shrinkWrap: true,
                     children: [
                       _buildSection(0, Icons.volume_up, LocalizationManager().getString('settings_section_audio'), _buildSoundSettings()),
-                      _buildSection(1, Icons.gamepad, LocalizationManager().getString('settings_section_gameplay'), _buildGameplaySettings()),
-                      _buildSection(2, Icons.accessibility, LocalizationManager().getString('settings_section_accessibility'), _buildAccessibilitySettings()),
-                      _buildSection(3, Icons.notifications, LocalizationManager().getString('settings_section_notifications'), _buildNotificationSettings()),
-                      _buildSection(4, Icons.storage, LocalizationManager().getString('settings_section_data'), _buildDataSettings()),
-                      _buildSection(5, Icons.language, LocalizationManager().getString('settings_section_language'), _buildLanguageSettings()),
+                      // Index 1 is now Accessibility
+                      _buildSection(1, Icons.accessibility, LocalizationManager().getString('settings_section_accessibility'), _buildAccessibilitySettings()),
+                      _buildSection(2, Icons.notifications, LocalizationManager().getString('settings_section_notifications'), _buildNotificationSettings()),
+                      _buildSection(3, Icons.storage, LocalizationManager().getString('settings_section_data'), _buildDataSettings()),
+                      _buildSection(4, Icons.language, LocalizationManager().getString('settings_section_language'), _buildLanguageSettings()),
                       const SizedBox(height: 8),
                       _buildAboutButton(),
                     ],
@@ -201,13 +198,18 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
     );
   }
 
-  // GAMEPLAY SETTINGS
-  Widget _buildGameplaySettings() {
+  // Accessibility
+  Widget _buildAccessibilitySettings() {
     return Column(
       children: [
-        _toggleRow(LocalizationManager().getString('settings_gameplay_autostart'), _autoStart, (v) { setState(() => _autoStart = v); widget.settingsManager.setAutoStartLevel(v); }),
-        _buildVibrationStrength(),
-        _toggleRow(LocalizationManager().getString('settings_gameplay_motor_assist'), _motorAssist, (v) { setState(() => _motorAssist = v); widget.settingsManager.setMotorAssist(v); }),
+        _buildColorBlindDropdown(),
+        _buildVibrationStrength(), // Moved here
+        _toggleRow(LocalizationManager().getString('settings_acc_big_text'), _bigText, (v) { setState(() => _bigText = v); widget.settingsManager.setBigText(v); }),
+        _toggleRow(LocalizationManager().getString('settings_acc_high_contrast'), _highContrast, (v) { setState(() => _highContrast = v); widget.settingsManager.setHighContrast(v); }),
+        _toggleRow(LocalizationManager().getString('settings_acc_reduced_glow'), widget.settingsManager.reducedGlowEnabled, (v) { 
+             setState(() => _reducedGlow = v);
+             widget.settingsManager.setReducedGlow(v); 
+        }),
       ],
     );
   }
@@ -249,22 +251,6 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           ),
         ],
       ),
-    );
-  }
-
-  // ACCESSIBILITY SETTINGS
-  Widget _buildAccessibilitySettings() {
-    // Also using loop-based dropdown label mapping if needed, but here individual items:
-    return Column(
-      children: [
-        _buildColorBlindDropdown(),
-        _toggleRow(LocalizationManager().getString('settings_acc_big_text'), _bigText, (v) { setState(() => _bigText = v); widget.settingsManager.setBigText(v); }),
-        _toggleRow(LocalizationManager().getString('settings_acc_high_contrast'), _highContrast, (v) { setState(() => _highContrast = v); widget.settingsManager.setHighContrast(v); }),
-        _toggleRow(LocalizationManager().getString('settings_acc_reduced_glow'), widget.settingsManager.reducedGlowEnabled, (v) { 
-             setState(() => _reducedGlow = v);
-             widget.settingsManager.setReducedGlow(v); 
-        }),
-      ],
     );
   }
 

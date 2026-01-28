@@ -56,7 +56,7 @@ class LocalizationManager {
             
       // --- CAMPAIGN EPISODES ---
       'ep_1_title': {'tr': 'Başlangıç Işıkları', 'en': 'Beginning Lights'},
-      'ep_1_desc': {'tr': 'Temel mekanikler', 'en': 'Learn the basics'},
+      'ep_1_desc': {'tr': 'Temel mekanikler', 'en': 'Basic mechanics'},
       
       'ep_2_title': {'tr': 'Renk Spektrumu', 'en': 'Color Spectrum'},
       'ep_2_desc': {'tr': 'Basit bulmacalar', 'en': 'Simple puzzles'},
@@ -89,7 +89,7 @@ class LocalizationManager {
       'stat_3stars': {'tr': '3 Yıldız', 'en': '3 Stars'},
       'stat_fastest': {'tr': 'En Hızlı', 'en': 'Fastest'},
       'stat_hints': {'tr': 'İpucu', 'en': 'Hints Used'},
-      'stat_tokens': {'tr': 'Kazanılan Jeton', 'en': 'Tokens Earned'},
+      'stat_tokens': {'tr': 'Toplam İpucu', 'en': 'Total Hints'},
       'stat_weekly': {'tr': 'Haftalık Aktivite', 'en': 'Weekly Activity'},
       'stat_distribution': {'tr': 'Başarım Dağılımı', 'en': 'Achievement Distribution'},
       'settings_music': {'tr': 'MÜZİK', 'en': 'MUSIC'},
@@ -98,6 +98,7 @@ class LocalizationManager {
       'settings_language': {'tr': 'DİL', 'en': 'LANGUAGE'},
       
       // --- GAME HUD ---
+      'episode_prefix': {'tr': 'BÖLÜM', 'en': 'EPISODE'},
       'level_prefix': {'tr': 'SEVİYE', 'en': 'LEVEL'},
       'target_current': {'tr': 'Hedef / Mevcut', 'en': 'Par / Current'}, // Note: UI uses "99 / 5" format, maybe no label needed
       'btn_restart': {'tr': 'Yeniden Başlat', 'en': 'Restart'},
@@ -165,11 +166,30 @@ class LocalizationManager {
       
       'ach_legend': {'tr': 'Prizma Efsanesi', 'en': 'Prisma Legend'},
       
+      // New Achievements
+      'ach_warmup': {'tr': 'Isınma Turları', 'en': 'Warm Up'},
+      'ach_desc_warmup': {'tr': 'Tek oturuşta 3 level bitir', 'en': 'Complete 3 levels in one session'},
+      
+      'ach_focused': {'tr': 'Odaklanmış', 'en': 'Focused'},
+      'ach_desc_focused': {'tr': 'Tek oturuşta 50 level bitir', 'en': 'Complete 50 levels in one session'},
+      
+      'ach_self_starter': {'tr': 'Kendi Halinde', 'en': 'Self Starter'},
+      'ach_desc_self_starter': {'tr': '5 level ipucu kullanmadan', 'en': '5 levels without hints'},
+      
+      'ach_problem_solver': {'tr': 'Bulmaca Çözücü', 'en': 'Problem Solver'},
+      'ach_desc_problem_solver': {'tr': '50 level ipucu kullanmadan', 'en': '50 levels without hints'},
+      
+      'ach_star_hunter': {'tr': 'Yıldız Avcısı', 'en': 'Star Hunter'},
+      'ach_desc_star_hunter': {'tr': 'Toplam 50 yıldız topla', 'en': 'Collect 50 stars total'},
+      
+      'ach_clean_sweep': {'tr': 'Tam Temizlik', 'en': 'Clean Sweep'},
+      'ach_desc_clean_sweep': {'tr': 'Bir bölümü full 3 yıldızla bitir', 'en': 'Complete a chapter with all 3 stars'},
+
       // --- VIDEOS ---
       'vid_welcome': {'tr': 'Prismaze\'e Hoş Geldin', 'en': 'Welcome to Prismaze'},
       'vid_mixing': {'tr': 'Renk Karıştırma Rehberi', 'en': 'Color Mixing Guide'},
       'vid_tactics': {'tr': 'İleri Seviye Taktikler', 'en': 'Advanced Tactics'},
-      'vid_continue': {'tr': 'Devam Et (+5 Jeton)', 'en': 'Continue (+5 Tokens)'},
+      'vid_continue': {'tr': 'Devam Et (+5 İpucu)', 'en': 'Continue (+5 Hints)'},
       'vid_playing': {'tr': 'Oynatılıyor...', 'en': 'Playing...'},
       
       // --- STATISTICS ---
@@ -179,7 +199,6 @@ class LocalizationManager {
       'stat_3stars': {'tr': '3 Yıldız', 'en': '3 Stars'},
       'stat_fastest': {'tr': 'En Hızlı', 'en': 'Fastest'},
       'stat_hints': {'tr': 'İpucu', 'en': 'Hints'},
-      'stat_tokens': {'tr': 'Kazanılan Jeton', 'en': 'Tokens Earned'},
       'stat_weekly': {'tr': 'Haftalık Aktivite', 'en': 'Weekly Activity'},
       'stat_distribution': {'tr': 'Başarım Dağılımı', 'en': 'Achievement Distribution'},
       'stat_personal': {'tr': 'Kişisel Veriler', 'en': 'Personal Data'},
@@ -188,14 +207,14 @@ class LocalizationManager {
       'notif_1d_title': {'tr': 'Işıklar seni bekliyor! 🌟', 'en': 'Lights await you! 🌟'},
       'notif_1d_body': {'tr': 'Prismaze\'e dön ve ışığı yönet.', 'en': 'Return to Prismaze and guide the light.'},
       
-      'notif_3d_title': {'tr': 'Hediye Jetonlar! 💡', 'en': 'Gift Tokens! 💡'},
+      'notif_3d_title': {'tr': 'Hediye İpuçları! 💡', 'en': 'Gift Hints! 💡'},
       'notif_3d_body': {'tr': '3 ücretsiz ipucu seni bekliyor. Hemen al!', 'en': '3 free hints waiting. Claim now!'},
       
       'notif_7d_title': {'tr': 'Yeni Bölümler! 🎮', 'en': 'New Levels! 🎮'},
       'notif_7d_body': {'tr': 'Sınırlarını zorlayacak yeni bulmacalar geldi.', 'en': 'New puzzles to test your limits arrived.'},
       
       'notif_daily_title': {'tr': 'Günlük Görev Hazır 🎁', 'en': 'Daily Mission Ready 🎁'},
-      'notif_daily_body': {'tr': 'Tamamla ve 5 jeton kazan!', 'en': 'Complete and earn 5 tokens!'},
+      'notif_daily_body': {'tr': 'Tamamla ve 5 ipucu kazan!', 'en': 'Complete and earn 5 hints!'},
       
       'notif_bonus_reset': {'tr': 'Bonus Sıfırlanıyor! ⏰', 'en': 'Bonus Resetting! ⏰'},
       'notif_bonus_body': {'tr': 'Günlük bonusun 2 saat içinde yanacak.', 'en': 'Daily bonus expires in 2 hours.'},
@@ -219,9 +238,7 @@ class LocalizationManager {
       'settings_audio_voice': {'tr': 'Ses (Tutorial)', 'en': 'Voice (Tutorial)'},
       'settings_audio_mute_all': {'tr': 'Tümünü Kapat', 'en': 'Mute All'},
       
-      'settings_gameplay_autostart': {'tr': 'Otomatik Başlat', 'en': 'Auto Start'},
       'settings_gameplay_vibration': {'tr': 'Titreşim', 'en': 'Vibration'},
-      'settings_gameplay_motor_assist': {'tr': 'Motor Engelli Modu', 'en': 'Motor Assist Mode'},
       
       'vib_off': {'tr': 'Kapalı', 'en': 'Off'},
       'vib_50': {'tr': '%50', 'en': '50%'},
@@ -287,7 +304,7 @@ class LocalizationManager {
       'btn_menu': {'tr': 'MENÜ', 'en': 'MENU'},
       'lbl_moves': {'tr': 'HAMLE', 'en': 'MOVES'},
       'lbl_earnings': {'tr': 'KAZANÇ', 'en': 'EARNINGS'},
-      'lbl_tokens': {'tr': ' JETON', 'en': ' TOKENS'},
+      'lbl_tokens': {'tr': ' İPUCU', 'en': ' HINTS'},
       
       // --- ENDLESS MODE ---
       'endless_subtitle': {'tr': 'Prosedürel oluşturulan sonsuz levellar', 'en': 'Procedurally generated endless levels'},
@@ -311,7 +328,7 @@ class LocalizationManager {
       'streak_lost': {'tr': 'SERİ KIRILDI!', 'en': 'STREAK LOST!'},
       'watch_ad': {'tr': 'REKLAM İZLE', 'en': 'WATCH AD'},
       'days': {'tr': 'gün', 'en': 'days'},
-      'not_enough_tokens': {'tr': 'Yeterli jeton yok', 'en': 'Not enough tokens'},
+      'not_enough_tokens': {'tr': 'Yeterli ipucu yok', 'en': 'Not enough hints'},
       'daily_reward': {'tr': 'GÜNLÜK ÖDÜL', 'en': 'DAILY REWARD'},
       
       // --- DAILY QUESTS SCREEN ---
@@ -341,7 +358,7 @@ class LocalizationManager {
       // --- STORE SCREEN ---
       'store_title': {'tr': 'MAĞAZA', 'en': 'STORE'},
       'store_tab_bundles': {'tr': 'Paketler', 'en': 'Bundles'},
-      'store_tab_tokens': {'tr': 'Jetonlar', 'en': 'Tokens'},
+      'store_tab_tokens': {'tr': 'İpuçları', 'en': 'Hints'},
       'store_tab_premium': {'tr': 'Premium', 'en': 'Premium'},
       'store_tab_seasonal': {'tr': 'Sezonluk', 'en': 'Seasonal'},
       'store_seasonal_empty': {'tr': 'Şu anda aktif sezonluk paket yok.\nYakında yeni etkinlikler!', 'en': 'No active seasonal packs.\nNew events coming soon!'},
@@ -354,10 +371,10 @@ class LocalizationManager {
       
       // --- IAP PRODUCTS ---
       // Names
-      'prod_name_hint_50': {'tr': '50 Jeton', 'en': '50 Tokens'},
-      'prod_name_hint_150': {'tr': '150 Jeton', 'en': '150 Tokens'},
-      'prod_name_hint_500': {'tr': '500 Jeton', 'en': '500 Tokens'},
-      'prod_name_hint_1500': {'tr': '1500 Jeton', 'en': '1500 Tokens'},
+      'prod_name_hint_50': {'tr': '50 İpucu', 'en': '50 Hints'},
+      'prod_name_hint_150': {'tr': '150 İpucu', 'en': '150 Hints'},
+      'prod_name_hint_500': {'tr': '500 İpucu', 'en': '500 Hints'},
+      'prod_name_hint_1500': {'tr': '1500 İpucu', 'en': '1500 Hints'},
       'prod_name_starter': {'tr': 'Başlangıç Paketi', 'en': 'Starter Pack'},
       'prod_name_full': {'tr': 'Tam Paket', 'en': 'Full Bundle'},
       'prod_name_monthly': {'tr': 'Premium Aylık', 'en': 'Premium Monthly'},
@@ -384,12 +401,12 @@ class LocalizationManager {
       'prod_desc_remove_ads': {'tr': 'Bir kez satın al, sonsuza dek reklamsız!', 'en': 'Buy once, no ads forever!'},
       
       // Contents (Reusable)
-      'cont_50_tokens': {'tr': '50 ipucu jetonu', 'en': '50 hint tokens'},
-      'cont_150_tokens': {'tr': '150 ipucu jetonu', 'en': '150 hint tokens'},
-      'cont_200_tokens': {'tr': '200 ipucu jetonu', 'en': '200 hint tokens'},
-      'cont_300_tokens': {'tr': '300 ipucu jetonu', 'en': '300 hint tokens'},
-      'cont_500_tokens': {'tr': '500 ipucu jetonu', 'en': '500 hint tokens'},
-      'cont_1500_tokens': {'tr': '1500 ipucu jetonu', 'en': '1500 hint tokens'},
+      'cont_50_tokens': {'tr': '50 ipucu', 'en': '50 hints'},
+      'cont_150_tokens': {'tr': '150 ipucu', 'en': '150 hints'},
+      'cont_200_tokens': {'tr': '200 ipucu', 'en': '200 hints'},
+      'cont_300_tokens': {'tr': '300 ipucu', 'en': '300 hints'},
+      'cont_500_tokens': {'tr': '500 ipucu', 'en': '500 hints'},
+      'cont_1500_tokens': {'tr': '1500 ipucu', 'en': '1500 hints'},
       'cont_3_skins': {'tr': '3 özel skin', 'en': '3 special skins'},
       'cont_5_skins_winter': {'tr': '5 kış temalı skin', 'en': '5 winter themed skins'},
       'cont_5_skins_summer': {'tr': '5 yaz temalı skin', 'en': '5 summer themed skins'},
@@ -402,7 +419,7 @@ class LocalizationManager {
       'cont_unlimited_hints': {'tr': 'Sınırsız ipucu (sürekli)', 'en': 'Unlimited hints (forever)'},
       'cont_all_skins': {'tr': 'Tüm skinler açık', 'en': 'All skins unlocked'},
       'cont_dlc_discount': {'tr': 'Gelecek DLC\'ler %50 indirimli', 'en': 'Future DLCs 50% off'},
-      'cont_daily_10': {'tr': 'Her gün 10 ipucu jetonu', 'en': '10 hint tokens daily'},
+      'cont_daily_10': {'tr': 'Her gün 10 ipucu', 'en': '10 hints daily'},
       'cont_no_ads_exp': {'tr': 'Reklamsız deneyim', 'en': 'Ad-free experience'},
       'cont_badge_sub': {'tr': 'Özel abone rozeti', 'en': 'Special subscriber badge'},
       'cont_badge_gold': {'tr': 'Özel altın abone rozeti', 'en': 'Special gold subscriber badge'},
@@ -424,6 +441,12 @@ class LocalizationManager {
       
       // --- ACHIEVEMENTS SCREEN ---
       'ach_title': {'tr': 'BAŞARILAR', 'en': 'ACHIEVEMENTS'},
+      'cat_speed': {'tr': 'Hız', 'en': 'Speed'},
+      'cat_perfection': {'tr': 'Mükemmellik', 'en': 'Perfection'},
+      'cat_marathon': {'tr': 'Maraton', 'en': 'Marathon'},
+      'cat_independence': {'tr': 'Bağımsızlık', 'en': 'Independence'},
+      'cat_secret': {'tr': 'Gizli', 'en': 'Secret'},
+      'cat_legend': {'tr': 'Efsane', 'en': 'Legend'},
       
       // --- ABOUT SCREEN ---
       'about_title': {'tr': 'HAKKINDA', 'en': 'ABOUT'},

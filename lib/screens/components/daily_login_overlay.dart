@@ -80,8 +80,8 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
     });
   }
 
-  Future<void> _restoreStreakWithTokens() async {
-    if (widget.economyManager.tokens < StreakRestoreOption.tokenCost) {
+  Future<void> _restoreStreakWithHints() async {
+    if (widget.economyManager.hints < StreakRestoreOption.hintCost) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(LocalizationManager().getString('not_enough_tokens'))),
       );
@@ -89,7 +89,7 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
     }
     
     setState(() => _isRestoring = true);
-    final success = await widget.economyManager.restoreStreakWithTokens();
+    final success = await widget.economyManager.restoreStreakWithHints();
     
     if (success) {
       AudioManager().playSfxId(SfxId.starEarned);
@@ -193,11 +193,11 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
               ),
               const SizedBox(height: 12),
               
-              // Spend tokens button
+              // Spend Hints button
               _buildRestoreButton(
-                onTap: _restoreStreakWithTokens,
+                onTap: _restoreStreakWithHints,
                 icon: Icons.lightbulb,
-                label: '${StreakRestoreOption.tokenCost} ${loc.getString('tokens')}',
+                label: '${StreakRestoreOption.hintCost} ${loc.getString('lbl_tokens')}',
                 color: PrismazeTheme.warningYellow,
               ),
               const SizedBox(height: 16),
@@ -363,9 +363,9 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
   }
   
   Widget _buildDayCard(int day, bool isTarget, bool isPast) {
-    // Use DailyReward model for token values
+    // Use DailyReward model for hint values
     final reward = DailyReward.getForDay(day);
-    final tokens = reward.hintTokens;
+    final tokens = reward.hintAmount;
     final isSpecial = reward.hasSpecialReward;
     
     Color bgColor = Colors.white10;
@@ -404,27 +404,43 @@ class _DailyLoginOverlayState extends State<DailyLoginOverlay> {
           if (isPast || _claimed && isTarget)
              const Icon(Icons.check, color: Colors.green, size: 24)
           else ...[
-              // Icon
-              if (day == 7)
-                 const Icon(Icons.card_giftcard, color: Colors.purpleAccent, size: 20)
-              else if (isSpecial)
-                 Icon(Icons.star, color: PrismazeTheme.accentPink, size: 20)
-              else
-                 Icon(Icons.lightbulb, color: PrismazeTheme.warningYellow, size: 20),
+              if (reward.label != null)
+                 Padding(
+                   padding: const EdgeInsets.only(bottom: 2),
+                   child: Text(
+                      reward.label!,
+                      style: GoogleFonts.dynaPuff(
+                        color: PrismazeTheme.accentPink,
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold
+                      ),
+                   ),
+                 ),
               
-              const SizedBox(height: 2),
-              Text(
-                "$tokens",
-                style: GoogleFonts.dynaPuff(
-                   color: Colors.white,
-                   fontSize: 12,
-                   fontWeight: FontWeight.bold,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                    Icon(Icons.lightbulb, color: _getHintColor(day, tokens), size: 20),
+                    const SizedBox(width: 2),
+                    Text(
+                      "$tokens",
+                      style: GoogleFonts.dynaPuff(
+                         color: Colors.white,
+                         fontSize: 12,
+                         fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                ],
               ),
           ]
         ],
       ),
     );
+  }
+  Color _getHintColor(int day, int amount) {
+    if (day >= 6 || amount >= 30) return PrismazeTheme.accentPink; // High mystery
+    if (day >= 3 || amount >= 15) return PrismazeTheme.accentCyan; // Medium mystery
+    return PrismazeTheme.warningYellow; // Basic
   }
 }
 

@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../game/settings_manager.dart';
 import '../game/audio_manager.dart';
 import '../game/localization_manager.dart';
+import '../widgets/bouncing_button.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
   final int levelId;
@@ -26,12 +27,14 @@ class GameScreen extends ConsumerStatefulWidget {
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends ConsumerState<GameScreen> {
+class _GameScreenState extends ConsumerState<GameScreen> with WidgetsBindingObserver {
   late PrismazeGame _game;
+  Color _backgroundColor = const Color(0xFF030308);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _game = PrismazeGame(
       ref, 
       levelData: widget.levelData,
@@ -47,19 +50,79 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     
     // Start Gameplay Music
     AudioManager().playGameplayMusic(widget.levelId);
+    
+    // Sync Background Color with Theme
+    _game.loaded.then((_) {
+      if (mounted) {
+        _game.customizationManager.addListener(_updateBackgroundColor);
+        _updateBackgroundColor();
+        
+        // Track Last Played
+        _game.progressManager.setLastPlayedLevel(
+          widget.levelId,
+          episode: widget.episode,
+          index: widget.levelIndex,
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    try {
+      _game.customizationManager.removeListener(_updateBackgroundColor);
+    } catch (e) {
+      // Manager might not be loaded yet or game disposed
+    }
     // Restore Menu Music logic handled here for safety (User Request)
     AudioManager().playMenuMusic();
     super.dispose();
+  }
+  
+  void _updateBackgroundColor() {
+    if (!mounted) return;
+    final theme = _game.customizationManager.selectedTheme;
+    Color newColor;
+    switch (theme) {
+        case 'theme_neon':
+           newColor = const Color(0xFF100020);
+           break;
+        case 'theme_ocean':
+           newColor = const Color(0xFF000818);
+           break;
+        case 'theme_halloween':
+           newColor = const Color(0xFF0a0512);
+           break;
+        case 'theme_aurora':
+           newColor = const Color(0xFF051020);
+           break;
+        case 'theme_galaxy':
+           newColor = const Color(0xFF020208);
+           break;
+        case 'theme_space':
+        default:
+           newColor = const Color(0xFF030308);
+           break;
+    }
+    setState(() {
+      _backgroundColor = newColor;
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _game.pauseEngine();
+    } else if (state == AppLifecycleState.resumed) {
+      _game.resumeEngine();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF030308),
+      backgroundColor: _backgroundColor,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -231,8 +294,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     required VoidCallback onTap,
     Color color = Colors.white,
   }) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return BouncingButton(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12), // 12 + 20 + 12 = 44px
@@ -247,6 +309,22 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
+  Widget _buildAssetButton({
+    required String assetPath,
+    required VoidCallback onTap,
+    double size = 40,
+  }) {
+    return BouncingButton(
+      onTap: onTap,
+      child: Image.asset(
+        assetPath,
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+      ),
+    );
+  }
+
   Widget _buildActionButton({
     required IconData icon,
     required String label,
@@ -254,8 +332,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     required VoidCallback onTap,
     Color color = Colors.white,
   }) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return BouncingButton(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
