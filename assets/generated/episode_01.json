@@ -2,7 +2,7 @@
   "version": 1,
   "episode": 1,
   "count": 200,
-  "generatedAt": "2026-01-24T16:08:35.846741",
+  "generatedAt": "2026-01-28T20:01:04.733331",
   "levels": [
     {
       "version": 1,
@@ -8837,10 +8837,10 @@
       "index": 103,
       "seed": 10103,
       "level": {
-        "seed": 15111,
+        "seed": 12107,
         "episode": 1,
         "index": 103,
-        "levelId": "E1_L103_S15111",
+        "levelId": "E1_L103_S12107",
         "playArea": {
           "width": 14,
           "height": 7,
@@ -8848,62 +8848,57 @@
         },
         "source": {
           "x": 13,
-          "y": 2,
+          "y": 3,
           "direction": "west",
           "color": "white"
         },
         "targets": [
           {
             "x": 4,
-            "y": 2,
+            "y": 3,
             "color": "white"
           }
         ],
         "walls": [
           {
-            "x": 11,
-            "y": 3
-          },
-          {
-            "x": 12,
-            "y": 5
-          },
-          {
-            "x": 1,
-            "y": 4
-          },
-          {
             "x": 2,
+            "y": 1
+          },
+          {
+            "x": 3,
             "y": 4
+          },
+          {
+            "x": 3,
+            "y": 3
           }
         ],
         "mirrors": [
           {
-            "x": 11,
-            "y": 2,
-            "orientation": 3,
-            "rotatable": true
-          },
-          {
-            "x": 8,
-            "y": 1,
-            "orientation": 0,
+            "x": 7,
+            "y": 3,
+            "orientation": 2,
             "rotatable": true
           }
         ],
         "prisms": [],
         "meta": {
-          "optimalMoves": 1,
+          "optimalMoves": 2,
           "difficultyBand": "tutorial",
-          "generationAttempts": 9,
+          "generationAttempts": 5,
           "solveTimeMs": 0,
           "starThresholds": {
-            "3_star": 1,
-            "2_star": 2,
+            "3_star": 2,
+            "2_star": 3,
             "1_star": 999
           }
         },
         "solution": [
+          {
+            "type": "rotateMirror",
+            "objectIndex": 0,
+            "taps": 1
+          },
           {
             "type": "rotateMirror",
             "objectIndex": 0,
@@ -17049,75 +17044,83 @@
       "index": 199,
       "seed": 10199,
       "level": {
-        "seed": 15213,
+        "seed": 12229,
         "episode": 1,
         "index": 199,
-        "levelId": "E1_L199_S15213",
+        "levelId": "E1_L199_S12229",
         "playArea": {
           "width": 14,
           "height": 7,
           "cellSize": 85.0
         },
         "source": {
-          "x": 0,
-          "y": 2,
-          "direction": "east",
+          "x": 13,
+          "y": 3,
+          "direction": "west",
           "color": "white"
         },
         "targets": [
           {
-            "x": 5,
-            "y": 4,
+            "x": 9,
+            "y": 3,
             "color": "white"
           }
         ],
         "walls": [
           {
-            "x": 9,
-            "y": 1
-          },
-          {
-            "x": 4,
+            "x": 8,
             "y": 3
           },
           {
-            "x": 2,
+            "x": 8,
+            "y": 2
+          },
+          {
+            "x": 8,
             "y": 1
+          },
+          {
+            "x": 1,
+            "y": 5
           }
         ],
         "mirrors": [
           {
-            "x": 5,
-            "y": 2,
-            "orientation": 2,
-            "rotatable": true
-          },
-          {
-            "x": 1,
-            "y": 1,
-            "orientation": 3,
-            "rotatable": true
-          },
-          {
-            "x": 11,
+            "x": 10,
             "y": 3,
-            "orientation": 2,
+            "orientation": 1,
+            "rotatable": true
+          },
+          {
+            "x": 6,
+            "y": 5,
+            "orientation": 1,
             "rotatable": true
           }
         ],
         "prisms": [],
         "meta": {
-          "optimalMoves": 1,
+          "optimalMoves": 3,
           "difficultyBand": "tutorial",
-          "generationAttempts": 15,
+          "generationAttempts": 31,
           "solveTimeMs": 0,
           "starThresholds": {
-            "3_star": 1,
-            "2_star": 2,
+            "3_star": 3,
+            "2_star": 5,
             "1_star": 999
           }
         },
         "solution": [
+          {
+            "type": "rotateMirror",
+            "objectIndex": 0,
+            "taps": 1
+          },
+          {
+            "type": "rotateMirror",
+            "objectIndex": 0,
+            "taps": 1
+          },
           {
             "type": "rotateMirror",
             "objectIndex": 0,

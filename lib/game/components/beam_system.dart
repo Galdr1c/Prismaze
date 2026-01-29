@@ -14,6 +14,7 @@ import '../utils/color_blindness_utils.dart';
 import '../audio_manager.dart';
 import '../prismaze_game.dart';
 import '../procedural/ray_tracer_adapter.dart';
+import '../procedural/models/models.dart' as proc;
 
 class BeamSegment {
   final Vector2 start;
@@ -478,19 +479,124 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
         // Trigger glow effect on prism with the incoming beam color
         hitPrism.onLightHit(beamColor);
         
-        bool entering = direction.dot(hitNormal) < 0;
-        double n1 = entering ? 1.0 : 1.5;
-        double n2 = entering ? 1.5 : 1.0;
-        Vector2 calcNormal = entering ? hitNormal : -hitNormal;
-        Vector2? refractedDir = PhysicsUtils.getRefractionVector(direction.normalized(), calcNormal, n1, n2);
-        
-        if (refractedDir != null) {
-             _castBeam(beamColor, closestPoint, refractedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+        // CHECK PRISM TYPE for Generator compatibility
+        if (hitPrism.prismType == proc.PrismType.splitter) {
+             _handleSplitter(hitPrism, beamColor, direction, closestPoint, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces, visitedSegments);
         } else {
-             final reflectedDir = PhysicsUtils.getReflectionVector(direction, calcNormal);
-             _castBeam(beamColor, closestPoint, reflectedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+            // Default Deflector / Refraction Logic
+            bool entering = direction.dot(hitNormal) < 0;
+            double n1 = entering ? 1.0 : 1.5;
+            double n2 = entering ? 1.5 : 1.0;
+            Vector2 calcNormal = entering ? hitNormal : -hitNormal;
+            Vector2? refractedDir = PhysicsUtils.getRefractionVector(direction.normalized(), calcNormal, n1, n2);
+            
+            if (refractedDir != null) {
+                 _castBeam(beamColor, closestPoint, refractedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+            } else {
+                 final reflectedDir = PhysicsUtils.getReflectionVector(direction, calcNormal);
+                 _castBeam(beamColor, closestPoint, reflectedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+            }
         }
     }
+  }
+
+  void _handleSplitter(
+      Prism prism,
+      Color inputColor,
+      Vector2 inputDir,
+      Vector2 hitPoint,
+      List<Mirror> mirrors,
+      List<Wall> walls,
+      List<Prism> prisms,
+      List<Target> targets,
+      List<Portal> portals,
+      List<AbsorbingWall> absorbingWalls,
+      int bounces,
+      Set<String>? visitedSegments) {
+      
+      // If color is not white, pass through straight
+      // Note: Comparing ARGB int values for robustness with exact Colors.white
+      if (inputColor.value != 0xFFFFFFFF) {
+           // Simple pass through (no refraction for now to keep alignment)
+           // Just continue ray from center in same direction
+           _castBeam(inputColor, hitPoint + inputDir.normalized() * 10, inputDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+           return;
+      }
+      
+      // It's White! Split into R, B, Y.
+      // Logic based on Prism Orientation (0..3)
+      // Input Direction needs to be quantized to N/E/S/W logic to match tables
+      
+      // 1. Get Orientation
+      final ori = prism.discreteOrientation;
+      
+      // 2. Define Output Colors
+      const red = Color(0xFFFF4444);
+      const blue = Color(0xFF4488FF);
+      const yellow = Color(0xFFFFDD44);
+
+      // 3. Calculate directions based on orientation
+      // Table Logic (simplified):
+      // Orientation 0: R=North, B=East, Y=South (Assuming "Standard" upright)
+      // But we need to rotate based on orientation.
+      // Base Vectors:
+      // We assume Prism 0 has Blue pointing East, Red pointing North, Yellow pointing South.
+      
+      // Let's create relative vectors and rotate them by prism angle.
+      // Base (Ori 0):
+      // Blue: (1, 0)
+      // Red: (0, -1)
+      // Yellow: (0, 1)
+      
+      Vector2 dirBlue = Vector2(1, 0);
+      Vector2 dirRed = Vector2(0, -1);
+      Vector2 dirYellow = Vector2(0, 1);
+      
+      // Rotate by Orientation * 90 deg
+      final angle = ori * (pi/2);
+      
+      // Manual rotation matrix for precision
+      Vector2 rotate(Vector2 v, int steps) {
+          for(int i=0; i<steps; i++) {
+              // 90 deg clockwise: (x,y) -> (-y, x)
+              // Wait, screen coords Y is down.
+              // 90 deg clockwise: (1,0) -> (0,1). (x,y) -> (-y, x)? No.
+              // (1,0) -> (0,1) -> (-1,0) -> (0,-1)
+              // x' = -y, y' = x
+              double temp = v.x;
+              v.x = -v.y;
+              v.y = temp;
+          }
+          return v;
+      }
+      
+      // Actually standard 2D rotation:
+      // x' = x cos t - y sin t
+      // y' = x sin t + y cos t
+      // t = steps * pi/2
+      
+      Vector2 applyRot(Vector2 v, double rad) {
+          final c = cos(rad);
+          final s = sin(rad);
+          // With Y-down:
+          // x' = x*c - y*s
+          // y' = x*s + y*c
+          return Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
+      }
+
+      dirBlue = applyRot(dirBlue, angle);
+      dirRed = applyRot(dirRed, angle);
+      dirYellow = applyRot(dirYellow, angle);
+      
+      // Determine Emission Points
+      // We spawn rays from the prism Center + Offset in direction
+      final center = prism.position;
+      final offset = 15.0; // Start inside the prism for better visual connection
+      
+      // Cast the beams
+      _castBeam(blue, center + dirBlue.normalized() * offset, dirBlue, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+      _castBeam(red, center + dirRed.normalized() * offset, dirRed, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
+      _castBeam(yellow, center + dirYellow.normalized() * offset, dirYellow, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
   }
 
   @override

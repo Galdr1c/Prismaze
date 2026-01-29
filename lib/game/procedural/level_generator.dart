@@ -151,33 +151,23 @@ class LevelGenerator {
         return result.level!;
       }
     }
+    
+    // RETRY PHASE: Try with increased movement range and relaxed constraints within SAME episode
+    // This maintains the core mechanics (Prisms/Targets) but makes finding valid layouts easier.
+    final relaxedConfig = config.relaxed();
+    for (int attempt = 0; attempt < config.generationAttempts * 4; attempt++) {
+       final result = episode >= 3
+          ? _generateBlueprint(relaxedConfig, episode, index, seed + 2000 + attempt, rng, attempt)
+          : _generateSimple(relaxedConfig, episode, index, seed + 2000 + attempt, rng, attempt);
 
-    // FALLBACK PHASE: If original episode fails, try lower episodes as generators
-    for (int fallbackEp = episode - 1; fallbackEp >= 1; fallbackEp--) {
-      final fallbackConfig = EpisodeConfig.forEpisode(fallbackEp);
-      // We still use current episode/index in metadata, but lower episode generation logic
-      for (int attempt = 0; attempt < 50; attempt++) {
-        final result = fallbackEp >= 3
-            ? _generateBlueprint(fallbackConfig, episode, index, seed + 1000 + attempt, rng, attempt)
-            : _generateSimple(fallbackConfig, episode, index, seed + 1000 + attempt, rng, attempt);
-            
-        if (result.success && result.level != null) {
-          return result.level!;
-        }
-      }
+       if (result.success && result.level != null) {
+         return result.level!;
+       }
     }
 
-    // EMERGENCY FALLBACK: Episode 1 generator is extremely likely to succeed
-    final e1Config = EpisodeConfig.forEpisode(1);
-    for (int attempt = 0; attempt < 1000; attempt++) {
-        final result = _generateSimple(e1Config, episode, index, seed + 5000 + attempt, rng, attempt);
-        if (result.success && result.level != null) {
-            return result.level!;
-        }
-    }
-
-    // This part should technically never be reached given the simple generator's success rate
-    throw Exception('CRITICAL: Level generator failed to produce a valid level for E$episode L$index after exhaustive search.');
+    // If we fail after all attempts, we return null (or throw) to let the runner 
+    // try a fresh seed. We DO NOT fallback to lower episodes anymore.
+    throw Exception('Failed to generate valid E$episode level after ${config.generationAttempts * 2} attempts.');
   }
 
   /// Simple generation for E1-E2.
@@ -236,7 +226,46 @@ class LevelGenerator {
   GenerationAttempt _generateBlueprint(
     EpisodeConfig config, int episode, int index, int seed, Random rng, int attemptNumber,
   ) {
-    // Check if we should use the new "Proper Blueprint" system
+    // Use specialized blueprints for higher quality mixed levels
+    // These guarantee solvability for color mixing which generic pathfinding struggles with.
+    LevelBlueprint? specializedBP;
+    
+    // 60% chance to use structured puzzle, 40% generic
+    // (Higher chance for complex episodes to avoid unsolveable mixes)
+    if (rng.nextDouble() < 0.70) { 
+       if (episode == 3) specializedBP = _buildTwoPhaseBlueprint(config, rng);
+       if (episode == 4) specializedBP = _buildThreePhaseBlueprint(config, rng);
+       if (episode == 5) specializedBP = _buildFourPhaseBlueprint(config, rng);
+    }
+    
+    if (specializedBP != null) {
+       // Convert Blueprint to Level
+       final level = GeneratedLevel(
+          seed: seed, episode: episode, index: index,
+          source: specializedBP.source,
+          targets: specializedBP.targets,
+          walls: specializedBP.walls,
+          mirrors: specializedBP.mirrors,
+          prisms: specializedBP.prisms,
+          meta: LevelMeta(
+            optimalMoves: specializedBP.totalPlannedMoves,
+            difficultyBand: config.difficultyBand,
+            generationAttempts: attemptNumber + 1,
+          ),
+          solution: specializedBP.plannedMoves.expand((pm) => pm.toSolutionMoves()).toList(),
+       );
+       
+        // Verify Solvability (Important even for structured BPs)
+        if (_validateProperBlueprint(level, specializedBP.plannedMoves)) {
+            // Also check for triviality/shortcuts
+             if (specializedBP.totalPlannedMoves >= config.minMoves) {
+                 // OK
+                 return GenerationAttempt(success: true, level: level, attemptNumber: attemptNumber);
+             }
+        }
+    }
+
+    // Fallback to generic generator
     return _generateProperBlueprint(config, episode, index, seed, rng, attemptNumber);
   }
 
@@ -252,16 +281,33 @@ class LevelGenerator {
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
 
-    // 2. Select Targets
+    // 2. Select Targets & Assign Colors
     int targetCount = episode >= 5 ? 3 : (episode >= 4 ? 2 : 1);
     final targets = _placeTargetsSimple(rng, targetCount, occupied, source.position);
     if (targets.length < targetCount) {
       return GenerationAttempt(success: false, rejectionReason: RejectionReason.noValidTargetPositions, attemptNumber: attemptNumber);
     }
+    
+    // Apply mixed colors based on probability
+    bool hasMixedTarget = false;
+    for (int i = 0; i < targets.length; i++) {
+        bool makeMixed = rng.nextDouble() < config.mixedTargetProbability;
+        if (makeMixed) {
+            // E3+: mostly Purple (R+B), sometimes Orange/Green if defined
+            final colors = [LightColor.purple, LightColor.green, LightColor.orange];
+            final color = colors[rng.nextInt(colors.length)];
+            targets[i] = targets[i].copyWith(requiredColor: color);
+            hasMixedTarget = true;
+        }
+    }
+
     for (final t in targets) occupied.add(_key(t.position));
 
     // 3. Draw Solution Path
-    final path = _drawSolutionPath(source, targets.map((t) => t.position).toList(), rng, criticalPoints, directions);
+    // Force prism if we have mixed targets OR if config requires it
+    bool forcePrism = hasMixedTarget || config.minCriticalPrisms > 0;
+    
+    final path = _drawSolutionPath(source, targets.map((t) => t.position).toList(), rng, criticalPoints, directions, forcePrismStart: forcePrism);
     
     // 4. Place Objects on Path
     final mirrors = <Mirror>[];
@@ -827,8 +873,9 @@ class LevelGenerator {
     List<GridPosition> targetPositions, 
     Random rng,
     List<BlueprintPoint> criticalPoints,
-    Map<GridPosition, List<Direction>> directions,
-  ) {
+    Map<GridPosition, List<Direction>> directions, {
+    bool forcePrismStart = false,
+  }) {
     final path = <GridPosition>{source.position};
     final List<GridPosition> activePoints = [source.position];
     final Map<GridPosition, Direction> pointOutDir = {source.position: source.direction};
@@ -843,7 +890,8 @@ class LevelGenerator {
         final branchFrom = activePoints[rng.nextInt(activePoints.length)];
         
         // If it's a first branch in a multi-target level, force a Prism point
-        bool forcePrism = !usedPrism && i > 0;
+        // OR if we are forced to start with a prism (for mixing) and this is the first target
+        bool forcePrism = (!usedPrism && i > 0) || (forcePrismStart && i == 0 && !usedPrism);
 
         _connectToTarget(branchFrom, pointOutDir[branchFrom]!, targetPos, path, directions, criticalPoints, rng, activePoints, pointOutDir, forcePrism: forcePrism);
         
@@ -868,25 +916,81 @@ class LevelGenerator {
     var current = start;
     var dir = startDir;
     
-    if (forcePrism) {
-        final splitDir = rng.nextBool() ? dir.rotateLeft : dir.rotateRight;
-        criticalPoints.add(BlueprintPoint(
-            position: current,
-            type: OccupantType.prism,
-            incomingDir: dir,
-            outgoingDir: splitDir,
-            solvedOrientation: 0,
-        ));
-        dir = splitDir;
-    }
+    // Delayed Prism Placement Logic
+    // If forcing a prism, we don't want it always at the start (Step 0).
+    // We pick a random step [0..3] to insert it, provided it's valid.
+    int prismInsertStep = forcePrism ? rng.nextInt(4) : -1;
+    bool prismPlaced = !forcePrism; 
 
-    // Simple Manhattan-style path toward target with some random turns
-    for (int step = 0; step < 40; step++) {
+    // Improved directional pathfinding
+    for (int step = 0; step < 60; step++) { // Increased max steps
+    
+      // Check if we should insert Prism NOW
+      if (!prismPlaced && step >= prismInsertStep) {
+         final prismPos = GridPosition(current.x + dir.dx, current.y + dir.dy);
+         
+         // Validation: Check bounds and overlap
+         if (prismPos.isValid && !path.contains(prismPos) && prismPos != target) {
+             // Place Prism
+             final tryLeft = rng.nextBool();
+             final splitDir = tryLeft ? dir.rotateLeft : dir.rotateRight;
+             
+             criticalPoints.add(BlueprintPoint(
+                position: prismPos,
+                type: OccupantType.prism,
+                incomingDir: dir,
+                outgoingDir: splitDir,
+                solvedOrientation: 0,
+            ));
+            
+            // Update Path
+            path.add(prismPos);
+            activePoints.add(prismPos);
+            directions.putIfAbsent(current, () => []).add(dir);
+            pointOutDir[prismPos] = splitDir;
+            
+            // Advance
+            current = prismPos;
+            dir = splitDir;
+            prismPlaced = true;
+            continue; // Continue loop from new pos
+         }
+      }
+
       final next = GridPosition(current.x + dir.dx, current.y + dir.dy);
       
-      if (!next.isValid) {
-        // Turn if blocked by edge
-        dir = rng.nextBool() ? dir.rotateLeft : dir.rotateRight;
+      bool blocked = !next.isValid;
+      if (!blocked && path.contains(next) && next != target) {
+          // Avoid self-intersection unless it's the target
+           blocked = true;
+      }
+
+      if (blocked) {
+        // Force turn
+        final turnOpts = <Direction>[];
+        if (dir.dx == 0) { turnOpts.add(Direction.east); turnOpts.add(Direction.west); }
+        else { turnOpts.add(Direction.north); turnOpts.add(Direction.south); }
+        
+        turnOpts.shuffle(rng);
+        
+        bool foundTurn = false;
+        for (final newDir in turnOpts) {
+            final turnNext = GridPosition(current.x + newDir.dx, current.y + newDir.dy);
+            if (turnNext.isValid && !path.contains(turnNext)) {
+                criticalPoints.add(BlueprintPoint(
+                  position: current,
+                  type: OccupantType.mirror,
+                  incomingDir: dir,
+                  outgoingDir: newDir,
+                  solvedOrientation: _calculateMirrorOrientation(dir, newDir),
+                ));
+                dir = newDir;
+                foundTurn = true;
+                break;
+            }
+        }
+        
+        if (!foundTurn) break; // Dead end
         continue;
       }
       
@@ -897,30 +1001,35 @@ class LevelGenerator {
       
       if (next == target) break;
       
-      // Decide whether to turn toward target
+      // Smart turning towards target
       final dx = target.x - next.x;
       final dy = target.y - next.y;
       
       bool shouldTurn = false;
       Direction? newDir;
       
-      if (dx != 0 && dir.dx == 0 && rng.nextDouble() < 0.3) {
+      // Increased turn probability to 0.4
+      if (dx != 0 && dir.dx == 0 && rng.nextDouble() < 0.4) {
         shouldTurn = true;
         newDir = dx > 0 ? Direction.east : Direction.west;
-      } else if (dy != 0 && dir.dy == 0 && rng.nextDouble() < 0.3) {
+      } else if (dy != 0 && dir.dy == 0 && rng.nextDouble() < 0.4) {
         shouldTurn = true;
         newDir = dy > 0 ? Direction.south : Direction.north;
       }
       
       if (shouldTurn && newDir != null && newDir != dir.opposite) {
-        criticalPoints.add(BlueprintPoint(
-          position: next,
-          type: OccupantType.mirror,
-          incomingDir: dir,
-          outgoingDir: newDir,
-          solvedOrientation: _calculateMirrorOrientation(dir, newDir),
-        ));
-        dir = newDir;
+         // Check if turn is valid (not blocked)
+         final checkNext = GridPosition(next.x + newDir.dx, next.y + newDir.dy);
+         if (checkNext.isValid && !path.contains(checkNext)) {
+            criticalPoints.add(BlueprintPoint(
+              position: next,
+              type: OccupantType.mirror,
+              incomingDir: dir,
+              outgoingDir: newDir,
+              solvedOrientation: _calculateMirrorOrientation(dir, newDir),
+            ));
+            dir = newDir;
+         }
       }
       
       current = next;

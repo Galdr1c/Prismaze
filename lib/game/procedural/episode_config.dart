@@ -194,8 +194,8 @@ class EpisodeConfig {
           maxIncorrectCritical: 7,
           twoTapsAwayRatio: 0.6,
           // Generation
-          generationAttempts: 120,
-          validationBudget: 50000,
+          generationAttempts: 200,
+          validationBudget: 100000,
           rejectTrivials: true,
           maxTrivialRate: 0.005, // Max 0.5% trivials
         );
@@ -230,8 +230,8 @@ class EpisodeConfig {
           maxIncorrectCritical: 9,
           twoTapsAwayRatio: 0.65,
           // Generation
-          generationAttempts: 180,
-          validationBudget: 80000,
+          generationAttempts: 300,
+          validationBudget: 150000,
           rejectTrivials: true,
           maxTrivialRate: 0.005,
         );
@@ -267,8 +267,8 @@ class EpisodeConfig {
           maxIncorrectCritical: 11,
           twoTapsAwayRatio: 0.7,
           // Generation - balanced for 3-target levels
-          generationAttempts: 400,
-          validationBudget: 120000,
+          generationAttempts: 500,
+          validationBudget: 250000,
           rejectTrivials: true,
           maxTrivialRate: 0.005,
         );
@@ -302,5 +302,42 @@ class EpisodeConfig {
   String toString() => 'EpisodeConfig(E$episode, moves:[$minMoves..$maxMoves], '
       'mirrors:${minMirrors}-${maxMirrors}, prisms:${minPrisms}-${maxPrisms}, '
       'targets:${minTargets}-${maxTargets}, walls:${minWalls}-${maxWalls})';
+  /// Get a relaxed version of this config for retry attempts.
+  EpisodeConfig relaxed() {
+    return EpisodeConfig(
+      episode: episode,
+      minMoves: (minMoves - 2).clamp(1, 100), // Slightly easier moves
+      maxMoves: maxMoves + 4,                 // Allow longer solutions if needed
+      // RELAXED: Reduce critical mirror requirement slightly to fit in tighter spaces
+      minCriticalMirrors: (minCriticalMirrors - 1).clamp(0, 50),
+      maxCriticalMirrors: maxCriticalMirrors,
+      // KEEP PRISMS: Do not relax prism requirements (core mechanic)
+      minCriticalPrisms: minCriticalPrisms,
+      maxCriticalPrisms: maxCriticalPrisms,
+      // DECOYS: Reduce decoy requirements to reduce clutter failure
+      minDecoyMirrors: (minDecoyMirrors - 1).clamp(0, 20),
+      maxDecoyMirrors: maxDecoyMirrors,
+      minDecoyPrisms: 0,
+      maxDecoyPrisms: maxDecoyPrisms,
+      // TARGETS: Keep same
+      minBaseTargets: minBaseTargets,
+      maxBaseTargets: maxBaseTargets,
+      minMixedTargets: minMixedTargets,
+      maxMixedTargets: maxMixedTargets,
+      mixedTargetProbability: mixedTargetProbability,
+      // WALLS: Relax minimum wall count to allow successful pathfinding
+      minWalls: (minWalls * 0.7).floor().clamp(0, 100),
+      maxWalls: maxWalls,
+      // SCRAMBLING
+      minIncorrectCritical: minIncorrectCritical,
+      maxIncorrectCritical: maxIncorrectCritical,
+      twoTapsAwayRatio: twoTapsAwayRatio,
+      // GENERATION
+      generationAttempts: generationAttempts,
+      validationBudget: validationBudget * 2, // Double budget for retry
+      rejectTrivials: rejectTrivials,
+      maxTrivialRate: maxTrivialRate,
+    );
+  }
 }
 

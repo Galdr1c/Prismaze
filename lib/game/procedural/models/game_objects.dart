@@ -99,6 +99,17 @@ class Target {
     this.requiredColor = LightColor.white,
   });
 
+  /// Create a copy with optional new properties.
+  Target copyWith({
+    GridPosition? position,
+    LightColor? requiredColor,
+  }) {
+    return Target(
+      position: position ?? this.position,
+      requiredColor: requiredColor ?? this.requiredColor,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
         'x': position.x,
         'y': position.y,
