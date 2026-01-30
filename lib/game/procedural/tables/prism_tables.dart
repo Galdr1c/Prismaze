@@ -33,10 +33,9 @@ List<PrismOutput> applySplitter(
   int prismOrientation,
 ) {
   // Non-white: pass through unchanged
+  // Non-white: pass through unchanged (Straight)
   if (color != LightColor.white) {
-    // Deflect slightly based on orientation
-    final outDir = _deflectForSplitter(incoming, prismOrientation);
-    return [PrismOutput(outDir, color)];
+    return [PrismOutput(incoming, color)];
   }
 
   // White: split into RGB

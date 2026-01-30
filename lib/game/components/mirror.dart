@@ -81,8 +81,14 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
   
   /// Convert discrete orientation to visual angle (45° increments).
   static double _discreteOrientationToAngle(int orientation) {
-    // 0 = 0°, 1 = 45°, 2 = 90°, 3 = 135° (consistent increments)
-    return (orientation % 4) * pi / 4;
+    // Match logic in MirrorOrientationExtension.angleRad
+    switch (orientation % 4) {
+      case 0: return 0;          // Horizontal _
+      case 1: return -pi / 4;    // Slash / (-45°)
+      case 2: return pi / 2;     // Vertical | (90°)
+      case 3: return pi / 4;     // Backslash \ (45°)
+      default: return 0;
+    }
   }
   
   /// Convert from procedural model.
@@ -119,13 +125,23 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
     final startPos = position.clone();
     final startAngle = angle;
     
-    if (useDiscreteOrientation) {
-        _discreteOrientation = (_discreteOrientation + 1) % 4;
-        angle = _discreteOrientationToAngle(_discreteOrientation);
+    if (gameRef.beamSystem.useRayTracerMode) {
+        // 1.3 Update State (Critical for RayTracer)
+        gameRef.currentState = gameRef.currentState.rotateMirror(index);
+        // Sync visuals
+        final newOri = gameRef.currentState.mirrorOrientations[index];
+        angle = _discreteOrientationToAngle(newOri);
     } else {
-        angle += pi / 4;
-        if (angle >= 2 * pi) angle -= 2 * pi;
-        _discreteOrientation = ((angle / (pi / 4)).round() % 4).abs();
+        // Legacy Rotation
+        if (useDiscreteOrientation) {
+             // Local logic if state isn't available
+             angle += -pi / 4; // Visual rotation
+             if (angle < 0) angle += 2 * pi;
+             // _discreteOrientation setter might be dangerous here if state is missing
+        } else {
+            angle += pi / 4;
+            if (angle >= 2 * pi) angle -= 2 * pi;
+        }
     }
     
     print('MIRROR ROTATE! orientation=$_discreteOrientation');

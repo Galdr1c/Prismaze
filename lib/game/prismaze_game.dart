@@ -15,6 +15,8 @@ import 'economy_manager.dart';
 import 'progress_manager.dart';
 import 'mission_manager.dart';
 import 'procedural/models/models.dart' as proc;
+import 'procedural/ray_tracer.dart' as proc; // Alias merging
+import 'procedural/ray_tracer_adapter.dart' as proc; // Alias merging
 import 'progress/campaign_progress.dart';
 import 'customization_manager.dart';
 import 'ad_manager.dart';
@@ -101,6 +103,14 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
   Map<String, dynamic>? currentLevelJson; // To store current level data for restart
   ProceduralLevelGenerator? proceduralGenerator;
   proc.LevelMeta? currentLevelMeta;
+  proc.GeneratedLevel? currentGeneratedLevel; // Active procedural level data
+  
+  // Procedural Systems
+  final proc.RayTracer _procTracer = proc.RayTracer();
+  late final proc.RayTracerAdapter _procAdapter = proc.RayTracerAdapter(
+    boardOffset: Vector2(45.0, 62.5),
+    cellSize: 85.0,
+  );
   
   late GameState currentState; // Single Source of Truth
 
@@ -159,18 +169,43 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           // FIX: Always update beams when level has started (ensures beams render after intro)
           if (_needsBeamUpdate) {
              assert(() { dev.Timeline.startSync('BeamSystem.updateBeams'); return true; }());
-             beamSystem.updateBeams();
+             
+             if (beamSystem.useRayTracerMode && currentGeneratedLevel != null) {
+                final level = currentGeneratedLevel!;
+                final trace = _procTracer.trace(level, currentState);
+
+                // progress biriksin:
+                currentState = currentState.withTargetProgress(level.targets, trace.arrivalMasks);
+
+                // ışınları çiz:
+                final segs = _procAdapter.convertToPixelSegments(trace);
+                beamSystem.setExternalSegments(segs);
+                beamSystem.updateBeams(); // Trigger render
+
+                // target görsellerini state’e göre güncelle
+                _applyProceduralTargets();
+              } else {
+                beamSystem.updateBeams(); // legacy
+              }
+             
              assert(() { dev.Timeline.finishSync(); return true; }());
              _needsBeamUpdate = false;
           }
           
-          // Fix: Check targets every frame to catch win condition
-          // (BeamSystem updates in super.update(), so status might change after our flag check)
-          final targets = world.children.query<Target>();
-          // All targets must be lit AND have received actual color (not black)
-          final allLit = targets.isNotEmpty && targets.every((t) => t.isLit);
-          final allHaveColor = targets.every((t) => t.accumulatedColor != const Color(0xFF000000));
-          if (allLit && allHaveColor) {
+          // Win Condition Check
+          bool won = false;
+          if (currentGeneratedLevel != null) {
+              // Stateful Procedural Win
+              won = currentState.allTargetsSatisfied(currentGeneratedLevel!.targets);
+          } else {
+              // Legacy Simultaneous Win
+              final targets = world.children.query<Target>();
+              final allLit = targets.isNotEmpty && targets.every((t) => t.isLit);
+              final allHaveColor = targets.every((t) => t.accumulatedColor != const Color(0xFF000000));
+              won = allLit && allHaveColor;
+          }
+          
+          if (won) {
               _onLevelWin();
           }
       
@@ -932,6 +967,18 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       missionManager.dispose();
       
       super.onDispose();
+  }
+  /// Synchronize target visuals (color progress) with the procedural GameState
+  /// Synchronize target visuals (color progress) with the procedural GameState
+  /// Synchronize target visuals (color progress) with the procedural GameState
+  void _applyProceduralTargets() {
+    final targets = world.children.whereType<Target>();
+    for (final target in targets) {
+      if (target.procIndex != null) {
+         final mask = currentState.getTargetCollected(target.procIndex!);
+         target.applyProceduralMask(mask);
+      }
+    }
   }
 }
 

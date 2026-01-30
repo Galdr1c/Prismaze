@@ -63,10 +63,13 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
 
   double opacity = 1.0;
 
+  final int? procIndex; // Link to procedural GameState index
+
   Target({
     required Vector2 position,
     required this.requiredColor,
     this.sequenceIndex = 0,
+    this.procIndex,
   }) : super(
           position: position,
           size: Vector2(65, 65), // Larger for 85px cell (was 50x50)
@@ -86,15 +89,37 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
   
   /// Convert Flutter Color to bitmask (R=1, B=2, Y=4, W=8)
   int _colorToBitmask(Color c) {
-    // Map common game colors to bitmask
-    // Red-ish colors
-    if (c.red > 200 && c.green < 100 && c.blue < 100) return 1; // R
-    // Blue-ish colors
-    if (c.blue > 200 && c.red < 100 && c.green < 150) return 2; // B
-    // Yellow-ish colors
-    if (c.red > 200 && c.green > 200 && c.blue < 100) return 4; // Y
     // White
-    if (c.red > 200 && c.green > 200 && c.blue > 200) return 8; // W
+    if (c.red > 200 && c.green > 200 && c.blue > 200) return 8;
+    
+    // Yellow (R+G high)
+    if (c.red > 200 && c.green > 200 && c.blue < 100) return 4;
+    
+    // Purple (R+B high)
+    if (c.red > 150 && c.blue > 150 && c.green < 150) return 3; // R+B
+    
+    // Orange (R high, G medium)
+    if (c.red > 200 && c.green > 100 && c.green < 200 && c.blue < 100) return 5; // R+Y
+    
+    // Green (B high, G high? No, Green is Blue+Yellow? No.
+    // In this game:
+    // Red = R
+    // Blue = B
+    // Yellow = Y (R+G in RGB, but Y in game logic)
+    // 
+    // Wait, Colors.green is (0, 255, 0).
+    // Colors.yellow is (255, 255, 0).
+    // Game Logic: Green = Blue + Yellow.
+    // If I map lds.green -> Colors.green.
+    // Check if it's "Green".
+    if (c.green > 200 && c.red < 100 && c.blue < 100) return 6; // Green logic (B+Y)
+    
+    // Cyan/Blue check (Blue usually 0,0,255 or similar)
+    if (c.blue > 200 && c.red < 150 && c.green < 200) return 2; // B
+    
+    // Red check
+    if (c.red > 200 && c.green < 100 && c.blue < 100) return 1; // R
+    
     return 0;
   }
   
@@ -142,6 +167,7 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
   
   // Expose accumulated color for level completion check
   Color get accumulatedColor => _accumulatedColor;
+  set accumulatedColor(Color value) => _accumulatedColor = value;
   
   // ... (keep shakeTimer etc)
   double _shakeTimer = 0;
@@ -175,11 +201,15 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     _scaleAnim = 1.0 + 0.05 * sin(_time * 3);
     scale = Vector2.all(_scaleAnim);
 
-    // 2. Fill Animation (Slower for more satisfaction)
-    if (_isLit) {
-        _fillProgress += dt * 0.7; // Fill in ~1.5s (slower)
-    } else {
-        _fillProgress -= dt * 1.5; // Empty faster
+    // 2. Fill Animation (Progressive)
+    double targetFill = _isLit ? 1.0 : _getCompletionRatio();
+    
+    if (_fillProgress < targetFill) {
+        _fillProgress += dt * 0.7;
+        if (_fillProgress > targetFill) _fillProgress = targetFill;
+    } else if (_fillProgress > targetFill) {
+        _fillProgress -= dt * 1.5;
+        if (_fillProgress < targetFill) _fillProgress = targetFill;
     }
     _fillProgress = _fillProgress.clamp(0.0, 1.0);
     
@@ -233,7 +263,7 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
       _glowPaint
         ..color = safeColor.withOpacity(haloAlpha.clamp(0.0, 0.3) * opacity)
         ..maskFilter = _blur15;
-      canvas.drawCircle(center, radius + 15, _glowPaint);
+      canvas.drawCircle(center, radius + 5, _glowPaint);
     }
 
     // === LAYER 3: Pulsing Outer Ring (Empty State) ===
@@ -403,6 +433,30 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     return false;
   }
   
+  /// Calculate fill ratio based on collected components vs required.
+  double _getCompletionRatio() {
+    if (_isLit) return 1.0;
+    
+    // Valid only for mixed targets
+    if (!_isMixedTarget()) return 0.0;
+    
+    final reqMask = _colorToBitmask(requiredColor);
+    final collected = _collectedMask & reqMask; // Only count relevant bits
+    
+    // Count set bits
+    int reqCount = 0;
+    int colCount = 0;
+    
+    // Check 4 bits (R, B, Y, W)
+    for (int i = 0; i < 4; i++) {
+        if ((reqMask & (1 << i)) != 0) reqCount++;
+        if ((collected & (1 << i)) != 0) colCount++;
+    }
+    
+    if (reqCount == 0) return 0.0;
+    return colCount / reqCount;
+  }
+
   /// Get required components for this mixed target.
   List<int> _getRequiredComponents() {
     // Purple = R + B
@@ -477,13 +531,55 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
     }
   }
   
-  /// Get color for a bitmask value.
+  /// Apply procedural lighting state from RayTracer.
+  void applyProceduralMask(int collectedMask) {
+    _collectedMask = collectedMask;
+
+    // Direct mapping from mask to visual color
+    _accumulatedColor = _getMaskColor(collectedMask);
+
+    // Calculate required mask for this target
+    final reqMask = _colorToBitmask(requiredColor);
+    
+    // Strict satisfaction check
+    // Logic: (collected & required) == required
+    // NOTE: White (8) requires special handling if strict, but usually R+B+Y=White? 
+    // For now, assume generated levels use simple color logic. 
+    // If required is White, we usually expect White(8) or maybe R+B+Y(7)?
+    // RayTracer uses 8 for White.
+    
+    bool lit = false;
+    if (reqMask == 8) {
+       // White target: satisfied by White(8) OR all bases(7)? 
+       // Start with strict 8.
+       lit = (collectedMask & 8) != 0;
+    } else {
+       lit = (collectedMask & reqMask) == reqMask;
+    }
+
+    if (lit && !_wasLit) {
+      _spawnConfetti();
+      AudioManager().vibrateCorrectTarget();
+    }
+    _wasLit = lit;
+    _isLit = lit;
+  }
+
+  /// Get color for a bitmask value (Enhanced for mixed colors).
   Color _getMaskColor(int mask) {
     switch (mask) {
       case 1: return const Color(0xFFFF4444); // Red
       case 2: return const Color(0xFF4488FF); // Blue
       case 4: return const Color(0xFFFFDD44); // Yellow
-      default: return Colors.white;
+      case 3: return const Color(0xFFAA44FF); // Purple (R+B)
+      case 5: return const Color(0xFFFF8844); // Orange (R+Y)
+      case 6: return const Color(0xFF44DD44); // Green (B+Y)
+      case 8: return Colors.white;            // White
+      // Add complex mixes if needed
+      case 7: return Colors.white;            // R+B+Y -> White/Black?
+      default: 
+        if (mask > 0) return Colors.white; // Any other weird mix
+        return const Color(0xFF000000); // Empty
     }
   }
 }

@@ -13,11 +13,12 @@ class Ray {
   final int y;
   final Direction direction;
   final LightColor color;
+  final bool isSecondary;
 
-  const Ray(this.x, this.y, this.direction, this.color);
+  const Ray(this.x, this.y, this.direction, this.color, {this.isSecondary = false});
 
   /// Unique key for loop detection.
-  String get key => '$x,$y,${direction.index},${color.index}';
+  String get key => '$x,$y,${direction.index},${color.index},$isSecondary';
 
   /// Step to the next cell.
   Ray step() {
@@ -26,21 +27,22 @@ class Ray {
       y + direction.dy,
       direction,
       color,
+      isSecondary: isSecondary,
     );
   }
 
   /// Create a ray with a new direction.
   Ray withDirection(Direction newDir) {
-    return Ray(x, y, newDir, color);
+    return Ray(x, y, newDir, color, isSecondary: isSecondary);
   }
 
   /// Create a ray with a new color.
   Ray withColor(LightColor newColor) {
-    return Ray(x, y, direction, newColor);
+    return Ray(x, y, direction, newColor, isSecondary: isSecondary);
   }
 
   @override
-  String toString() => 'Ray($x,$y,$direction,$color)';
+  String toString() => 'Ray($x,$y,$direction,$color,sec=$isSecondary)';
 }
 
 /// A segment of a ray path for rendering.
@@ -48,6 +50,7 @@ class RaySegment {
   final int startX, startY;
   final int endX, endY;
   final LightColor color;
+  final bool isSecondary;
 
   const RaySegment({
     required this.startX,
@@ -55,11 +58,12 @@ class RaySegment {
     required this.endX,
     required this.endY,
     required this.color,
+    this.isSecondary = false,
   });
 
   @override
   String toString() =>
-      'RaySegment(($startX,$startY)->($endX,$endY), $color)';
+      'RaySegment(($startX,$startY)->($endX,$endY), $color, sec=$isSecondary)';
 }
 
 /// Result of tracing rays through a level.
@@ -151,6 +155,7 @@ class RayTracer {
       level.source.position.y,
       level.source.direction,
       level.source.color,
+      isSecondary: false,
     ));
 
     while (rayQueue.isNotEmpty && totalRays < maxTotalRays) {
@@ -180,6 +185,7 @@ class RayTracer {
             endX: currentRay.x,
             endY: currentRay.y,
             color: currentRay.color,
+            isSecondary: currentRay.isSecondary,
           ));
           break;
         }
@@ -193,6 +199,7 @@ class RayTracer {
             endX: currentRay.x,
             endY: currentRay.y,
             color: currentRay.color,
+            isSecondary: currentRay.isSecondary,
           ));
           break;
         }
@@ -206,6 +213,7 @@ class RayTracer {
             endX: currentRay.x,
             endY: currentRay.y,
             color: currentRay.color,
+            isSecondary: currentRay.isSecondary,
           ));
           break;
         }
@@ -232,6 +240,7 @@ class RayTracer {
               endX: currentRay.x,
               endY: currentRay.y,
               color: currentRay.color,
+              isSecondary: currentRay.isSecondary,
             ));
             segmentStartX = currentRay.x;
             segmentStartY = currentRay.y;
@@ -261,7 +270,14 @@ class RayTracer {
             endX: currentRay.x,
             endY: currentRay.y,
             color: currentRay.color,
+            isSecondary: currentRay.isSecondary,
           ));
+
+          // Determine if outputs should be secondary (Splitter logic)
+          // If 3 outputs (white split), mark them secondary.
+          // If 1 output (deflector or pass-through), inherit.
+          // ALSO: If input was already secondary, outputs stay secondary.
+          final bool makeSecondary = currentRay.isSecondary || (outputs.length > 1);
 
           // Queue output rays (skip first, continue with it)
           bool first = true;
@@ -271,6 +287,7 @@ class RayTracer {
               currentRay.y,
               output.direction,
               output.color,
+              isSecondary: makeSecondary,
             );
             if (first) {
               // Continue current trace with first output

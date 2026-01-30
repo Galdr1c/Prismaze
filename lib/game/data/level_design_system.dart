@@ -45,7 +45,7 @@ class GridConverter {
 // --- LEVEL DEFINITION MODELS ---
 
 enum Direction { right, down, left, up }
-enum LightColor { white, red, green, blue, cyan, magenta, yellow }
+enum LightColor { white, red, green, blue, cyan, magenta, yellow, orange }
 
 class LevelDef {
   final int levelNumber;
@@ -141,6 +141,7 @@ Color mapColor(LightColor c) {
     case LightColor.cyan: return Colors.cyanAccent;
     case LightColor.magenta: return Colors.purpleAccent;
     case LightColor.yellow: return Colors.yellow;
+    case LightColor.orange: return Colors.orange;
   }
 }
 

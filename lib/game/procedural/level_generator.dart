@@ -178,6 +178,9 @@ class LevelGenerator {
 
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
+    // Constraint: Block cell in front of source
+    final front = source.position.moved(source.direction);
+    if (front.isValid) occupied.add(_key(front));
 
     final targets = _placeTargetsSimple(rng, 1, occupied, source.position);
     if (targets.isEmpty) {
@@ -240,7 +243,7 @@ class LevelGenerator {
     
     if (specializedBP != null) {
        // Convert Blueprint to Level
-       final level = GeneratedLevel(
+       GeneratedLevel level = GeneratedLevel(
           seed: seed, episode: episode, index: index,
           source: specializedBP.source,
           targets: specializedBP.targets,
@@ -255,13 +258,28 @@ class LevelGenerator {
           solution: specializedBP.plannedMoves.expand((pm) => pm.toSolutionMoves()).toList(),
        );
        
-        // Verify Solvability (Important even for structured BPs)
-        if (_validateProperBlueprint(level, specializedBP.plannedMoves)) {
-            // Also check for triviality/shortcuts
-             if (specializedBP.totalPlannedMoves >= config.minMoves) {
-                 // OK
+       // Verify Solvability and determine True Optimal Moves
+        // We must run the full solver to find the shortest path, as the "planned" solution
+        // might be suboptimal (just undoing the scramble).
+        final initialState = GameState.fromLevel(level);
+        final solution = _solver.solve(level, initialState, budget: 15000);
+
+        if (solution.solvable) {
+             // Found a solution (likely optimal or close to it)
+             // Use this as the ground truth for the level's par
+             level = _updateMeta(level, solution.optimalMoves, solution.moves, config, attemptNumber);
+             
+             // Check for triviality using the REAL optimal moves
+             if (solution.optimalMoves >= config.minMoves) {
                  return GenerationAttempt(success: true, level: level, attemptNumber: attemptNumber);
              }
+        } else {
+            // Solver failed to find a solution within budget, but we know one exists from the blueprint.
+            // However, we can't guarantee optimal moves. 
+            // For E3+, we might accept it if validation passes, but user insisted on "kesin doğru".
+            // If the solver can't solve it, the user might not be able to either within reasonable limits.
+            // Let's fallback to validation but mark it as complex, OR just fail.
+            // Safer to fail and retry with a simpler seed if the solver strokes out.
         }
     }
 
@@ -280,6 +298,9 @@ class LevelGenerator {
     // 1. Place Source
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
+    // Constraint: Block cell in front of source
+    final front = source.position.moved(source.direction);
+    if (front.isValid) occupied.add(_key(front));
 
     // 2. Select Targets & Assign Colors
     int targetCount = episode >= 5 ? 3 : (episode >= 4 ? 2 : 1);
@@ -322,7 +343,7 @@ class LevelGenerator {
     );
 
     // 6. Build GeneratedLevel
-    final level = GeneratedLevel(
+    GeneratedLevel level = GeneratedLevel(
       seed: seed, episode: episode, index: index,
       source: blueprint.source,
       targets: blueprint.targets,
@@ -337,26 +358,28 @@ class LevelGenerator {
       solution: blueprint.plannedMoves.expand((pm) => pm.toSolutionMoves()).toList(),
     );
 
-    // 7. Validation
-    // Fast simulation check
-    if (!_validateProperBlueprint(level, blueprint.plannedMoves)) {
-      return GenerationAttempt(success: false, rejectionReason: RejectionReason.plannedSolutionFailed, attemptNumber: attemptNumber);
-    }
+    // 7. Validation & Optimization
+    // Run full solver to find the TRUE shortest path
+    final initialState = GameState.fromLevel(level);
+    final solution = _solver.solve(level, initialState, budget: 15000);
 
-    // Shortcut Check (Bounded BFS)
-    if (blueprint.totalPlannedMoves >= config.minMoves) {
-      final initialState = GameState.fromLevel(level);
-      final shortcutCheck = _solver.solveWithMaxDepth(
-        level, initialState,
-        maxDepth: (blueprint.totalPlannedMoves * 0.7).floor().clamp(1, config.minMoves - 1),
-        budget: 5000,
-      );
-      if (shortcutCheck.solvable) {
-        return GenerationAttempt(success: false, rejectionReason: RejectionReason.shortcutFound, attemptNumber: attemptNumber);
+    if (solution.solvable) {
+      // Check difficulty constraints against real optimal
+      if (solution.optimalMoves >= config.minMoves && solution.optimalMoves <= config.maxMoves) {
+          
+          level = _updateMeta(level, solution.optimalMoves, solution.moves, config, attemptNumber);
+          return GenerationAttempt(success: true, level: level, attemptNumber: attemptNumber);
+          
+      } else if (solution.optimalMoves < config.minMoves) {
+           return GenerationAttempt(success: false, rejectionReason: RejectionReason.tooEasy, attemptNumber: attemptNumber);
+      } else {
+           return GenerationAttempt(success: false, rejectionReason: RejectionReason.tooHard, attemptNumber: attemptNumber); 
       }
+    } else {
+         // Solver failed (timeout or bug), but blueprint was supposedly constructed validly.
+         // Since we can't verify the optimal par, we reject.
+         return GenerationAttempt(success: false, rejectionReason: RejectionReason.unsolvable, attemptNumber: attemptNumber);
     }
-
-    return GenerationAttempt(success: true, level: level, attemptNumber: attemptNumber);
   }
 
   /// Simulation validation for the proper blueprint.
@@ -396,6 +419,9 @@ class LevelGenerator {
     // 1. Place source (white light)
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
+    // Constraint: Block cell in front of source
+    final front = source.position.moved(source.direction);
+    if (front.isValid) occupied.add(_key(front));
 
     // 2. Place purple target
     final targetPos = _findValidPosition(rng, occupied, source.position, minDist: 5);
@@ -488,9 +514,12 @@ class LevelGenerator {
     // 1. Place source (white light)
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
+    // Constraint: Block cell in front of source
+    final front = source.position.moved(source.direction);
+    if (front.isValid) occupied.add(_key(front));
 
     // 2. Place splitter prism in front of source
-    final prismPos = _findPositionInDirection(source.position, source.direction, rng, 3, 6);
+    final prismPos = _findPositionInDirection(source.position, source.direction, rng, 3, 6, occupied);
     if (prismPos == null) return null;
     occupied.add(_key(prismPos));
 
@@ -580,9 +609,12 @@ class LevelGenerator {
     // 1. Place source (white light)
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
+    // Constraint: Block cell in front of source
+    final front = source.position.moved(source.direction);
+    if (front.isValid) occupied.add(_key(front));
 
     // 2. Place splitter prism in front of source
-    final splitterPos = _findPositionInDirection(source.position, source.direction, rng, 2, 5);
+    final splitterPos = _findPositionInDirection(source.position, source.direction, rng, 2, 5, occupied);
     if (splitterPos == null) return null;
     occupied.add(_key(splitterPos));
 
@@ -698,13 +730,13 @@ class LevelGenerator {
   }
 
   /// Find a position in a given direction from start.
-  GridPosition? _findPositionInDirection(GridPosition start, Direction dir, Random rng, int minDist, int maxDist) {
-    for (int attempts = 0; attempts < 20; attempts++) {
+  GridPosition? _findPositionInDirection(GridPosition start, Direction dir, Random rng, int minDist, int maxDist, Set<String> occupied) {
+    for (int attempts = 0; attempts < 50; attempts++) { // Increased attempts
       final dist = minDist + rng.nextInt(maxDist - minDist + 1);
       final x = start.x + dir.dx * dist;
       final y = start.y + dir.dy * dist;
       final pos = GridPosition(x, y);
-      if (pos.isValid && !pos.isOnEdge) {
+      if (pos.isValid && !pos.isOnEdge && !occupied.contains(_key(pos))) {
         return pos;
       }
     }
@@ -929,8 +961,14 @@ class LevelGenerator {
       if (!prismPlaced && step >= prismInsertStep) {
          final prismPos = GridPosition(current.x + dir.dx, current.y + dir.dy);
          
-         // Validation: Check bounds and overlap
-         if (prismPos.isValid && !path.contains(prismPos) && prismPos != target) {
+         // Validation: Check bounds, overlap, and distance from source
+         // Constraint: Prism must be at least 2 cells away from source to avoid jamming
+         // activePoints.first is always the source position
+         if (prismPos.isValid && 
+             !path.contains(prismPos) && 
+             prismPos != target &&
+             prismPos.distanceTo(activePoints.first) >= 2) {
+             
              // Place Prism
              final tryLeft = rng.nextBool();
              final splitDir = tryLeft ? dir.rotateLeft : dir.rotateRight;

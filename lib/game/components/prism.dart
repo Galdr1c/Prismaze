@@ -328,8 +328,17 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
       final startAng = angle;
       final startPos = position.clone();
       
-      _discreteOrientation = (_discreteOrientation + 1) % 4;
-      angle = _discreteOrientationToAngle(_discreteOrientation);
+      if (gameRef.beamSystem.useRayTracerMode) {
+          // 1.3 Update State (Critical for RayTracer)
+          gameRef.currentState = gameRef.currentState.rotatePrism(index);
+          // Sync visuals
+          final newOri = gameRef.currentState.prismOrientations[index];
+          angle = _discreteOrientationToAngle(newOri);
+      } else {
+          // Legacy
+          _discreteOrientation = (_discreteOrientation + 1) % 4;
+          angle = _discreteOrientationToAngle(_discreteOrientation);
+      }
       
       gameRef.recordMove(hashCode, startPos, startAng);
       

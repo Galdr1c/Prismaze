@@ -70,6 +70,10 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     gameRef.currentLevelPar = level.meta.optimalMoves;
     gameRef.parNotifier.value = level.meta.optimalMoves;
     gameRef.currentLevelMeta = level.meta;
+    
+    // ACTIVATE RAY TRACER LOGIC
+    gameRef.currentGeneratedLevel = level;
+    gameRef.beamSystem.useRayTracerMode = true;
 
     // Center 14x7 grid (85px cells) in 1280x720
     // 14 * 85 = 1190 (Offset X: 45)
@@ -100,10 +104,12 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     objectMap[idCounter++] = ls;
 
     // 2. Targets
+    int tIndex = 0;
     for (final t in level.targets) {
       final target = Target(
         position: toPixel(t.position.x, t.position.y),
         requiredColor: lds.mapColor(_mapProcColor(t.requiredColor)),
+        procIndex: tIndex++,
       );
       gameRef.world.add(target);
       objectMap[idCounter++] = target;
@@ -174,7 +180,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
       case proc.LightColor.blue: return lds.LightColor.blue;
       case proc.LightColor.yellow: return lds.LightColor.yellow;
       case proc.LightColor.purple: return lds.LightColor.magenta;
-      case proc.LightColor.orange: return lds.LightColor.red; // No orange in legacy, map to red
+      case proc.LightColor.orange: return lds.LightColor.orange;
     }
   }
 
@@ -260,6 +266,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     objectMap[idCounter++] = ls;
     
     // 2. Targets
+    int tIndex = 0;
     final targets = data['targets'] as List? ?? [];
     for (final t in targets) {
       final tPos = lds.GridPos(t['pos']['x'], t['pos']['y']);
@@ -267,6 +274,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
       final target = Target(
         position: tPixel,
         requiredColor: lds.mapColor(_parseColorString(t['color'] ?? 'white')),
+        procIndex: tIndex++,
       );
       gameRef.world.add(target);
       objectMap[idCounter++] = target;
@@ -343,6 +351,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
       case 'cyan': return lds.LightColor.cyan;
       case 'magenta': 
       case 'purple': return lds.LightColor.magenta;
+      case 'orange': return lds.LightColor.orange;
       default: return lds.LightColor.white;
     }
   }
@@ -392,18 +401,19 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
      gameRef.world.add(ls);  // FIXED: Use world.add for camera rendering
      objectMap[idCounter++] = ls;
      print("DEBUG: LightSource added to world");
-     
-     // 2. Targets
-     for(final t in def.targets) {
-         final tPixel = lds.GridConverter.gridToPixel(t.pos);
-         final target = Target(
-             position: tPixel,
-             requiredColor: lds.mapColor(t.color),
-         );
-         gameRef.world.add(target);  // FIXED
-         objectMap[idCounter++] = target;
-         print("DEBUG: Target added at $tPixel");
-     }
+          // 2. Targets
+      int tIndex = 0;
+      for(final t in def.targets) {
+          final tPixel = lds.GridConverter.gridToPixel(t.pos);
+          final target = Target(
+              position: tPixel,
+              requiredColor: lds.mapColor(t.color),
+              procIndex: tIndex++,
+          );
+          gameRef.world.add(target);  // FIXED
+          objectMap[idCounter++] = target;
+          print("DEBUG: Target added at $tPixel");
+      }
 
      // 3. Mirrors
      print("DEBUG: Spawning ${def.mirrors.length} mirrors...");

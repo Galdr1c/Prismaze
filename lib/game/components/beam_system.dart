@@ -87,11 +87,11 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   
   // === OPTIMIZATION: CACHED PAINTS ===
   // Reuse Paint objects to prevent GC churn (creating ~1000 objects per second)
-  final Paint _hazePaint = Paint()..strokeCap = StrokeCap.round; // blur updated dynamically or pre-set if const
-  final Paint _outerGlowPaint = Paint()..strokeCap = StrokeCap.round;
-  final Paint _corePaint = Paint()..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..isAntiAlias = true;
-  final Paint _innerPaint = Paint()..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..isAntiAlias = true;
-  final Paint _pulsePaint = Paint()..style = PaintingStyle.fill..color = Colors.white.withOpacity(0.6)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+  final Paint _hazePaint = Paint()..strokeCap = StrokeCap.round..blendMode = BlendMode.plus; // Additive blending
+  final Paint _outerGlowPaint = Paint()..strokeCap = StrokeCap.round..blendMode = BlendMode.plus;
+  final Paint _corePaint = Paint()..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..isAntiAlias = true..blendMode = BlendMode.plus;
+  final Paint _innerPaint = Paint()..style = PaintingStyle.stroke..strokeCap = StrokeCap.round..isAntiAlias = true..blendMode = BlendMode.plus; // Additive blending
+  final Paint _pulsePaint = Paint()..style = PaintingStyle.fill..color = Colors.white.withOpacity(0.6)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)..blendMode = BlendMode.plus;
   
   // Static MaskFilters to reuse
   static const _blur15 = MaskFilter.blur(BlurStyle.normal, 15);
@@ -617,6 +617,9 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   
   /// Render external segments from RayTracer.
   /// OPTIMIZED: Batches segments by color and reuses Paint objects.
+  /// Handles "Secondary" beams (splitter outputs) with reduced visuals.
+  /// Handles "Secondary" beams (splitter outputs) with reduced visuals.
+  /// Handles "Secondary" beams (splitter outputs) with reduced visuals.
   void _renderExternalSegments(
     Canvas canvas,
     List<RenderSegment> segments,
@@ -625,12 +628,14 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   ) {
     if (segments.isEmpty) return;
     
-    // High contrast mode: simple solid white lines
+    // High contrast mode: simple solid white lines (uniform)
     if (highContrast) {
       _corePaint
         ..color = Colors.white
         ..strokeWidth = 6
-        ..maskFilter = null;
+        ..maskFilter = null
+        ..shader = null
+        ..style = PaintingStyle.stroke;
       
       for (final seg in segments) {
         canvas.drawLine(
@@ -642,68 +647,99 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
       return;
     }
     
-    // Build batched paths by color (reduces draw calls significantly)
-    final batchedPaths = <Color, Path>{};
+    // Batches for rendering
+    final primaryPaths = <Color, Path>{};
+    final secondaryPaths = <Color, Path>{};
+    
     for (final seg in segments) {
       final safeColor = ColorBlindnessUtils.getSafeColor(seg.color);
-      batchedPaths.putIfAbsent(safeColor, () => Path())
-        ..moveTo(seg.start.x, seg.start.y)
-        ..lineTo(seg.end.x, seg.end.y);
-    }
-    
-    // === LAYER 0: Wide outer glow (Disabled in Reduced Glow) ===
-    if (!reducedGlow) {
-      _hazePaint.maskFilter = _blur15;
-      _hazePaint.strokeWidth = 40;
       
-      for (final entry in batchedPaths.entries) {
-        _hazePaint.color = entry.key.withOpacity(0.15);
-        canvas.drawPath(entry.value, _hazePaint);
+      if (seg.isSecondary) {
+          // Tier B: Short Beam Filter for Splitter Beams
+          // Filter out beams shorter than ~2 cells (2 * 85 = 170px)
+          if (reducedGlow) {
+             final dist = (seg.end - seg.start).length;
+             if (dist < 160) continue; // "işe yaramayan beam"
+          }
+          secondaryPaths.putIfAbsent(safeColor, () => Path())
+            ..moveTo(seg.start.x, seg.start.y)
+            ..lineTo(seg.end.x, seg.end.y);
+      } else {
+          primaryPaths.putIfAbsent(safeColor, () => Path())
+            ..moveTo(seg.start.x, seg.start.y)
+            ..lineTo(seg.end.x, seg.end.y);
       }
     }
     
-    // === LAYER 1: Medium glow ===
-    // Critical Optimization: Disable blur on low-end devices
-    _outerGlowPaint.maskFilter = reducedGlow ? null : const MaskFilter.blur(BlurStyle.normal, 10);
-    _outerGlowPaint.strokeWidth = reducedGlow ? 10 : 22; // Reduced width
-    
-    for (final entry in batchedPaths.entries) {
-      _outerGlowPaint.color = entry.key.withOpacity(reducedGlow ? 0.6 : 0.35); // Higher opacity if no blur
-      canvas.drawPath(entry.value, _outerGlowPaint);
+    // =========================================================
+    // RENDER: Helper Function
+    // =========================================================
+    void renderBatch(Map<Color, Path> paths, {required bool isSecondary}) {
+        for (final entry in paths.entries) {
+            final color = entry.key;
+            final path = entry.value;
+
+            if (reducedGlow) {
+                // === TIER B: 1-Pass (Core Only) ===
+                
+                double width = isSecondary ? 3.5 : 4.5;
+                double opacity = isSecondary ? 0.6 : 0.85; 
+
+                _corePaint
+                  ..color = color.withOpacity(opacity)
+                  ..strokeWidth = width
+                  ..strokeCap = StrokeCap.butt // Tier B spec
+                  ..maskFilter = null
+                  ..shader = null
+                  ..style = PaintingStyle.stroke;
+                
+                canvas.drawPath(path, _corePaint);
+                
+            } else {
+                // === TIER A: 3-Pass (Outer, Inner, Core) ===
+                
+                // 1. Outer Glow
+                double outerWidth = isSecondary ? 10.0 : 20.0;
+                double outerOp = isSecondary ? 0.11 : 0.22;
+                
+                _outerGlowPaint // Assumes BlendMode.plus is set or reused
+                  ..color = color.withOpacity(outerOp)
+                  ..strokeWidth = outerWidth
+                  ..strokeCap = StrokeCap.round
+                  ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9)
+                  ..style = PaintingStyle.stroke;
+                
+                canvas.drawPath(path, _outerGlowPaint);
+
+                // 2. Inner Beam
+                double innerWidth = isSecondary ? 6.0 : 11.0;
+                double innerOp = isSecondary ? 0.25 : 0.55;
+
+                _corePaint
+                  ..color = color.withOpacity(innerOp)
+                  ..strokeWidth = innerWidth
+                  ..strokeCap = StrokeCap.round
+                  ..maskFilter = null
+                  ..style = PaintingStyle.stroke;
+                
+                canvas.drawPath(path, _corePaint);
+
+                // 3. Core Beam
+                double coreWidth = isSecondary ? 3.0 : 5.5;
+                double coreOp = isSecondary ? 0.9 : 1.0;
+
+                _corePaint
+                  ..color = color.withOpacity(coreOp)
+                  ..strokeWidth = coreWidth
+                  ..strokeCap = StrokeCap.round; // Reset cap
+                
+                canvas.drawPath(path, _corePaint);
+            }
+        }
     }
-    
-    // === LAYER 2: Solid core beam ===
-    _corePaint.maskFilter = null;
-    _corePaint.strokeWidth = reducedGlow ? 8 : 10;
-    
-    for (final entry in batchedPaths.entries) {
-      _corePaint.color = entry.key.withOpacity(0.95);
-      canvas.drawPath(entry.value, _corePaint);
-    }
-    
-    // === LAYER 3: White hot inner core ===
-    _innerPaint.color = Colors.white.withOpacity(0.95);
-    _innerPaint.strokeWidth = reducedGlow ? 3 : 4;
-    _innerPaint.maskFilter = null;
-    
-    for (final path in batchedPaths.values) {
-      canvas.drawPath(path, _innerPaint);
-    }
-    
-    // === LAYER 4: Energy pulse (skip in reduced glow mode) ===
-    if (!reducedGlow) {
-      final pulsePhase = (_time * 1.2) % 1.0;
-      for (final seg in segments) {
-        final dx = seg.end.x - seg.start.x;
-        final dy = seg.end.y - seg.start.y;
-        final beamLength = (dx * dx + dy * dy);
-        if (beamLength < 400) continue; // Skip short segments (20*20 = 400)
-        
-        final pulseX = seg.start.x + dx * pulsePhase;
-        final pulseY = seg.start.y + dy * pulsePhase;
-        canvas.drawCircle(Offset(pulseX, pulseY), 8, _pulsePaint);
-      }
-    }
+
+    renderBatch(primaryPaths, isSecondary: false);
+    renderBatch(secondaryPaths, isSecondary: true);
   }
   
   /// Render legacy beam segments.
