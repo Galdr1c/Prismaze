@@ -88,7 +88,6 @@ void main() {
       final solvedState = GameState(
         mirrorOrientations: Uint8List.fromList([0]), // horizontal - lets ray pass
         prismOrientations: Uint8List(0),
-        targetCollected: Uint8List.fromList([8]), // White collected for white target
       );
 
       final hint = hintEngine.getHint(testLevel, solvedState, HintType.light);

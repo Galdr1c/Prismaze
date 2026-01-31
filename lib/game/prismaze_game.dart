@@ -174,8 +174,7 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
                 final level = currentGeneratedLevel!;
                 final trace = _procTracer.trace(level, currentState);
 
-                // progress biriksin:
-                currentState = currentState.withTargetProgress(level.targets, trace.arrivalMasks);
+                // No cumulative state - win is checked instantaneously per-frame
 
                 // ışınları çiz:
                 final segs = _procAdapter.convertToPixelSegments(trace);
@@ -195,13 +194,18 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           // Win Condition Check
           bool won = false;
           if (currentGeneratedLevel != null) {
-              // Stateful Procedural Win
-              won = currentState.allTargetsSatisfied(currentGeneratedLevel!.targets);
+              // Simultaneous Arrival Win Check
+              // Use RayTracer to check if all targets are satisfied RIGHT NOW
+              // (not accumulated over time)
+              final trace = _procTracer.trace(currentGeneratedLevel!, currentState);
+              won = trace.allTargetsSatisfied;
           } else {
               // Legacy Simultaneous Win
               final targets = world.children.query<Target>();
+              // Ensure all targets are lit AND have received light this frame
               final allLit = targets.isNotEmpty && targets.every((t) => t.isLit);
-              final allHaveColor = targets.every((t) => t.accumulatedColor != const Color(0xFF000000));
+              // Use collectedMask != 0 instead of removed accumulatedColor
+              final allHaveColor = targets.every((t) => t.collectedMask != 0);
               won = allLit && allHaveColor;
           }
           
@@ -968,14 +972,18 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
       
       super.onDispose();
   }
-  /// Synchronize target visuals (color progress) with the procedural GameState
-  /// Synchronize target visuals (color progress) with the procedural GameState
-  /// Synchronize target visuals (color progress) with the procedural GameState
+  /// Synchronize target visuals (color progress) with instantaneous trace result
   void _applyProceduralTargets() {
+    if (currentGeneratedLevel == null) return;
+    
+    final trace = _procTracer.trace(currentGeneratedLevel!, currentState);
     final targets = world.children.whereType<Target>();
+    
     for (final target in targets) {
       if (target.procIndex != null) {
-         final mask = currentState.getTargetCollected(target.procIndex!);
+         // Use instantaneous arrival mask from trace result
+         final arriving = trace.targetArrivals[target.procIndex!] ?? {};
+         final mask = proc.ColorMask.fromColors(arriving);
          target.applyProceduralMask(mask);
       }
     }

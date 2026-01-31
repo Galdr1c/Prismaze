@@ -199,7 +199,6 @@ class HintManager extends Component with HasGameRef<PrismazeGame> {
       return proc.GameState(
         mirrorOrientations: Uint8List.fromList(mirrorOrientations),
         prismOrientations: Uint8List.fromList(prismOrientations),
-        targetCollected: Uint8List(level.targets.length), // Hints start from fresh collection state
       );
     } catch (e) {
       debugPrint("Error getting current game state: $e");

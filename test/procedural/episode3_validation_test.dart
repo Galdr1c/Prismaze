@@ -27,7 +27,6 @@ void main() {
         // Validate the solution works
         var state = GameState.fromLevel(level);
         final tracer = RayTracer();
-        state = tracer.traceAndUpdateProgress(level, state);
         
         for (final move in level.solution) {
           if (move.type == MoveType.rotateMirror) {
@@ -35,10 +34,11 @@ void main() {
           } else {
             state = state.rotatePrism(move.objectIndex);
           }
-          state = tracer.traceAndUpdateProgress(level, state);
         }
         
-        print('Solution valid: ${state.allTargetsSatisfied(level.targets)}');
+        // Use instantaneous check (simultaneous arrival)
+        final isSolved = tracer.isSolved(level, state);
+        print('Solution valid: $isSolved');
         expect(stopwatch.elapsedMilliseconds, lessThan(500));
       } else {
         print('Generation FAILED in ${stopwatch.elapsedMilliseconds}ms');

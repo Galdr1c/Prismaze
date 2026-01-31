@@ -99,6 +99,22 @@ extension LightColorExtension on LightColor {
     }
   }
 
+  /// Convert Flutter Color to LightColor based on approximate values
+  static LightColor fromFlutterColor(Color c) {
+    // Exact matches first (from LightColorExtension.renderColor)
+    if (c.red > 200 && c.green > 200 && c.blue > 200) return LightColor.white;
+    if (c.red > 200 && c.green < 100 && c.blue < 100) return LightColor.red;
+    if (c.blue > 200 && c.red < 150 && c.green < 200) return LightColor.blue;
+    if (c.red > 200 && c.green > 200 && c.blue < 100) return LightColor.yellow;
+    
+    // Mixed Colors
+    if (c.red > 150 && c.blue > 150 && c.green < 150) return LightColor.purple;
+    if (c.red > 200 && c.green > 100 && c.green < 200 && c.blue < 100) return LightColor.orange;
+    if (c.green > 200 && c.red < 150 && c.blue < 150) return LightColor.green;
+    
+    return LightColor.white; // Fallback
+  }
+
   /// Bitmask for this color's base components.
   /// R=1 (bit 0), B=2 (bit 1), Y=4 (bit 2)
   int get componentMask {
@@ -143,7 +159,8 @@ class ColorMask {
     for (final color in colors) {
       if (color == LightColor.white) {
         mask |= white;
-      } else if (color.isBase) {
+      } else {
+        // Use componentMask directly (handles both base and mixed colors)
         mask |= color.componentMask;
       }
     }
@@ -181,8 +198,8 @@ class ColorMixer {
   /// - Three or more bases → invalid (target not satisfied)
   /// - White arriving is tracked separately
   static LightColor? mixBases(Set<LightColor> bases) {
-    // Filter to only base colors
-    final baseColors = bases.where((c) => c.isBase).toSet();
+    // Expand mixed colors into their components
+    final baseColors = bases.expand((c) => c.baseComponents).toSet();
 
     if (baseColors.isEmpty) {
       // Check if white was passed through
@@ -232,8 +249,10 @@ class ColorMixer {
 
     // For base and mixed colors, check base components
     final requiredBases = required.baseComponents;
-    final arrivingBases = arrivingColors.where((c) => c.isBase).toSet();
-
+    
+    // Expand arriving mixed colors (e.g. Purple -> Red, Blue)
+    final arrivingBases = arrivingColors.expand((c) => c.baseComponents).toSet();
+    
     // Must have exactly the required bases
     return arrivingBases.length == requiredBases.length &&
         arrivingBases.containsAll(requiredBases);

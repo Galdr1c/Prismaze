@@ -103,6 +103,7 @@ class BlueprintPoint {
   final Direction incomingDir;
   final Direction outgoingDir;
   final int solvedOrientation; // 0-3
+  final bool rotatable;
 
   const BlueprintPoint({
     required this.position,
@@ -110,6 +111,7 @@ class BlueprintPoint {
     required this.incomingDir,
     required this.outgoingDir,
     required this.solvedOrientation,
+    this.rotatable = true, // Default to true for existing usage
   });
 }
 
@@ -179,7 +181,7 @@ class LevelGenerator {
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
     // Constraint: Block cell in front of source
-    final front = source.position.moved(source.direction);
+    final front = source.position.step(source.direction);
     if (front.isValid) occupied.add(_key(front));
 
     final targets = _placeTargetsSimple(rng, 1, occupied, source.position);
@@ -299,7 +301,7 @@ class LevelGenerator {
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
     // Constraint: Block cell in front of source
-    final front = source.position.moved(source.direction);
+    final front = source.position.step(source.direction);
     if (front.isValid) occupied.add(_key(front));
 
     // 2. Select Targets & Assign Colors
@@ -328,7 +330,7 @@ class LevelGenerator {
     // Force prism if we have mixed targets OR if config requires it
     bool forcePrism = hasMixedTarget || config.minCriticalPrisms > 0;
     
-    final path = _drawSolutionPath(source, targets.map((t) => t.position).toList(), rng, criticalPoints, directions, forcePrismStart: forcePrism);
+    final path = _drawSolutionPath(source, targets.map((t) => t.position).toList(), rng, criticalPoints, directions, forcePrismStart: forcePrism, config: config);
     
     // 4. Place Objects on Path
     final mirrors = <Mirror>[];
@@ -382,9 +384,8 @@ class LevelGenerator {
     }
   }
 
-  /// Simulation validation for the proper blueprint.
   bool _validateProperBlueprint(GeneratedLevel level, List<PlannedMove> plannedMoves) {
-    return _validatePlannedSolution(level, plannedMoves);
+    return validatePlannedSolutionStatic(level, plannedMoves, _rayTracer);
   }
 
   /// Optimized wall placement that avoids the protected solution corridor.
@@ -420,7 +421,7 @@ class LevelGenerator {
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
     // Constraint: Block cell in front of source
-    final front = source.position.moved(source.direction);
+    final front = source.position.step(source.direction);
     if (front.isValid) occupied.add(_key(front));
 
     // 2. Place purple target
@@ -515,7 +516,7 @@ class LevelGenerator {
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
     // Constraint: Block cell in front of source
-    final front = source.position.moved(source.direction);
+    final front = source.position.step(source.direction);
     if (front.isValid) occupied.add(_key(front));
 
     // 2. Place splitter prism in front of source
@@ -610,7 +611,7 @@ class LevelGenerator {
     final source = _placeSource(rng, occupied);
     occupied.add(_key(source.position));
     // Constraint: Block cell in front of source
-    final front = source.position.moved(source.direction);
+    final front = source.position.step(source.direction);
     if (front.isValid) occupied.add(_key(front));
 
     // 2. Place splitter prism in front of source
@@ -743,10 +744,7 @@ class LevelGenerator {
     return null;
   }
 
-  /// Validate planned solution by simulation.
-  bool _validatePlannedSolution(GeneratedLevel level, List<PlannedMove> plannedMoves) {
-    return validatePlannedSolutionStatic(level, plannedMoves, _rayTracer);
-  }
+
   
   /// Public static method for external validation of planned solution.
   /// 
@@ -760,9 +758,6 @@ class LevelGenerator {
     final rayTracer = tracer ?? RayTracer();
     var state = GameState.fromLevel(level);
 
-    // Initial trace
-    state = rayTracer.traceAndUpdateProgress(level, state);
-
     // Apply each planned move
     for (final pm in plannedMoves) {
       for (int i = 0; i < pm.taps; i++) {
@@ -771,13 +766,11 @@ class LevelGenerator {
         } else {
           state = state.rotatePrism(pm.objectIndex);
         }
-        // Trace and update after each rotation
-        state = rayTracer.traceAndUpdateProgress(level, state);
       }
     }
 
-    // Check if solved
-    return state.allTargetsSatisfied(level.targets);
+    // Check if solved using instantaneous check
+    return rayTracer.isSolved(level, state);
   }
   
   /// Public method to validate a GeneratedLevel via its stored solution.
@@ -907,6 +900,7 @@ class LevelGenerator {
     List<BlueprintPoint> criticalPoints,
     Map<GridPosition, List<Direction>> directions, {
     bool forcePrismStart = false,
+    required EpisodeConfig config, // Added config parameter
   }) {
     final path = <GridPosition>{source.position};
     final List<GridPosition> activePoints = [source.position];
@@ -925,7 +919,7 @@ class LevelGenerator {
         // OR if we are forced to start with a prism (for mixing) and this is the first target
         bool forcePrism = (!usedPrism && i > 0) || (forcePrismStart && i == 0 && !usedPrism);
 
-        _connectToTarget(branchFrom, pointOutDir[branchFrom]!, targetPos, path, directions, criticalPoints, rng, activePoints, pointOutDir, forcePrism: forcePrism);
+        _connectToTarget(branchFrom, pointOutDir[branchFrom]!, targetPos, path, directions, criticalPoints, rng, activePoints, pointOutDir, forcePrism: forcePrism, config: config);
         
         if (forcePrism) usedPrism = true;
     }
@@ -943,7 +937,7 @@ class LevelGenerator {
     Random rng,
     List<GridPosition> activePoints,
     Map<GridPosition, Direction> pointOutDir,
-    {bool forcePrism = false}
+    {bool forcePrism = false, required EpisodeConfig config} // Added config parameter
   ) {
     var current = start;
     var dir = startDir;
@@ -979,6 +973,7 @@ class LevelGenerator {
                 incomingDir: dir,
                 outgoingDir: splitDir,
                 solvedOrientation: 0,
+                rotatable: true, // Prisms are always rotatable
             ));
             
             // Update Path
@@ -1015,12 +1010,15 @@ class LevelGenerator {
         for (final newDir in turnOpts) {
             final turnNext = GridPosition(current.x + newDir.dx, current.y + newDir.dy);
             if (turnNext.isValid && !path.contains(turnNext)) {
+                // Determine if mirror should be rotatable (locked)
+                final rotatable = rng.nextDouble() >= config.lockedMirrorProbability;
                 criticalPoints.add(BlueprintPoint(
                   position: current,
                   type: OccupantType.mirror,
                   incomingDir: dir,
                   outgoingDir: newDir,
                   solvedOrientation: _calculateMirrorOrientation(dir, newDir),
+                  rotatable: rotatable,
                 ));
                 dir = newDir;
                 foundTurn = true;
@@ -1059,14 +1057,18 @@ class LevelGenerator {
          // Check if turn is valid (not blocked)
          final checkNext = GridPosition(next.x + newDir.dx, next.y + newDir.dy);
          if (checkNext.isValid && !path.contains(checkNext)) {
-            criticalPoints.add(BlueprintPoint(
-              position: next,
-              type: OccupantType.mirror,
-              incomingDir: dir,
-              outgoingDir: newDir,
-              solvedOrientation: _calculateMirrorOrientation(dir, newDir),
-            ));
-            dir = newDir;
+             // Determine if mirror should be rotatable (locked)
+             final rotatable = rng.nextDouble() >= config.lockedMirrorProbability;
+             
+             criticalPoints.add(BlueprintPoint(
+               position: next,
+               type: OccupantType.mirror,
+               incomingDir: dir,
+               outgoingDir: newDir,
+               solvedOrientation: _calculateMirrorOrientation(dir, newDir),
+               rotatable: rotatable,
+             ));
+             dir = newDir;
          }
       }
       
@@ -1098,16 +1100,20 @@ class LevelGenerator {
     List<Prism> prisms,
     Set<String> occupied,
   ) {
+    final mirrorsToAdd = <Mirror>[];
+    for (final p in criticalPoints.where((p) => p.type == OccupantType.mirror)) {
+      mirrorsToAdd.add(Mirror(
+        position: p.position,
+        orientation: MirrorOrientationExtension.fromInt(p.solvedOrientation),
+        rotatable: p.rotatable,
+      ));
+    }
+    mirrors.addAll(mirrorsToAdd);
+
     for (final cp in criticalPoints) {
       if (occupied.contains(_key(cp.position))) continue;
       
-      if (cp.type == OccupantType.mirror) {
-        mirrors.add(Mirror(
-          position: cp.position,
-          orientation: MirrorOrientationExtension.fromInt(cp.solvedOrientation),
-          rotatable: true,
-        ));
-      } else if (cp.type == OccupantType.prism) {
+      if (cp.type == OccupantType.prism) {
         prisms.add(Prism(
           position: cp.position,
           orientation: cp.solvedOrientation,
@@ -1139,10 +1145,16 @@ class LevelGenerator {
 
     // SCRAMBLE MIRRORS
     for (int i = 0; i < solvedMirrors.length; i++) {
+      final mirror = solvedMirrors[i];
+      if (!mirror.rotatable) {
+        scrambledMirrors.add(mirror);
+        continue;
+      }
+
       final taps = 1 + rng.nextInt(3); // 1-3 taps to scramble
-      final initialOri = (solvedMirrors[i].orientation.index - taps + 4) % 4;
+      final initialOri = (mirror.orientation.index - taps + 4) % 4;
       
-      scrambledMirrors.add(solvedMirrors[i].copyWith(
+      scrambledMirrors.add(mirror.copyWith(
         orientation: MirrorOrientationExtension.fromInt(initialOri),
       ));
       
@@ -1152,14 +1164,20 @@ class LevelGenerator {
 
     // SCRAMBLE PRISMS
     for (int i = 0; i < solvedPrisms.length; i++) {
+        final prism = solvedPrisms[i];
+        if (!prism.rotatable) {
+            scrambledPrisms.add(prism);
+            continue;
+        }
+
         final taps = 1 + rng.nextInt(3);
-        final initialOri = (solvedPrisms[i].orientation - taps + 4) % 4;
+        final initialOri = (prism.orientation - taps + 4) % 4;
         
         scrambledPrisms.add(Prism(
-            position: solvedPrisms[i].position,
+            position: prism.position,
             orientation: initialOri,
-            rotatable: solvedPrisms[i].rotatable,
-            type: solvedPrisms[i].type,
+            rotatable: prism.rotatable,
+            type: prism.type,
         ));
         
         plannedMoves.add(PlannedMove(type: MoveType.rotatePrism, objectIndex: i, taps: taps));

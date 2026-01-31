@@ -32,6 +32,7 @@ class EpisodeConfig {
   final int minMixedTargets;
   final int maxMixedTargets;
   final double mixedTargetProbability; // Chance any target is mixed color
+  final double lockedMirrorProbability; // Chance a mirror is non-rotatable (E3+)
 
   // Walls
   final int minWalls;
@@ -74,6 +75,7 @@ class EpisodeConfig {
     required this.validationBudget,
     required this.rejectTrivials,
     required this.maxTrivialRate,
+    this.lockedMirrorProbability = 0.0,
   });
 
   /// Total mirror count range
@@ -125,6 +127,7 @@ class EpisodeConfig {
           validationBudget: 5000,
           rejectTrivials: false,
           maxTrivialRate: 1.0,
+          lockedMirrorProbability: 0.0,
         );
 
       case 2:
@@ -161,6 +164,7 @@ class EpisodeConfig {
           validationBudget: 10000,
           rejectTrivials: true,
           maxTrivialRate: 0.2,
+          lockedMirrorProbability: 0.0,
         );
 
       case 3:
@@ -198,6 +202,7 @@ class EpisodeConfig {
           validationBudget: 100000,
           rejectTrivials: true,
           maxTrivialRate: 0.005, // Max 0.5% trivials
+          lockedMirrorProbability: 0.1, // 10% chance for locked mirrors
         );
 
       case 4:
@@ -234,6 +239,7 @@ class EpisodeConfig {
           validationBudget: 150000,
           rejectTrivials: true,
           maxTrivialRate: 0.005,
+          lockedMirrorProbability: 0.15,
         );
 
       case 5:
@@ -271,6 +277,7 @@ class EpisodeConfig {
           validationBudget: 250000,
           rejectTrivials: true,
           maxTrivialRate: 0.005,
+          lockedMirrorProbability: 0.2,
         );
     }
   }
@@ -337,6 +344,7 @@ class EpisodeConfig {
       validationBudget: validationBudget * 2, // Double budget for retry
       rejectTrivials: rejectTrivials,
       maxTrivialRate: maxTrivialRate,
+      lockedMirrorProbability: lockedMirrorProbability * 0.5,
     );
   }
 }

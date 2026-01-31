@@ -75,9 +75,7 @@ class TraceResult {
   /// Used for target satisfaction checking.
   final Map<int, Set<LightColor>> targetArrivals;
 
-  /// Per-target arrival masks (bitmask of color components).
-  /// Used for stateful color mixing.
-  final Map<int, int> arrivalMasks;
+
 
   /// Whether all targets are satisfied (instant check, not stateful).
   final bool allTargetsSatisfied;
@@ -91,7 +89,6 @@ class TraceResult {
   const TraceResult({
     required this.segments,
     required this.targetArrivals,
-    required this.arrivalMasks,
     required this.allTargetsSatisfied,
     required this.rayCount,
     required this.stepCount,
@@ -308,16 +305,11 @@ class RayTracer {
     // Check target satisfaction (instant, not stateful)
     final allSatisfied = _checkAllTargets(level, targetArrivals);
 
-    // Compute arrival masks from arrival colors
-    final arrivalMasks = <int, int>{};
-    for (final entry in targetArrivals.entries) {
-      arrivalMasks[entry.key] = ColorMask.fromColors(entry.value);
-    }
+
 
     return TraceResult(
       segments: segments,
       targetArrivals: targetArrivals,
-      arrivalMasks: arrivalMasks,
       allTargetsSatisfied: allSatisfied,
       rayCount: totalRays,
       stepCount: totalSteps,
@@ -349,24 +341,11 @@ class RayTracer {
   }
 
   /// Quick check if a level is solved with the given state (instant check).
+  /// 
+  /// This is the PRIMARY win condition check. All required colors must
+  /// arrive at the target SIMULTANEOUSLY in the same frame.
   bool isSolved(GeneratedLevel level, GameState state) {
     return trace(level, state).allTargetsSatisfied;
-  }
-
-  /// Check if level is solved using stateful progress in GameState.
-  /// This is the proper check for games with color accumulation.
-  bool isSolvedStateful(GeneratedLevel level, GameState state) {
-    return state.allTargetsSatisfied(level.targets);
-  }
-
-  /// Trace and update state with new arrivals (stateful mixing).
-  /// Returns the new state with updated targetCollected.
-  GameState traceAndUpdateProgress(
-    GeneratedLevel level,
-    GameState state,
-  ) {
-    final result = trace(level, state);
-    return state.withTargetProgress(level.targets, result.arrivalMasks);
   }
 }
 

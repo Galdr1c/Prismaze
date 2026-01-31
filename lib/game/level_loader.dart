@@ -236,7 +236,6 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     gameRef.currentState = proc.GameState(
         mirrorOrientations: mirrorO,
         prismOrientations: prismO,
-        targetCollected: Uint8List(targetList.length),
     );
     
     // Setup Par
@@ -373,7 +372,6 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
      gameRef.currentState = proc.GameState(
         mirrorOrientations: mirrorO,
         prismOrientations: Uint8List(0),
-        targetCollected: Uint8List(def.targets.length),
      );
      
      
