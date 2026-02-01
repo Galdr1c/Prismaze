@@ -22,12 +22,14 @@ class LevelMeta {
   final DifficultyBand difficultyBand;
   final int generationAttempts;
   final Duration solveTime;
+  final String? templateId;
 
   const LevelMeta({
     required this.optimalMoves,
     required this.difficultyBand,
     this.generationAttempts = 1,
     this.solveTime = Duration.zero,
+    this.templateId,
   });
 
   /// Star thresholds based on optimal moves.
@@ -47,6 +49,7 @@ class LevelMeta {
         'difficultyBand': difficultyBand.name,
         'generationAttempts': generationAttempts,
         'solveTimeMs': solveTime.inMilliseconds,
+        'templateId': templateId,
         'starThresholds': {
           '3_star': threeStarMax,
           '2_star': twoStarMax,
@@ -62,6 +65,7 @@ class LevelMeta {
       generationAttempts: json['generationAttempts'] as int? ?? 1,
       solveTime:
           Duration(milliseconds: json['solveTimeMs'] as int? ?? 0),
+      templateId: json['templateId'] as String?,
     );
   }
 }

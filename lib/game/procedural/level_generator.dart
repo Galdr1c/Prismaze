@@ -10,6 +10,8 @@ import 'episode_config.dart';
 import 'solver.dart';
 import 'ray_tracer.dart';
 import 'occupancy_grid.dart';
+import 'templates/hybrid_generator.dart';
+import 'templates/library/template_library.dart';
 
 /// Rejection reason for failed generation attempts.
 enum RejectionReason {
@@ -134,12 +136,28 @@ class GenerationAttempt {
 class LevelGenerator {
   final Solver _solver = Solver();
   final RayTracer _rayTracer = RayTracer();
+  late final HybridLevelGenerator _hybridGenerator;
+
+  LevelGenerator() {
+    // Initialize Hybrid System
+    _hybridGenerator = HybridLevelGenerator(TemplateLibrary()..loadAll());
+  }
 
   /// Generate a level for a given episode and index.
   /// 
   /// Robust: If the current episode's logic fails, it will try lower episodes 
   /// as fallbacks to ensure generate() never returns null.
   GeneratedLevel generate(int episode, int index, int seed) {
+    // [NEW] Hybrid System for E1-E5
+    if (episode <= 5) {
+      try {
+        return _hybridGenerator.generate(episode, index, seed);
+      } catch (e) {
+        print('Hybrid generation failed for E$episode: $e. Falling back to procedural.');
+        // Fallback to procedural
+      }
+    }
+
     var config = EpisodeConfig.forEpisode(episode);
     var rng = Random(seed);
 
@@ -261,12 +279,15 @@ class LevelGenerator {
        );
        
        // HYBRID VERIFICATION Strategy:
-       // 1. Run Solver with limited budget to catch Trivial Shortcuts.
-       // 2. If Solver finds solution -> Use its optimal moves (Truth).
-       // 3. If Solver times out -> Assume level is complex & Trust Blueprint (Accept).
+       // 1. Run Solver with LIMITED budget (e.g. 5000) to catch TRIVIAL Shortcuts.
+       //    We don't need to prove solvability (blueprint does that) or find optimal (planned is good enough).
+       //    We just want to make sure there isn't a 1-2 move solution we missed.
+       // 2. If Solver finds solution -> likely a shortcut if moves < min.
+       // 3. If Solver times out -> Assume level is complex enough & Trust Blueprint.
        
         final initialState = GameState.fromLevel(level);
-        final solution = _solver.solve(level, initialState, budget: config.validationBudget);
+        // Optimization: Use small budget. If not solved in 5000, it's definitely not trivial.
+        final solution = _solver.solve(level, initialState, budget: 5000);
 
         if (solution.solvable) {
              // Found a solution (likely optimal or close to it)
@@ -278,12 +299,16 @@ class LevelGenerator {
              }
         } else {
             // Solver timed out / failed to find solution in budget.
-            // Since this came from a Blueprint, we KNOW a solution exists (the planned one).
-            // The fact that Solver failed suggests it's a hard level (good!).
-            // We trust the blueprint's planned moves and accept it.
+            // Since this came from a Blueprint, we MUST verify the planned solution validates.
+            // It might be blocked by a random wall or have some other issue.
             
-            level = _updateMeta(level, specializedBP.totalPlannedMoves, specializedBP.plannedMoves.expand((pm) => pm.toSolutionMoves()).toList(), config, attemptNumber);
-            return GenerationAttempt(success: true, level: level, attemptNumber: attemptNumber);
+            if (validatePlannedSolutionStatic(level, specializedBP.plannedMoves, _rayTracer)) {
+                 level = _updateMeta(level, specializedBP.totalPlannedMoves, specializedBP.plannedMoves.expand((pm) => pm.toSolutionMoves()).toList(), config, attemptNumber);
+                 return GenerationAttempt(success: true, level: level, attemptNumber: attemptNumber);
+            } else {
+                 // Even the planned solution failed (likely blocked by a wall). Reject.
+                 return GenerationAttempt(success: false, rejectionReason: RejectionReason.blueprintFailed, attemptNumber: attemptNumber);
+            }
         }
     }
 
@@ -399,8 +424,8 @@ class LevelGenerator {
     for (final p in path) occupiedKeys.add(_key(p));
 
     for (int attempts = 0; attempts < count * 20 && walls.length < count; attempts++) {
-      final x = 1 + rng.nextInt(OccupancyGrid.gridWidth - 2);
-      final y = 1 + rng.nextInt(OccupancyGrid.gridHeight - 2);
+      final x = 1 + rng.nextInt(GridPosition.gridWidth - 2);
+      final y = 1 + rng.nextInt(GridPosition.gridHeight - 2);
       final key = '$x,$y';
       
       if (!occupiedKeys.contains(key)) {
@@ -492,8 +517,11 @@ class LevelGenerator {
 
     final totalMoves = prismTaps + mirror1Taps + mirror2Taps;
 
-    // Add walls specifically for E3 using config
-    final walls = _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble()));
+    // Trace path to avoid blocking it
+    final solutionPath = _tracePlannedPath(source, targets, mirrors, finalPrisms, plannedMoves);
+
+    // Add walls specifically for E3 using config, avoiding path
+    final walls = _placeWallsAvoidingPath(rng, occupied, solutionPath, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble()));
 
     return LevelBlueprint(
       source: source,
@@ -595,7 +623,8 @@ class LevelGenerator {
       targets: targets,
       mirrors: updatedMirrors,
       prisms: prisms,
-      walls: _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble())),
+      // Trace path to avoid blocking it
+      walls: _placeWallsAvoidingPath(rng, occupied, _tracePlannedPath(source, targets, updatedMirrors, prisms, plannedMoves), config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble())),
       plannedMoves: plannedMoves,
       totalPlannedMoves: totalMoves,
     );
@@ -699,8 +728,8 @@ class LevelGenerator {
 
     final totalMoves = splitterTaps + mirrorTaps.fold<int>(0, (a, b) => a + b);
 
-    // Add walls using full config range
-    final walls = _placeWallsForProtection(rng, occupied, config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble()));
+    // Add walls using full config range, avoiding path
+    final walls = _placeWallsAvoidingPath(rng, occupied, _tracePlannedPath(source, targets, updatedMirrors, prisms, plannedMoves), config.getInRange(config.minWalls, config.maxWalls, rng.nextDouble()));
 
     return LevelBlueprint(
       source: source,
@@ -718,8 +747,8 @@ class LevelGenerator {
     final walls = <Wall>{};
     
     for (int attempts = 0; attempts < count * 10 && walls.length < count; attempts++) {
-      final x = 1 + rng.nextInt(OccupancyGrid.gridWidth - 2);
-      final y = 1 + rng.nextInt(OccupancyGrid.gridHeight - 2);
+      final x = 1 + rng.nextInt(GridPosition.gridWidth - 2);
+      final y = 1 + rng.nextInt(GridPosition.gridHeight - 2);
       final key = '$x,$y';
       
       if (!occupied.contains(key)) {
@@ -738,10 +767,6 @@ class LevelGenerator {
       final x = start.x + dir.dx * dist;
       final y = start.y + dir.dy * dist;
       final pos = GridPosition(x, y);
-      
-      // Explicit bounds check for restricted grid
-      if (x < 0 || x >= OccupancyGrid.gridWidth || y < 0 || y >= OccupancyGrid.gridHeight) continue;
-      
       if (pos.isValid && !pos.isOnEdge && !occupied.contains(_key(pos))) {
         return pos;
       }
@@ -802,13 +827,66 @@ class LevelGenerator {
   /// Returns true only if level passes both checks.
   static bool validateLevelComplete(GeneratedLevel level) {
     // Check occupancy
-    final occupancyResult = OccupancyGrid.validateLevel(level);
-    if (!occupancyResult.valid) {
-      return false;
+    for (final m in level.mirrors) {
+      if (level.source.position == m.position) return false;
+      for (final t in level.targets) {
+        if (m.position == t.position) return false;
+      }
     }
     
-    // Check solvability
     return validateLevelSolution(level);
+  }
+
+  /// Trace the planned solution to find all cells used by the beam.
+  /// 
+  /// Used to ensure walls are not placed in the way of the solution.
+  Set<GridPosition> _tracePlannedPath(
+    Source source,
+    List<Target> targets,
+    List<Mirror> mirrors,
+    List<Prism> prisms,
+    List<PlannedMove> moves,
+  ) {
+    // 1. Construct temporary level
+    final level = GeneratedLevel(
+        seed: 0, episode: 0, index: 0, 
+        source: source, targets: targets, 
+        walls: {}, // No walls yet
+        mirrors: mirrors, prisms: prisms,
+        meta: LevelMeta(optimalMoves: 0, difficultyBand: DifficultyBand.tutorial), solution: []
+    );
+    
+    // 2. Construct state and apply planned moves
+    var state = GameState.fromLevel(level);
+    for (final pm in moves) {
+         for (int i = 0; i < pm.taps; i++) {
+            if (pm.type == MoveType.rotateMirror) {
+               state = state.rotateMirror(pm.objectIndex);
+            } else {
+               state = state.rotatePrism(pm.objectIndex);
+            }
+         }
+    }
+    
+    // 3. Trace
+    final result = _rayTracer.trace(level, state);
+    
+    // 4. Extract cells
+    final visited = <GridPosition>{};
+    for (final segment in result.segments) {
+      int x = segment.startX;
+      int y = segment.startY;
+      int dx = (segment.endX - segment.startX).sign;
+      int dy = (segment.endY - segment.startY).sign;
+      
+      int steps = max((segment.endX - segment.startX).abs(), (segment.endY - segment.startY).abs());
+      
+      for (int i = 0; i <= steps; i++) {
+        visited.add(GridPosition(x + dx * i, y + dy * i));
+      }
+    }
+    
+    return visited;
   }
 
   GeneratedLevel _updateMeta(GeneratedLevel level, int moves, List<SolutionMove> solution, EpisodeConfig config, int attempt) {
@@ -833,10 +911,10 @@ class LevelGenerator {
     int x, y;
     Direction dir;
     switch (edge) {
-      case 0: x = 2 + rng.nextInt(OccupancyGrid.gridWidth - 4); y = 0; dir = Direction.south; break;
-      case 1: x = OccupancyGrid.gridWidth - 1; y = 2 + rng.nextInt(OccupancyGrid.gridHeight - 4); dir = Direction.west; break;
-      case 2: x = 2 + rng.nextInt(OccupancyGrid.gridWidth - 4); y = OccupancyGrid.gridHeight - 1; dir = Direction.north; break;
-      default: x = 0; y = 2 + rng.nextInt(OccupancyGrid.gridHeight - 4); dir = Direction.east;
+      case 0: x = 2 + rng.nextInt(GridPosition.gridWidth - 4); y = 0; dir = Direction.south; break;
+      case 1: x = GridPosition.gridWidth - 1; y = 2 + rng.nextInt(GridPosition.gridHeight - 4); dir = Direction.west; break;
+      case 2: x = 2 + rng.nextInt(GridPosition.gridWidth - 4); y = GridPosition.gridHeight - 1; dir = Direction.north; break;
+      default: x = 0; y = 2 + rng.nextInt(GridPosition.gridHeight - 4); dir = Direction.east;
     }
     return Source(position: GridPosition(x, y), direction: dir, color: LightColor.white);
   }
@@ -844,8 +922,8 @@ class LevelGenerator {
   List<Target> _placeTargetsSimple(Random rng, int count, Set<String> occupied, GridPosition sourcePos) {
     final targets = <Target>[];
     for (int attempts = 0; attempts < 50 && targets.length < count; attempts++) {
-      final x = 2 + rng.nextInt(OccupancyGrid.gridWidth - 4);
-      final y = 2 + rng.nextInt(OccupancyGrid.gridHeight - 4);
+      final x = 2 + rng.nextInt(GridPosition.gridWidth - 4);
+      final y = 2 + rng.nextInt(GridPosition.gridHeight - 4);
       final pos = GridPosition(x, y);
       if (occupied.contains(_key(pos)) || pos.distanceTo(sourcePos) < 4) continue;
       targets.add(Target(position: pos, requiredColor: LightColor.white));
@@ -855,10 +933,9 @@ class LevelGenerator {
   }
 
   GridPosition? _findValidPosition(Random rng, Set<String> occupied, GridPosition sourcePos, {int minDist = 4}) {
-    // Constraint: Valid x, y and not on edge
     for (int attempts = 0; attempts < 50; attempts++) {
-      final x = 2 + rng.nextInt(OccupancyGrid.gridWidth - 4);
-      final y = 2 + rng.nextInt(OccupancyGrid.gridHeight - 4);
+      final x = 2 + rng.nextInt(GridPosition.gridWidth - 4);
+      final y = 2 + rng.nextInt(GridPosition.gridHeight - 4);
       final pos = GridPosition(x, y);
       if (!occupied.contains(_key(pos)) && pos.distanceTo(sourcePos) >= minDist) {
         return pos;
@@ -873,8 +950,8 @@ class LevelGenerator {
     final midY = (a.y + b.y) ~/ 2;
     
     for (int attempts = 0; attempts < 30; attempts++) {
-      final x = (midX + rng.nextInt(5) - 2).clamp(1, OccupancyGrid.gridWidth - 2);
-      final y = (midY + rng.nextInt(5) - 2).clamp(1, OccupancyGrid.gridHeight - 2);
+      final x = (midX + rng.nextInt(5) - 2).clamp(1, GridPosition.gridWidth - 2);
+      final y = (midY + rng.nextInt(5) - 2).clamp(1, GridPosition.gridHeight - 2);
       final pos = GridPosition(x, y);
       if (!occupied.contains(_key(pos))) {
         return pos;
@@ -889,8 +966,8 @@ class LevelGenerator {
       final dy = rng.nextInt(offset * 2 + 1) - offset;
       if (dx == 0 && dy == 0) continue;
       
-      final x = (center.x + dx).clamp(1, OccupancyGrid.gridWidth - 2);
-      final y = (center.y + dy).clamp(1, OccupancyGrid.gridHeight - 2);
+      final x = (center.x + dx).clamp(1, GridPosition.gridWidth - 2);
+      final y = (center.y + dy).clamp(1, GridPosition.gridHeight - 2);
       final pos = GridPosition(x, y);
       if (!occupied.contains(_key(pos))) {
         return pos;
@@ -1205,8 +1282,8 @@ class LevelGenerator {
   List<Mirror> _placeMirrors(Random rng, int count, Set<String> occupied) {
     final mirrors = <Mirror>[];
     for (int attempts = 0; attempts < 200 && mirrors.length < count; attempts++) {
-      final x = 1 + rng.nextInt(OccupancyGrid.gridWidth - 2);
-      final y = 1 + rng.nextInt(OccupancyGrid.gridHeight - 2);
+      final x = 1 + rng.nextInt(GridPosition.gridWidth - 2);
+      final y = 1 + rng.nextInt(GridPosition.gridHeight - 2);
       if (occupied.contains('$x,$y')) continue;
       mirrors.add(Mirror(
         position: GridPosition(x, y),

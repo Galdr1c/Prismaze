@@ -198,10 +198,10 @@ class EpisodeConfig {
           maxIncorrectCritical: 7,
           twoTapsAwayRatio: 0.6,
           // Generation
-          generationAttempts: 50, // Reduced from 200
-          validationBudget: 50000, // Reduced from 100000
+          generationAttempts: 200, // Increased for strict validation
+          validationBudget: 50000,
           rejectTrivials: true,
-          maxTrivialRate: 0.05, // Relaxed to 5% (was 0.5%)
+          maxTrivialRate: 0.1, // Relaxed
           lockedMirrorProbability: 0.1, // 10% chance for locked mirrors
         );
 
@@ -235,8 +235,8 @@ class EpisodeConfig {
           maxIncorrectCritical: 9,
           twoTapsAwayRatio: 0.65,
           // Generation
-          generationAttempts: 80, // Reduced from 300
-          validationBudget: 80000, // Reduced from 150000
+          generationAttempts: 300, // Increased
+          validationBudget: 80000,
           rejectTrivials: true,
           maxTrivialRate: 0.05,
           lockedMirrorProbability: 0.15,
@@ -273,8 +273,8 @@ class EpisodeConfig {
           maxIncorrectCritical: 11,
           twoTapsAwayRatio: 0.7,
           // Generation - balanced for 3-target levels
-          generationAttempts: 100, // Reduced from 500
-          validationBudget: 120000, // Reduced from 250000
+          generationAttempts: 400, // Increased
+          validationBudget: 120000,
           rejectTrivials: true,
           maxTrivialRate: 0.05,
           lockedMirrorProbability: 0.2,

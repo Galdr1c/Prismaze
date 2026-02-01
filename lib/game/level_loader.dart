@@ -323,29 +323,15 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     final walls = data['walls'] as List? ?? [];
     final List<Wall> gridWalls = [];
     for (final w in walls) {
-      if (w.containsKey('from') && w.containsKey('to')) {
-        // Legacy/Editor format (Range)
-        final from = lds.GridPos(w['from']['x'], w['from']['y']);
-        final to = lds.GridPos(w['to']['x'], w['to']['y']);
-        final start = lds.GridConverter.gridToPixelTopLeft(from);
-        final endBottomRight = lds.GridConverter.gridToPixelTopLeft(to) + Vector2.all(lds.GridConverter.cellSize);
-        final size = endBottomRight - start;
-        
-        final wall = Wall(position: start, size: size);
-        gameRef.world.add(wall);
-        gridWalls.add(wall);
-      } else if (w.containsKey('x') && w.containsKey('y')) {
-        // Procedural format (Single Cell)
-        final x = w['x'] as int;
-        final y = w['y'] as int;
-        
-        // Convert grid coordinate to pixel position (TopLeft of cell)
-        final posTopLeft = lds.GridConverter.gridToPixelTopLeft(lds.GridPos(x, y));
-        
-        final wall = Wall(position: posTopLeft, size: Vector2.all(lds.GridConverter.cellSize));
-        gameRef.world.add(wall);
-        gridWalls.add(wall);
-      }
+      final from = lds.GridPos(w['from']['x'], w['from']['y']);
+      final to = lds.GridPos(w['to']['x'], w['to']['y']);
+      final start = lds.GridConverter.gridToPixelTopLeft(from);
+      final endBottomRight = lds.GridConverter.gridToPixelTopLeft(to) + Vector2.all(lds.GridConverter.cellSize);
+      final size = endBottomRight - start;
+      
+      final wall = Wall(position: start, size: size);
+      gameRef.world.add(wall);
+      gridWalls.add(wall);
     }
     _clusterWalls(gridWalls);
     

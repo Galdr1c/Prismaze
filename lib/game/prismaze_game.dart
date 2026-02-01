@@ -194,12 +194,10 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           }
           
           // Unified Win Condition Check (Simultaneous Arrival)
-          // Unified Win Condition Check (Simultaneous Arrival)
-          // Uses visual components as source of truth (updated by BeamSystem)
           bool won = false;
-          final targets = world.children.query<Target>();
-          if (targets.isNotEmpty) {
-              won = targets.every((t) => t.isLit);
+          if (currentGeneratedLevel != null) {
+              final trace = _procTracer.trace(currentGeneratedLevel!, currentState);
+              won = trace.allTargetsSatisfied;
           }
           
           if (won) {

@@ -15,8 +15,8 @@ class GridPosition {
   const GridPosition(this.x, this.y);
 
   /// Grid dimensions.
-  static const int gridWidth = 14;
-  static const int gridHeight = 7;
+  static const int gridWidth = 22;
+  static const int gridHeight = 9;
 
   /// Cell size in pixels for rendering (matches level_loader and grid_overlay).
   static const double cellSize = 85.0;
