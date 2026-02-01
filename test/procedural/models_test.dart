@@ -183,12 +183,7 @@ void main() {
       expect(result.first.color, LightColor.red);
     });
 
-    test('deflector changes direction but keeps color', () {
-      final result = applyDeflector(Direction.east, LightColor.red, 0);
-      expect(result.length, 1);
-      expect(result.first.color, LightColor.red);
-      expect(result.first.direction, isNot(Direction.east));
-    });
+    // deflector test removed
   });
 
   group('GameState', () {

@@ -257,7 +257,6 @@ class RayTracer {
             currentRay.direction,
             currentRay.color,
             prismOri,
-            prism.type,
           );
 
           // Add segment up to prism
@@ -272,7 +271,7 @@ class RayTracer {
 
           // Determine if outputs should be secondary (Splitter logic)
           // If 3 outputs (white split), mark them secondary.
-          // If 1 output (deflector or pass-through), inherit.
+          // If 1 output (pass-through), inherit.
           // ALSO: If input was already secondary, outputs stay secondary.
           final bool makeSecondary = currentRay.isSecondary || (outputs.length > 1);
 

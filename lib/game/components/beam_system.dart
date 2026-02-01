@@ -56,7 +56,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   
   /// Use RayTracer segments instead of legacy beam calculation.
   /// When true, BeamSystem only renders; it does not compute physics.
-  bool useRayTracerMode = false;
+  bool useRayTracerMode = true; // DEFAULT TO NEW SYSTEM
   
   // Debug getters
   int get debugParticleCount => _particles.length;
@@ -228,7 +228,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   }
   
   void _recalculateBeams() {
-    // Skip legacy calculation if in RayTracer mode
+    // Skip legacy calculation if in RayTracer mode (Standard)
     if (useRayTracerMode) {
       _segments.clear();
       return;
@@ -479,24 +479,8 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
         // Trigger glow effect on prism with the incoming beam color
         hitPrism.onLightHit(beamColor);
         
-        // CHECK PRISM TYPE for Generator compatibility
-        if (hitPrism.prismType == proc.PrismType.splitter) {
-             _handleSplitter(hitPrism, beamColor, direction, closestPoint, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces, visitedSegments);
-        } else {
-            // Default Deflector / Refraction Logic
-            bool entering = direction.dot(hitNormal) < 0;
-            double n1 = entering ? 1.0 : 1.5;
-            double n2 = entering ? 1.5 : 1.0;
-            Vector2 calcNormal = entering ? hitNormal : -hitNormal;
-            Vector2? refractedDir = PhysicsUtils.getRefractionVector(direction.normalized(), calcNormal, n1, n2);
-            
-            if (refractedDir != null) {
-                 _castBeam(beamColor, closestPoint, refractedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
-            } else {
-                 final reflectedDir = PhysicsUtils.getReflectionVector(direction, calcNormal);
-                 _castBeam(beamColor, closestPoint, reflectedDir, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces + 1, visitedSegments: visitedSegments);
-            }
-        }
+        // All Prisms are now Consolidated Splitters
+        _handleSplitter(hitPrism, beamColor, direction, closestPoint, mirrors, walls, prisms, targets, portals, absorbingWalls, bounces, visitedSegments);
     }
   }
 

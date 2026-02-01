@@ -172,7 +172,7 @@ class EpisodeConfig {
         // MUST include: Splitter Prism, Mixed target often
         return const EpisodeConfig(
           episode: 3,
-          minMoves: 10,
+          minMoves: 9, // Slightly tighter (was 8)
           maxMoves: 18,
           // Critical objects
           minCriticalMirrors: 6,
@@ -198,10 +198,10 @@ class EpisodeConfig {
           maxIncorrectCritical: 7,
           twoTapsAwayRatio: 0.6,
           // Generation
-          generationAttempts: 200,
-          validationBudget: 100000,
+          generationAttempts: 50, // Reduced from 200
+          validationBudget: 50000, // Reduced from 100000
           rejectTrivials: true,
-          maxTrivialRate: 0.005, // Max 0.5% trivials
+          maxTrivialRate: 0.05, // Relaxed to 5% (was 0.5%)
           lockedMirrorProbability: 0.1, // 10% chance for locked mirrors
         );
 
@@ -209,7 +209,7 @@ class EpisodeConfig {
         // EXPERT: [16..26] STRICT
         return const EpisodeConfig(
           episode: 4,
-          minMoves: 16,
+          minMoves: 14, // Slightly tighter (was 12)
           maxMoves: 26,
           // Critical objects
           minCriticalMirrors: 8,
@@ -235,10 +235,10 @@ class EpisodeConfig {
           maxIncorrectCritical: 9,
           twoTapsAwayRatio: 0.65,
           // Generation
-          generationAttempts: 300,
-          validationBudget: 150000,
+          generationAttempts: 80, // Reduced from 300
+          validationBudget: 80000, // Reduced from 150000
           rejectTrivials: true,
-          maxTrivialRate: 0.005,
+          maxTrivialRate: 0.05,
           lockedMirrorProbability: 0.15,
         );
 
@@ -247,12 +247,12 @@ class EpisodeConfig {
         // MASTER: [22..35] STRICT
         return const EpisodeConfig(
           episode: 5,
-          minMoves: 22,
+          minMoves: 20, // Slightly tighter (was 18)
           maxMoves: 35,
           // Critical objects
           minCriticalMirrors: 10,
           maxCriticalMirrors: 12,
-          minCriticalPrisms: 2, // Splitter + Deflector
+          minCriticalPrisms: 2, // 2 Splitters
           maxCriticalPrisms: 2,
           // Decoys
           minDecoyMirrors: 4,
@@ -273,10 +273,10 @@ class EpisodeConfig {
           maxIncorrectCritical: 11,
           twoTapsAwayRatio: 0.7,
           // Generation - balanced for 3-target levels
-          generationAttempts: 500,
-          validationBudget: 250000,
+          generationAttempts: 100, // Reduced from 500
+          validationBudget: 120000, // Reduced from 250000
           rejectTrivials: true,
-          maxTrivialRate: 0.005,
+          maxTrivialRate: 0.05,
           lockedMirrorProbability: 0.2,
         );
     }

@@ -11,10 +11,14 @@ enum ConnectionStatus {
 class NetworkManager {
   static final NetworkManager _instance = NetworkManager._internal();
   factory NetworkManager() => _instance;
-  NetworkManager._internal();
+  NetworkManager._internal() {
+     if (!kIsWeb) {
+         _internetChecker = InternetConnectionChecker();
+     }
+  }
 
   final Connectivity _connectivity = Connectivity();
-  final InternetConnectionChecker _internetChecker = InternetConnectionChecker();
+  InternetConnectionChecker? _internetChecker;
 
   // Stream controller for connection status
   final StreamController<ConnectionStatus> _controller = StreamController<ConnectionStatus>.broadcast();
@@ -25,8 +29,10 @@ class NetworkManager {
 
   // Initialize monitoring
   Future<void> init() async {
+    print("NetworkManager: init() called");
     // Initial check
     await _checkConnection();
+    print("NetworkManager: _checkConnection() returned");
 
     // Listen to changes
     _connectivity.onConnectivityChanged.listen((result) {
@@ -37,9 +43,19 @@ class NetworkManager {
   }
 
   Future<void> _checkConnection() async {
+    print("NetworkManager: _checkConnection started");
     bool hasConnection = false;
     
     try {
+      if (kIsWeb) {
+          // FORCE ONLINE ON WEB to prevent any plugin hang
+          print("NetworkManager: Web detected. Forcing Online.");
+          hasConnection = true;
+          // Debounce/Update logic needed here since we return early
+          _updateStatus(true);
+          return;
+      }
+
       // 1. Check if hardware is connected (WiFi/Mobile)
       // connectivity_plus 6.0 returns List<ConnectivityResult>
       final result = await _connectivity.checkConnectivity();
@@ -49,17 +65,24 @@ class NetworkManager {
 
       if (hardwareConnected) {
         // 2. Check actual internet access
-        // Note: InternetConnectionChecker pings google.com. 
-        // If it fails on emulator, we might want to trust hardware or try fallback.
-        hasConnection = await _internetChecker.hasConnection;
+        // IMPORTANT: InternetConnectionChecker uses raw TCP sockets which are NOT supported on Web.
+        // It will hang or throw on web platforms.
+        if (kIsWeb) {
+          // On Web, if hardware is connected, we trust it for now or assume online.
+          // connectivity_plus on web is reliable for "is connected to a network".
+          hasConnection = true;
+          debugPrint("NetworkManager: Web detected - trusting connectivity_plus results.");
+        } else {
+          // On Native, we can use the strict ping check.
+          if (_internetChecker != null) {
+              hasConnection = await _internetChecker!.hasConnection;
+          } else {
+              hasConnection = true; // Fallback if checker failed to init
+          }
+        }
         
-        // Fallback for emulators/restricted networks: 
-        // If hardware says yes but checker says no, we might log a warning or trust hardware if desired.
-        // For now, let's keep strict check but log explicitly.
-        if (!hasConnection) { 
+        if (!hasConnection && !kIsWeb) { 
             print("NetworkManager: Hardware connected but no Internet access detected (Ping failed).");
-            // Optional: Trust hardware if debug mode?
-            // hasConnection = true; 
         }
       }
     } catch (e) {
@@ -68,6 +91,10 @@ class NetworkManager {
     }
 
     // Debounce/Update
+    _updateStatus(hasConnection);
+  }
+
+  void _updateStatus(bool hasConnection) {
     if (_isOnline != hasConnection) {
       _isOnline = hasConnection;
       _controller.add(_isOnline ? ConnectionStatus.online : ConnectionStatus.offline);

@@ -190,7 +190,7 @@ Last Updated: January 17, 2026
     _userCountry = _prefs.getString(_keyUserCountry);
     
     // KVKK: Auto-detect Turkey based on system language if country not set
-    if (_userCountry == null) {
+    if (_userCountry == null && !kIsWeb) {
       try {
         final String systemLocale = Platform.localeName; // e.g. tr_TR
         if (systemLocale.toLowerCase().startsWith('tr')) {

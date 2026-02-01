@@ -59,20 +59,42 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   }
   
   Future<void> _loadData() async {
+    try {
+      print("MainMenu: _loadData executing...");
       economy = EconomyManager();
       await economy.init();
+      print("MainMenu: Economy DONE");
+      
       iapManager = IAPManager(economy);
       await iapManager.init();
+      print("MainMenu: IAP DONE");
+      
       progress = ProgressManager();
       await progress.init();
+      print("MainMenu: Progress DONE");
+      
       missionManager = MissionManager(economy);
       await missionManager.init();
+      print("MainMenu: Mission DONE");
       
       // Init Network & Retry Pending
-      await PlatformService().init();
-      await NetworkManager().init();
-      await CloudSaveManager().retryPendingSaves();
+      // TEMPORARILY DISABLED FOR DEBUGGING
+      // await PlatformService().init();
+      // await NetworkManager().init();
+      // await CloudSaveManager().retryPendingSaves();
       await PrivacyManager().init();
+      print("MainMenu: Privacy DONE");
+    } catch (e, stack) {
+      print("MainMenu: FATAL ERROR during load: $e");
+      print(stack);
+    }
+      
+      // FIX: Dismiss loading spinner BEFORE showing blocking dialogs (Age/Privacy).
+      // This prevents "deadlock" where dialog waits for user, but user sees only spinner.
+      setState(() {
+          print("MainMenu: Setting isLoading = false");
+          _isLoading = false;
+      });
       
       if (mounted) {
         await _verifyAge();
@@ -81,10 +103,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
       if (mounted && PrivacyManager().shouldShowConsentDialog() && !PrivacyManager().isChildMode) {
         _showPrivacyDialog();
       }
-      
-      setState(() {
-          _isLoading = false;
-      });
 
       final sm = SettingsManager();
       

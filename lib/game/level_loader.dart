@@ -246,7 +246,13 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     // Enable efficient RayTracer rendering for BeamSystem
     gameRef.beamSystem.useRayTracerMode = true;
     
-    _createBoundaries();
+    // CRITICAL: Populate currentGeneratedLevel from JSON data to support unified win logic
+    try {
+      gameRef.currentGeneratedLevel = proc.GeneratedLevel.fromJson(data);
+    } catch (e) {
+      debugPrint("Warning: Could not convert JSON level to proc.GeneratedLevel: $e");
+      // Fallback: create a dummy Level if possible, but Campaign levels should be compatible
+    }
     
     int idCounter = 0;
     
@@ -317,15 +323,29 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     final walls = data['walls'] as List? ?? [];
     final List<Wall> gridWalls = [];
     for (final w in walls) {
-      final from = lds.GridPos(w['from']['x'], w['from']['y']);
-      final to = lds.GridPos(w['to']['x'], w['to']['y']);
-      final start = lds.GridConverter.gridToPixelTopLeft(from);
-      final endBottomRight = lds.GridConverter.gridToPixelTopLeft(to) + Vector2.all(lds.GridConverter.cellSize);
-      final size = endBottomRight - start;
-      
-      final wall = Wall(position: start, size: size);
-      gameRef.world.add(wall);
-      gridWalls.add(wall);
+      if (w.containsKey('from') && w.containsKey('to')) {
+        // Legacy/Editor format (Range)
+        final from = lds.GridPos(w['from']['x'], w['from']['y']);
+        final to = lds.GridPos(w['to']['x'], w['to']['y']);
+        final start = lds.GridConverter.gridToPixelTopLeft(from);
+        final endBottomRight = lds.GridConverter.gridToPixelTopLeft(to) + Vector2.all(lds.GridConverter.cellSize);
+        final size = endBottomRight - start;
+        
+        final wall = Wall(position: start, size: size);
+        gameRef.world.add(wall);
+        gridWalls.add(wall);
+      } else if (w.containsKey('x') && w.containsKey('y')) {
+        // Procedural format (Single Cell)
+        final x = w['x'] as int;
+        final y = w['y'] as int;
+        
+        // Convert grid coordinate to pixel position (TopLeft of cell)
+        final posTopLeft = lds.GridConverter.gridToPixelTopLeft(lds.GridPos(x, y));
+        
+        final wall = Wall(position: posTopLeft, size: Vector2.all(lds.GridConverter.cellSize));
+        gameRef.world.add(wall);
+        gridWalls.add(wall);
+      }
     }
     _clusterWalls(gridWalls);
     
@@ -363,7 +383,7 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
      objectMap.clear();
      clearLevelEntities();
      
-     // Legacy GameState Init
+     // Initialize GameState for tracking
      final mirrorO = Uint8List(def.mirrors.length);
      for(int i=0; i<def.mirrors.length; i++) {
         mirrorO[i] = (def.mirrors[i].angle / 45).round() % 4;
@@ -374,6 +394,8 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
         prismOrientations: Uint8List(0),
      );
      
+     // Populate currentGeneratedLevel for RayTracer logic
+     gameRef.currentGeneratedLevel = convertToGeneratedLevel(def);
      
      // Setup Par
      gameRef.currentLevelPar = def.optimalMoves;
@@ -451,9 +473,13 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
          print("DEBUG: Wall added at $start, size=$size");
      }
 
-     // 6. Hint/Solution
-     gameRef.hintManager.loadSolution(def.solutionSteps, objectMap);
-    _clusterWalls(gridWalls);
+      // 6. Hint/Solution
+      gameRef.hintManager.loadSolution(def.solutionSteps, objectMap);
+      
+      // CRITICAL: Force RayTracer mode for all levels
+      gameRef.beamSystem.useRayTracerMode = true;
+      
+      _clusterWalls(gridWalls);
     
     // CRITICAL: Refresh BeamSystem cache
      gameRef.beamSystem.refreshCache();
@@ -494,6 +520,75 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     // Right wall (X=1250 to clear grid end at 1245)
     gameRef.world.add(Wall(position: Vector2(1250, 30 + thickness), size: Vector2(thickness, height - 60 - thickness * 2))..opacity = 1.0);
 
+  }
+
+  proc.GeneratedLevel convertToGeneratedLevel(lds.LevelDef def) {
+    return proc.GeneratedLevel(
+      seed: def.levelNumber,
+      episode: def.levelNumber <= 50 ? 1 : 2, // Approximate
+      index: def.levelNumber,
+      source: proc.Source(
+        position: proc.GridPosition(def.lightSource.pos.x, def.lightSource.pos.y),
+        direction: mapDirection(def.lightSource.direction),
+        color: mapLdsColor(def.lightSource.color),
+      ),
+      targets: def.targets.map((t) => proc.Target(
+        position: proc.GridPosition(t.pos.x, t.pos.y),
+        requiredColor: mapLdsColor(t.color),
+      )).toList(),
+      walls: def.walls.expand((w) {
+        // Expand GridWall range into individual proc.Walls
+        final walls = <proc.Wall>{};
+        final startX = min(w.from.x, w.to.x);
+        final endX = max(w.from.x, w.to.x);
+        final startY = min(w.from.y, w.to.y);
+        final endY = max(w.from.y, w.to.y);
+        
+        for (int x = startX; x <= endX; x++) {
+          for (int y = startY; y <= endY; y++) {
+            walls.add(proc.Wall(position: proc.GridPosition(x, y)));
+          }
+        }
+        return walls;
+      }).toSet(),
+      mirrors: def.mirrors.map((m) => proc.Mirror(
+        position: proc.GridPosition(m.pos.x, m.pos.y),
+        orientation: proc.MirrorOrientationExtension.fromInt((m.angle / 45).round() % 4),
+        rotatable: m.rotatable,
+      )).toList(),
+      prisms: def.prisms.map((p) => proc.Prism(
+        position: proc.GridPosition(p.pos.x, p.pos.y),
+        orientation: (p.angle / 90).round() % 4,
+        rotatable: p.rotatable,
+      )).toList(),
+      meta: proc.LevelMeta(
+        optimalMoves: def.optimalMoves,
+        difficultyBand: def.levelNumber <= 50 ? proc.DifficultyBand.tutorial : proc.DifficultyBand.easy,
+      ),
+      solution: [], // Not critical for win condition
+    );
+  }
+
+  proc.Direction mapDirection(lds.Direction d) {
+    switch (d) {
+      case lds.Direction.right: return proc.Direction.east;
+      case lds.Direction.down: return proc.Direction.south;
+      case lds.Direction.left: return proc.Direction.west;
+      case lds.Direction.up: return proc.Direction.north;
+    }
+  }
+
+  proc.LightColor mapLdsColor(lds.LightColor c) {
+    switch (c) {
+      case lds.LightColor.white: return proc.LightColor.white;
+      case lds.LightColor.red: return proc.LightColor.red;
+      case lds.LightColor.green: return proc.LightColor.green;
+      case lds.LightColor.blue: return proc.LightColor.blue;
+      case lds.LightColor.yellow: return proc.LightColor.yellow;
+      case lds.LightColor.magenta: return proc.LightColor.purple;
+      case lds.LightColor.cyan: return proc.LightColor.blue; // Close enough map
+      case lds.LightColor.orange: return proc.LightColor.orange;
+    }
   }
 
   void _clusterWalls(List<Wall> allWalls) {

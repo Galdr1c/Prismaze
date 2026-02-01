@@ -39,7 +39,8 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
   static const _crystalClear = Color(0xFFE8F4FC);
   static const _crystalCore = Color(0xFF88DDFF);
 
-  proc.PrismType prismType = proc.PrismType.splitter;
+  // Consolidated Prism (Splitter only)
+  // Non-white light passes through, white light splits into RGB.
   
   // Rainbow refraction colors
   static const _rainbowColors = [
@@ -72,7 +73,6 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
     this.isLocked = false,
     int discreteOrientation = 0,
     this.useDiscreteOrientation = false,
-    this.prismType = proc.PrismType.splitter,
     required this.index,
   }) : super(
           position: position,
@@ -107,7 +107,6 @@ class Prism extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame
       isLocked: !p.rotatable,
       discreteOrientation: p.orientation,
       useDiscreteOrientation: true,
-      prismType: p.type,
       index: index,
     );
   }

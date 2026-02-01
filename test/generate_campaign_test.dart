@@ -4,28 +4,31 @@
 
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter_test/flutter_test.dart';
 import 'package:prismaze/game/procedural/level_generator.dart';
 import 'package:prismaze/game/procedural/models/level_model.dart';
 import 'package:prismaze/game/procedural/episode_config.dart';
 
-void main() async {
-  print('🚀 Starting Campaign Generation...');
-  print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+void main() {
+  test('Campaign Generation', () async {
+    print('🚀 Starting Campaign Generation...');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-  final generator = LevelGenerator();
-  
-  // Create output directory if not exists
-  final outputDir = Directory('assets/generated');
-  if (!await outputDir.exists()) {
-    await outputDir.create(recursive: true);
-  }
+    final generator = LevelGenerator();
+    
+    // Create output directory if not exists
+    final outputDir = Directory('assets/generated');
+    if (!await outputDir.exists()) {
+      await outputDir.create(recursive: true);
+    }
 
-  // Generate 5 Episodes
-  for (int episode = 1; episode <= 5; episode++) {
-    await _generateEpisode(generator, episode);
-  }
+    // Generate 5 Episodes
+    for (int episode = 1; episode <= 5; episode++) {
+      await _generateEpisode(generator, episode);
+    }
 
-  print('\n✅ Campaign Generation Complete!');
+    print('\n✅ Campaign Generation Complete!');
+  }, timeout: const Timeout(Duration(minutes: 60)));
 }
 
 Future<void> _generateEpisode(LevelGenerator generator, int episode) async {

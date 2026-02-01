@@ -1,7 +1,8 @@
 /// Prism behavior lookup tables.
 ///
 /// Deterministic tables for discrete prism effects.
-/// Handles both splitter and deflector prism types.
+/// Handles deterministic splitter prism behavior. 
+/// (White light splits into RGB, other colors pass through).
 library;
 
 import '../models/direction.dart';
@@ -80,54 +81,15 @@ List<PrismOutput> applySplitter(
   ];
 }
 
-/// Apply deflector prism behavior.
-///
-/// Deflector prism rules:
-/// - Any color → direction rotates by ±1 step based on orientation
-/// - Color is preserved
-///
-/// Orientation 0,2: rotate left (counter-clockwise)
-/// Orientation 1,3: rotate right (clockwise)
-List<PrismOutput> applyDeflector(
-  Direction incoming,
-  LightColor color,
-  int prismOrientation,
-) {
-  Direction outDir;
-  
-  switch (prismOrientation % 4) {
-    case 0:
-      outDir = incoming.rotateLeft;
-      break;
-    case 1:
-      outDir = incoming.rotateRight;
-      break;
-    case 2:
-      outDir = incoming.rotateLeft;
-      break;
-    case 3:
-      outDir = incoming.rotateRight;
-      break;
-    default:
-      outDir = incoming;
-  }
+// applyDeflector removed (Consolidated into splitter)
 
-  return [PrismOutput(outDir, color)];
-}
-
-/// Apply prism behavior based on type.
+/// Apply prism behavior (Splitter only).
 List<PrismOutput> applyPrism(
   Direction incoming,
   LightColor color,
   int prismOrientation,
-  PrismType prismType,
 ) {
-  switch (prismType) {
-    case PrismType.splitter:
-      return applySplitter(incoming, color, prismOrientation);
-    case PrismType.deflector:
-      return applyDeflector(incoming, color, prismOrientation);
-  }
+  return applySplitter(incoming, color, prismOrientation);
 }
 
 /// Helper for splitter non-white deflection.
@@ -150,28 +112,18 @@ Direction _deflectForSplitter(Direction incoming, int orientation) {
 /// Prism behavior documentation.
 class PrismTableDoc {
   static const String documentation = '''
-Prism Behavior Tables
+Prism Behavior Tables (Consolidated Splitter)
 
 SPLITTER PRISM (White → RGB split):
 - White light entering splits into 3 rays: Red, Blue, Yellow
 - Each ray exits in a different direction based on prism orientation
-- Non-white light passes through with slight deflection
+- Non-white light passes through (Straight)
 
 Orientation effects on split:
   Ori 0: Left=Red, Straight=Blue, Right=Yellow
   Ori 1: Straight=Red, Right=Blue, Left=Yellow
   Ori 2: Right=Red, Left=Blue, Straight=Yellow
   Ori 3: Left=Red, Right=Blue, Straight=Yellow
-
-DEFLECTOR PRISM (Direction change, color preserved):
-- Rotates ray direction by 90° based on orientation
-- Color is unchanged
-
-Orientation effects:
-  Ori 0: Rotate left (counter-clockwise)
-  Ori 1: Rotate right (clockwise)
-  Ori 2: Rotate left (counter-clockwise)
-  Ori 3: Rotate right (clockwise)
 ''';
 }
 

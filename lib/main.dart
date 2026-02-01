@@ -102,7 +102,7 @@ class _PrismazeAppState extends State<PrismazeApp> {
                 content,
                 SafeArea(
                   child: Align(
-                    alignment: Alignment.topLeft,
+                    alignment: Alignment.centerLeft,
                     child: Padding(
                       padding: EdgeInsets.all(8),
                       child: DebugFpsOverlay(

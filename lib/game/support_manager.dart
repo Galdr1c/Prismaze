@@ -161,9 +161,14 @@ ${logs != null ? 'Log:\n$logs' : ''}
   /// Get device info string
   static Future<String> getDeviceInfo() async {
     final info = StringBuffer();
-    info.writeln('Platform: ${Platform.operatingSystem}');
-    info.writeln('Version: ${Platform.operatingSystemVersion}');
-    info.writeln('Locale: ${Platform.localeName}');
+    if (kIsWeb) {
+      info.writeln('Platform: Web');
+      info.writeln('UserAgent: Browser'); 
+    } else {
+      info.writeln('Platform: ${Platform.operatingSystem}');
+      info.writeln('Version: ${Platform.operatingSystemVersion}');
+      info.writeln('Locale: ${Platform.localeName}');
+    }
     return info.toString();
   }
 }

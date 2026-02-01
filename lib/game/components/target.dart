@@ -270,13 +270,24 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
           ..style = PaintingStyle.fill,
       );
       
+      // Add glow to collected slots
+      if (isCollected && !gameRef.settingsManager.reducedGlowEnabled) {
+        canvas.drawCircle(
+          slotCenter,
+          slotRadius + 2,
+          Paint()
+            ..color = _getMaskColor(compMask).withOpacity(0.3 * opacity)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+        );
+      }
+      
       canvas.drawCircle(
         slotCenter,
         slotRadius,
         Paint()
           ..color = (isCollected ? Colors.white : Colors.grey.shade600).withOpacity(opacity)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5,
+          ..strokeWidth = isCollected ? 2.0 : 1.5,
       );
       
       if (isCollected) {

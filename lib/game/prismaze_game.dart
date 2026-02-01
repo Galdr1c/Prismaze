@@ -167,46 +167,39 @@ class PrismazeGame extends FlameGame with HasCollisionDetection {
           levelTimeNotifier.value = levelTime; // Update UI
           
           // FIX: Always update beams when level has started (ensures beams render after intro)
+          // Standard RayTracer Update
           if (_needsBeamUpdate) {
              assert(() { dev.Timeline.startSync('BeamSystem.updateBeams'); return true; }());
              
-             if (beamSystem.useRayTracerMode && currentGeneratedLevel != null) {
+             if (currentGeneratedLevel != null) {
                 final level = currentGeneratedLevel!;
                 final trace = _procTracer.trace(level, currentState);
 
                 // No cumulative state - win is checked instantaneously per-frame
 
-                // ışınları çiz:
+                // Draw rays
                 final segs = _procAdapter.convertToPixelSegments(trace);
                 beamSystem.setExternalSegments(segs);
                 beamSystem.updateBeams(); // Trigger render
 
-                // target görsellerini state’e göre güncelle
+                // Update targets based on state
                 _applyProceduralTargets();
               } else {
-                beamSystem.updateBeams(); // legacy
+                // Fallback for edge cases (should not happen in RayTracer standard)
+                beamSystem.updateBeams();
               }
              
              assert(() { dev.Timeline.finishSync(); return true; }());
              _needsBeamUpdate = false;
           }
           
-          // Win Condition Check
+          // Unified Win Condition Check (Simultaneous Arrival)
+          // Unified Win Condition Check (Simultaneous Arrival)
+          // Uses visual components as source of truth (updated by BeamSystem)
           bool won = false;
-          if (currentGeneratedLevel != null) {
-              // Simultaneous Arrival Win Check
-              // Use RayTracer to check if all targets are satisfied RIGHT NOW
-              // (not accumulated over time)
-              final trace = _procTracer.trace(currentGeneratedLevel!, currentState);
-              won = trace.allTargetsSatisfied;
-          } else {
-              // Legacy Simultaneous Win
-              final targets = world.children.query<Target>();
-              // Ensure all targets are lit AND have received light this frame
-              final allLit = targets.isNotEmpty && targets.every((t) => t.isLit);
-              // Use collectedMask != 0 instead of removed accumulatedColor
-              final allHaveColor = targets.every((t) => t.collectedMask != 0);
-              won = allLit && allHaveColor;
+          final targets = world.children.query<Target>();
+          if (targets.isNotEmpty) {
+              won = targets.every((t) => t.isLit);
           }
           
           if (won) {

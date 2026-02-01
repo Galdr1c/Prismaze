@@ -303,9 +303,7 @@ class Solver {
     );
   }
 
-  // ❌ REMOVED: solveStateful() method
-  // This method used cumulative state which violates simultaneous arrival.
-  // Use solve() method instead - it checks instant satisfaction.
+
 
   /// Solve with A* for potentially faster results on complex levels.
   ///

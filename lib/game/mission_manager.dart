@@ -95,6 +95,7 @@ class MissionManager extends ChangeNotifier {
   }
   
   Future<void> init() async {
+    print("MissionManager: init started");
     _prefs = await SharedPreferences.getInstance();
     
     final savedDate = _prefs.getString(keyMissionDate);
@@ -110,6 +111,7 @@ class MissionManager extends ChangeNotifier {
         _loadMissions();
         bonusClaimed = _prefs.getBool(keyBonusClaimed) ?? false;
     }
+    print("MissionManager: Initialized.");
   }
   
   void _loadMissions() {
