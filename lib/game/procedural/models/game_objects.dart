@@ -15,8 +15,8 @@ class GridPosition {
   const GridPosition(this.x, this.y);
 
   /// Grid dimensions.
-  static const int gridWidth = 22;
-  static const int gridHeight = 9;
+  static const int gridWidth = 14;
+  static const int gridHeight = 7;
 
   /// Cell size in pixels for rendering (matches level_loader and grid_overlay).
   static const double cellSize = 85.0;
@@ -237,6 +237,7 @@ class Mirror {
 /// Prism types.
 enum PrismType {
   splitter, // Splits light (White -> RGB)
+  deflector, // Redirects light (90 degrees, preserves color)
 }
 
 extension PrismTypeExtension on PrismType {
@@ -246,8 +247,10 @@ extension PrismTypeExtension on PrismType {
     switch (s.toLowerCase()) {
       case 'splitter':
         return PrismType.splitter;
+      case 'deflector':
+        return PrismType.deflector;
       default:
-        // Deflector is removed, fallback to splitter for legacy/compat
+        // Fallback to splitter
         return PrismType.splitter;
     }
   }
@@ -258,14 +261,15 @@ extension PrismTypeExtension on PrismType {
 /// Prisms have 4 discrete orientation states (0-3).
 class Prism {
   final GridPosition position;
+  final PrismType type;
   final int orientation; // 0-3
   final bool rotatable;
-  // type field removed (Consolidated)
 
   const Prism({
     required this.position,
     this.orientation = 0,
     this.rotatable = true,
+    this.type = PrismType.splitter,
   });
 
   /// Create a copy with a new orientation.
@@ -274,6 +278,7 @@ class Prism {
       position: position,
       orientation: newOrientation % 4,
       rotatable: rotatable,
+      type: type,
     );
   }
 
@@ -282,6 +287,7 @@ class Prism {
         'y': position.y,
         'orientation': orientation,
         'rotatable': rotatable,
+        'type': type.toJsonString(),
       };
 
   factory Prism.fromJson(Map<String, dynamic> json) {
@@ -289,6 +295,8 @@ class Prism {
       position: GridPosition(json['x'] as int, json['y'] as int),
       orientation: json['orientation'] as int? ?? 0,
       rotatable: json['rotatable'] as bool? ?? true,
+      type: PrismTypeExtension.fromJsonString(
+          json['type'] as String? ?? 'splitter'),
     );
   }
 }

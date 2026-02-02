@@ -253,10 +253,12 @@ class RayTracer {
           final prism = level.prisms[prismIdx];
           final prismOri = state.getPrismOrientation(prismIdx);
 
+
           final outputs = applyPrism(
             currentRay.direction,
             currentRay.color,
             prismOri,
+            prism.type,
           );
 
           // Add segment up to prism

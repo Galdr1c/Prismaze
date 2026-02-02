@@ -1,6 +1,6 @@
-import 'dart:math';
-import 'dart:typed_data';
-
+import 'dart:math'; // [FIXED]
+import '../utils/deterministic_rng.dart';
+import 'dart:typed_data'; // [FIXED]
 import '../ray_tracer.dart';
 import '../models/models.dart';
 import '../models/game_objects.dart'; 
@@ -19,8 +19,9 @@ class GenerationException implements Exception {
 class HybridLevelGenerator {
   final TemplateLibrary _library;
   // Fallback procedural generator would be injected here if needed for E6+
-
+  
   final RayTracer _rayTracer = RayTracer();
+  final _TemplateSelector _selector = _TemplateSelector();
 
   HybridLevelGenerator(this._library);
 
@@ -34,63 +35,52 @@ class HybridLevelGenerator {
     }
   }
 
-  GeneratedLevel _generateFromTemplate(int episode, int index, int seed) {
-     final rng = Random(seed);
-     
-     // 1. Select Template
-     final template = _selectTemplate(episode, index, rng);
-     
-     // 2. Generate Variables
-     final variableValues = _generateVariableValues(template, rng);
-     
-     // 3. Instantiate
-     var level = _instantiateTemplate(template, variableValues, episode, index, seed);
-     
-     // 4. Decorate with Walls (Diversity)
-     level = _decorateWithWalls(level, template, variableValues, rng);
-     
-     return level;
+  GeneratedLevel _generateFromTemplate(int episode, int index, int baseSeed) {
+     int attempts = 0;
+     LevelTemplate? lastTemplate;
+     while (attempts < 5) {
+       try {
+         // Mix seed for this attempt
+         final currentSeed = mixSeed(baseSeed, episode, index, attempts);
+         final rng = DeterministicRNG(currentSeed);
+         
+         // 1. Select Template (using Selector V3)
+         final template = _selector.select(
+            library: _library, 
+            episode: episode, 
+            index: index, 
+            seed: currentSeed
+         );
+         lastTemplate = template;
+         
+         // 2. Generate Variables
+         final variableValues = _generateVariableValues(template, rng);
+         
+         // 3. Instantiate (with Wall segments)
+         var level = _instantiateTemplate(template, variableValues, episode, index, currentSeed);
+         
+         // 4. Decorate (RayTracer walls)
+         level = _decorateWithWalls(level, template, variableValues, rng);
+         
+         // 5. Validate Solvability [NEW]
+         final solvedState = _createSolvedState(level, template, variableValues);
+         _validateSolvability(level, solvedState);
+         
+         return level;
+       } catch (e) {
+         if (lastTemplate != null) {
+            print('Hybrid: Check Failed for ${lastTemplate.id}. Error: $e');
+         }
+         attempts++;
+         if (attempts >= 5) rethrow;
+       }
+     }
+     throw GenerationException('Failed to generate level after 5 attempts.');
   }
 
-  /// Selects a template based on episode and difficulty progression
-  LevelTemplate _selectTemplate(int episode, int index, Random rng) {
-    final difficulty = _calculateDifficulty(episode, index);
-    final candidates = _library.getTemplatesForEpisode(episode)
-        .where((t) => (t.difficulty - difficulty).abs() <= 1)
-        .toList();
-        
-    if (candidates.isEmpty) {
-        // Fallback to all episode templates if strict match fails
-        final all = _library.getTemplatesForEpisode(episode);
-        if (all.isEmpty) throw GenerationException('No templates found for Episode $episode');
-        return all[index % all.length];
-    }
-    
-    // Deterministic selection
-    return candidates[index % candidates.length];
-  }
 
-  int _calculateDifficulty(int episode, int index) {
-      // Base difficulty: E1=1, E2=3, E3=5, E4=7, E5=8
-      int baseDiff;
-      switch(episode) {
-          case 1: baseDiff = 1; break;
-          case 2: baseDiff = 3; break;
-          case 3: baseDiff = 5; break;
-          case 4: baseDiff = 7; break;
-          case 5: baseDiff = 8; break;
-          default: baseDiff = 1;
-      }
-      
-      // Progression: Ramp up difficulty slightly over 200 levels
-      // +2 difficulty max
-      final progress = index / 200.0;
-      final bonus = (progress * 2).round();
-      
-      return (baseDiff + bonus).clamp(1, 10);
-  }
 
-  Map<String, int> _generateVariableValues(LevelTemplate template, Random rng) {
+  Map<String, int> _generateVariableValues(LevelTemplate template, DeterministicRNG rng) {
     final values = <String, int>{};
     
     for (final variable in template.variables) {
@@ -148,6 +138,20 @@ class HybridLevelGenerator {
       }
       
       if (source == null) throw GenerationException('Template ${template.id} produced no Source');
+      
+      // [NEW] Wall Segments Expansion
+      _expandWallSegments(walls, template.wallSegments);
+      
+      // [NEW] Wall Variants Selection
+      if (template.wallVariants.isNotEmpty) {
+        int variantIndex = 0;
+        if (values.containsKey('wv')) {
+           variantIndex = values['wv']!;
+        }
+        if (variantIndex >= 0 && variantIndex < template.wallVariants.length) {
+            _expandWallSegments(walls, template.wallVariants[variantIndex]);
+        }
+      }
 
       // 4. Par Moves
       int parMoves = template.solvedState.totalMoves;
@@ -172,23 +176,77 @@ class HybridLevelGenerator {
           walls: walls,
           meta: LevelMeta(
               optimalMoves: addedMoves > 0 ? addedMoves : parMoves, 
-              difficultyBand: _getBand(template.difficulty),
+              difficultyBand: _TemplateSelector._getBand(template.difficulty),
               generationAttempts: 1,
               templateId: template.id,
           ),
           solution: [], 
       );
   }
+  
+  void _expandWallSegments(Set<Wall> walls, List<WallSegment> segments) {
+      for (final segment in segments) {
+          switch(segment.type) {
+              case WallSegmentType.vertical:
+                 // x required, y1..y2
+                 if (segment.x != null && segment.y1 != null && segment.y2 != null) {
+                     for (int y = segment.y1!; y <= segment.y2!; y++) {
+                         walls.add(Wall(position: GridPosition(segment.x!, y)));
+                     }
+                 }
+                 break;
+              case WallSegmentType.horizontal:
+                 // y required, x1..x2
+                 if (segment.y != null && segment.x1 != null && segment.x2 != null) {
+                     for (int x = segment.x1!; x <= segment.x2!; x++) {
+                         walls.add(Wall(position: GridPosition(x, segment.y!)));
+                     }
+                 }
+                 break;
+              case WallSegmentType.rect:
+                 if (segment.x != null && segment.y != null && segment.w != null && segment.h != null) {
+                     for (int dx = 0; dx < segment.w!; dx++) {
+                         for (int dy = 0; dy < segment.h!; dy++) {
+                             walls.add(Wall(position: GridPosition(segment.x! + dx, segment.y! + dy)));
+                         }
+                     }
+                 }
+                 break;
+              case WallSegmentType.boxFrame:
+                  if (segment.x1 != null && segment.y1 != null && segment.x2 != null && segment.y2 != null) {
+                      // Top/Bottom
+                      for (int x = segment.x1!; x <= segment.x2!; x++) {
+                          walls.add(Wall(position: GridPosition(x, segment.y1!)));
+                          walls.add(Wall(position: GridPosition(x, segment.y2!)));
+                      }
+                      // Left/Right
+                      for (int y = segment.y1!; y <= segment.y2!; y++) {
+                          walls.add(Wall(position: GridPosition(segment.x1!, y)));
+                          walls.add(Wall(position: GridPosition(segment.x2!, y)));
+                      }
+                  }
+                  break;
+          }
+      }
+  }
 
   dynamic _createObject(ObjectType type, GridPosition pos, int ori, Map<String, dynamic> props) {
       switch(type) {
           case ObjectType.source:
              LightColor color = LightColor.white;
-             if (props.containsKey('color')) color = props['color'] as LightColor;
+             if (props.containsKey('color')) {
+                dynamic c = props['color'];
+                if (c is LightColor) color = c;
+                else if (c is String) color = LightColorExtension.fromJsonString(c);
+             }
              return Source(position: pos, direction: Direction.values[ori % 4], color: color);
           case ObjectType.target:
              LightColor color = LightColor.white;
-             if (props.containsKey('color')) color = props['color'] as LightColor;
+             if (props.containsKey('color')) {
+                dynamic c = props['color'];
+                if (c is LightColor) color = c;
+                else if (c is String) color = LightColorExtension.fromJsonString(c);
+             }
              return Target(position: pos, requiredColor: color);
           case ObjectType.mirror:
              bool rotatable = true;
@@ -197,7 +255,7 @@ class HybridLevelGenerator {
           case ObjectType.prism:
              PrismType pType = PrismType.splitter;
              if (props.containsKey('type')) pType = props['type'] as PrismType;
-             return Prism(position: pos, orientation: ori % 4); // Prism doesn't have type field in new model?
+             return Prism(position: pos, orientation: ori % 4, type: pType); 
           case ObjectType.wall:
              return Wall(position: pos);
       }
@@ -227,14 +285,6 @@ class HybridLevelGenerator {
       // Constant
       return int.tryParse(e) ?? 0;
   }
-  
-  DifficultyBand _getBand(int diff) {
-      if (diff <= 2) return DifficultyBand.tutorial;
-      if (diff <= 4) return DifficultyBand.easy;
-      if (diff <= 6) return DifficultyBand.medium;
-      if (diff <= 8) return DifficultyBand.hard;
-      return DifficultyBand.expert;
-  }
 
   /// Adds random walls to the level to increase variety,
   /// ensuring the SOLUTION path is not blocked.
@@ -242,7 +292,7 @@ class HybridLevelGenerator {
     GeneratedLevel level, 
     LevelTemplate template, 
     Map<String, int> values, 
-    Random rng
+    DeterministicRNG rng
   ) {
       // 1. Calculate Solved State to find the Beam Path
       final solvedState = _createSolvedState(level, template, values);
@@ -313,6 +363,14 @@ class HybridLevelGenerator {
           meta: level.meta,
           solution: level.solution,
       );
+  }
+
+  void _validateSolvability(GeneratedLevel level, GameState solvedState) {
+      final result = _rayTracer.trace(level, solvedState);
+      
+      if (!result.allTargetsSatisfied) {
+           throw GenerationException('Solvability Check Failed: Targets not satisfied.');
+      }
   }
 
   /// Creates a GameState representing the INTENDED solution configuration.
@@ -392,5 +450,99 @@ class HybridLevelGenerator {
           mirrorOrientations: Uint8List.fromList(solvedMirrorOris),
           prismOrientations: Uint8List.fromList(solvedPrismOris),
       );
+  }
+}
+
+class _TemplateSelector {
+  final List<String> _recentTemplateIds = [];
+  final int _cooldown = 6;
+
+  LevelTemplate select({
+    required TemplateLibrary library,
+    required int episode,
+    required int index,
+    required int seed,
+  }) {
+    final diff = _calculateDifficulty(episode, index);
+    final templates = library.getTemplatesForEpisode(episode);
+    
+    // Filter by difficulty
+    var candidates = templates.where((t) => (t.difficulty - diff).abs() <= 1).toList();
+    
+    // Fallback 1: Loose difficulty
+    if (candidates.isEmpty) {
+        candidates = templates.where((t) => (t.difficulty - diff).abs() <= 2).toList();
+    }
+    
+    // Fallback 2: All
+    if (candidates.isEmpty) candidates = templates;
+    if (candidates.isEmpty) throw GenerationException('No templates for E$episode');
+    
+    // Group by Family
+    final families = <String, List<LevelTemplate>>{};
+    for (final t in candidates) {
+        families.putIfAbsent(t.family, () => []).add(t);
+    }
+    
+    final sortedFamilies = families.keys.toList()..sort(); // Deterministic order
+    
+    // Select Family (Hash based)
+    // bucket = index ~/ 20 (optional pacing)
+    final bucket = index ~/ 20;
+    final familySeed = mixSeed(seed, episode, bucket, 100);
+    final familyName = sortedFamilies[familySeed % sortedFamilies.length];
+    
+    final familyTemplates = families[familyName]!;
+    
+    // Select Variant (Cooldown check)
+    int salt = 0;
+    while (salt < 8) {
+        final variantSeed = mixSeed(seed, episode, index, 200 + salt);
+        final template = familyTemplates[variantSeed % familyTemplates.length];
+        
+        if (!_recentTemplateIds.contains(template.id)) {
+            _updateRecent(template.id);
+            return template;
+        }
+        salt++;
+    }
+    
+    // Fallback: Pick purely by hash if all in cooldown
+    final finalSeed = mixSeed(seed, episode, index, 300);
+    final template = familyTemplates[finalSeed % familyTemplates.length];
+    _updateRecent(template.id);
+    return template;
+  }
+  
+  void _updateRecent(String id) {
+      _recentTemplateIds.add(id);
+      if (_recentTemplateIds.length > _cooldown) {
+          _recentTemplateIds.removeAt(0);
+      }
+  }
+
+  static DifficultyBand _getBand(int diff) {
+      if (diff <= 2) return DifficultyBand.tutorial;
+      if (diff <= 4) return DifficultyBand.easy;
+      if (diff <= 6) return DifficultyBand.medium;
+      if (diff <= 8) return DifficultyBand.hard;
+      return DifficultyBand.expert;
+  }
+  
+  int _calculateDifficulty(int episode, int index) {
+      // Base difficulty: E1=1, E2=3, E3=5, E4=7, E5=8
+      int baseDiff;
+      switch(episode) {
+          case 1: baseDiff = 1; break;
+          case 2: baseDiff = 3; break;
+          case 3: baseDiff = 5; break;
+          case 4: baseDiff = 7; break;
+          case 5: baseDiff = 8; break;
+          default: baseDiff = 1;
+      }
+      
+      final progress = index / 200.0;
+      final bonus = (progress * 2).round();
+      return (baseDiff + bonus).clamp(1, 10);
   }
 }

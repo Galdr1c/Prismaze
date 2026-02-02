@@ -81,14 +81,42 @@ List<PrismOutput> applySplitter(
   ];
 }
 
-// applyDeflector removed (Consolidated into splitter)
-
-/// Apply prism behavior (Splitter only).
-List<PrismOutput> applyPrism(
+/// Apply Deflector behavior:
+/// - Determines direction change based on orientation
+/// - Preserves color (no splitting)
+List<PrismOutput> applyDeflector(
   Direction incoming,
   LightColor color,
   int prismOrientation,
 ) {
+  Direction newDir = incoming;
+  switch (prismOrientation % 4) {
+    case 0: // / Left (CCW)
+      newDir = incoming.rotateLeft;
+      break;
+    case 1: // \ Right (CW)
+      newDir = incoming.rotateRight;
+      break;
+    case 2: // / Left (CCW) - Symmetric to 0
+      newDir = incoming.rotateLeft;
+      break;
+    case 3: // \ Right (CW) - Symmetric to 1
+      newDir = incoming.rotateRight;
+      break;
+  }
+  return [PrismOutput(newDir, color)];
+}
+
+/// Apply prism behavior based on type.
+List<PrismOutput> applyPrism(
+  Direction incoming,
+  LightColor color,
+  int prismOrientation,
+  PrismType type,
+) {
+  if (type == PrismType.deflector) {
+    return applyDeflector(incoming, color, prismOrientation);
+  }
   return applySplitter(incoming, color, prismOrientation);
 }
 

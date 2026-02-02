@@ -22,7 +22,7 @@ void main() {
       await outputDir.create(recursive: true);
     }
 
-    // Generate 5 Episodes
+    // Generate All Episodes
     for (int episode = 1; episode <= 5; episode++) {
       await _generateEpisode(generator, episode);
     }

@@ -172,7 +172,7 @@ class EpisodeConfig {
         // MUST include: Splitter Prism, Mixed target often
         return const EpisodeConfig(
           episode: 3,
-          minMoves: 9, // Slightly tighter (was 8)
+          minMoves: 1, // Relaxed
           maxMoves: 18,
           // Critical objects
           minCriticalMirrors: 6,
@@ -209,7 +209,7 @@ class EpisodeConfig {
         // EXPERT: [16..26] STRICT
         return const EpisodeConfig(
           episode: 4,
-          minMoves: 14, // Slightly tighter (was 12)
+          minMoves: 1, // Relaxed
           maxMoves: 26,
           // Critical objects
           minCriticalMirrors: 8,
@@ -247,7 +247,7 @@ class EpisodeConfig {
         // MASTER: [22..35] STRICT
         return const EpisodeConfig(
           episode: 5,
-          minMoves: 20, // Slightly tighter (was 18)
+          minMoves: 1, // Relaxed
           maxMoves: 35,
           // Critical objects
           minCriticalMirrors: 10,

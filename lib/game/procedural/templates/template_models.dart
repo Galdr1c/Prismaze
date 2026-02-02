@@ -37,6 +37,12 @@ class LevelTemplate {
   /// Solved state (for scrambling reference)
   final SolvedState solvedState;
   
+  /// Static wall segments (always present)
+  final List<WallSegment> wallSegments;
+  
+  /// Variant wall sets (selectable via 'wv' variable)
+  final List<List<WallSegment>> wallVariants;
+  
   /// Generation constraints
   final TemplateConstraints constraints;
   
@@ -53,8 +59,43 @@ class LevelTemplate {
     required this.variableObjects,
     required this.variables,
     required this.solvedState,
+    this.wallSegments = const [],
+    this.wallVariants = const [],
     this.constraints = const TemplateConstraints(),
     this.metadata = const TemplateMetadata(),
+  });
+}
+
+enum WallSegmentType {
+  vertical,   // x, y1, y2
+  horizontal, // y, x1, x2
+  rect,       // x, y, w, h
+  boxFrame,   // x1, y1, x2, y2
+}
+
+class WallSegment {
+  final WallSegmentType type;
+  
+  // Coordinates (optional depending on type)
+  final int? x;
+  final int? y;
+  final int? x1;
+  final int? x2;
+  final int? y1;
+  final int? y2;
+  final int? w;
+  final int? h;
+
+  const WallSegment({
+    required this.type,
+    this.x,
+    this.y,
+    this.x1,
+    this.x2,
+    this.y1,
+    this.y2,
+    this.w,
+    this.h,
   });
 }
 
@@ -174,9 +215,14 @@ class SolvedState {
 /// Simplified solution step for templates
 class SolutionStep {
   final String objectId;
-  final int taps;
+  final int orientation;
+  final String? description;
   
-  const SolutionStep(this.objectId, this.taps);
+  const SolutionStep({
+    required this.objectId, 
+    required this.orientation,
+    this.description,
+  });
 }
 
 /// Generation constraints

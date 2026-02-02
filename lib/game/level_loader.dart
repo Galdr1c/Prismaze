@@ -493,18 +493,18 @@ class LevelLoader extends Component with HasGameRef<PrismazeGame> {
     // Left Wall: X=15 (End=30) -> 5px gap from grid
     // Right Wall: X=1250 -> 5px gap from grid
     const double thickness = 15.0;
-    const double width = 1280.0;
-    const double height = 720.0;
+    const double width = 1235.0;
+    const double height = 702.0;
     
     // Top wall (Extended to meet Left/Right walls: X=15 to 1265, Width=1250)
-    gameRef.world.add(Wall(position: Vector2(15, 30), size: Vector2(1250, thickness))..opacity = 1.0);
+    gameRef.world.add(Wall(position: Vector2(15, 48), size: Vector2(1235, thickness))..opacity = 1.0);
     // Bottom wall (Extended to meet Left/Right walls)
-    gameRef.world.add(Wall(position: Vector2(15, height - 30 - thickness), size: Vector2(1250, thickness))..opacity = 1.0);
+    gameRef.world.add(Wall(position: Vector2(15, height - 30 - thickness), size: Vector2(1235, thickness))..opacity = 1.0);
     
     // Left wall (X=15 to clear grid start at 35)
-    gameRef.world.add(Wall(position: Vector2(15, 30 + thickness), size: Vector2(thickness, height - 60 - thickness * 2))..opacity = 1.0);
+    gameRef.world.add(Wall(position: Vector2(15, 48 + thickness), size: Vector2(thickness, height - 60 - thickness * 2))..opacity = 1.0);
     // Right wall (X=1250 to clear grid end at 1245)
-    gameRef.world.add(Wall(position: Vector2(1250, 30 + thickness), size: Vector2(thickness, height - 60 - thickness * 2))..opacity = 1.0);
+    gameRef.world.add(Wall(position: Vector2(1235, 48 + thickness), size: Vector2(thickness, height - 60 - thickness * 2))..opacity = 1.0);
 
   }
 

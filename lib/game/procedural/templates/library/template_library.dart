@@ -23,7 +23,9 @@ class TemplateLibrary {
   }
   
   void registerAll(List<LevelTemplate> templates) {
-    for (var t in templates) register(t);
+    for (var t in templates) {
+      register(t);
+    }
   }
 
   List<LevelTemplate> getTemplatesForEpisode(int episode) {
