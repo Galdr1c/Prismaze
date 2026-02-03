@@ -67,7 +67,7 @@ class _LevelIntroOverlayState extends State<LevelIntroOverlay> with SingleTicker
                         Text(
                             "${loc.getString('level_prefix')} ${widget.levelId}",
                             style: const TextStyle(
-                                fontFamily: 'Dynapuff',
+                                fontFamily: 'DynaPuff',
                                 fontSize: 48,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
+// import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../game/settings_manager.dart';
 import '../game/audio_manager.dart';
@@ -145,7 +145,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
               child: Icon(Icons.close, color: Colors.white70, size: 22),
             ),
           ),
-          Text(LocalizationManager().getString('settings_title'), style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+          Text(LocalizationManager().getString('settings_title'), style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(width: 22),
         ],
       ),
@@ -172,7 +172,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
               children: [
                 Icon(icon, color: isExpanded ? PrismazeTheme.primaryPurpleLight : Colors.white60, size: 16),
                 const SizedBox(width: 8),
-                Expanded(child: Text(title, style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600))),
+                Expanded(child: Text(title, style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600))),
                 Icon(isExpanded ? Icons.expand_less : Icons.expand_more, color: Colors.white60, size: 18),
               ],
             ),
@@ -216,13 +216,13 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
 
   Widget _buildVibrationStrength() {
     final options = [0.0, 0.5, 1.0, 1.5];
-    final labels = ['Kapalı', '%50', '%100', '%150'];
+    final labels = [LocalizationManager().getString('off') ?? 'Kapalı', '%50', '%100', '%150'];
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(LocalizationManager().getString('settings_gameplay_vibration'), style: GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 10)),
+          Text(LocalizationManager().getString('settings_gameplay_vibration'), style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white70, fontSize: 10)),
           const SizedBox(height: 4),
           Row(
             children: List.generate(4, (i) {
@@ -243,7 +243,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                       borderRadius: BorderRadius.circular(6),
                       border: isSelected ? Border.all(color: PrismazeTheme.primaryPurple) : null,
                     ),
-                    child: Center(child: Text(labels[i], style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 9))),
+                    child: Center(child: Text(labels[i], style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 9))),
                   ),
                 ),
               );
@@ -261,7 +261,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
         children: [
           Row(
             children: [
-              Expanded(child: Text(LocalizationManager().getString('settings_acc_colorblind'), style: GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 10))),
+              Expanded(child: Text(LocalizationManager().getString('settings_acc_colorblind'), style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white70, fontSize: 10))),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(6)),
@@ -269,7 +269,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                   child: DropdownButton<int>(
                     value: _colorBlindIdx,
                     dropdownColor: PrismazeTheme.backgroundCard,
-                    style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10),
+                    style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 10),
                     icon: Icon(Icons.arrow_drop_down, color: Colors.white60, size: 16),
                     items: _colorBlindOptions.asMap().entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
                     onChanged: (v) { if (v != null) { setState(() => _colorBlindIdx = v); widget.settingsManager.setColorBlindMode(v); } },
@@ -311,7 +311,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white24)),
         ),
         const SizedBox(height: 2),
-        Text(label, style: GoogleFonts.dynaPuff(color: Colors.white54, fontSize: 8)),
+        Text(label, style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white54, fontSize: 8)),
       ],
     );
   }
@@ -360,7 +360,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                 Expanded(
                   child: Text(
                     LocalizationManager().getString('child_mode_active'),
-                    style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 12),
+                    style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 12),
                   ),
                 ),
               ],
@@ -415,7 +415,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                             Expanded(
                                 child: Text(
                                     isOnline ? LocalizationManager().getString('sync_online') : LocalizationManager().getString('sync_offline'),
-                                    style: GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 10)
+                                    style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white70, fontSize: 10)
                                 )
                             ),
                             if (isOnline)
@@ -429,7 +429,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                                         ),
                                         child: _isSyncing 
                                             ? SizedBox(width: 10, height: 10, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) 
-                                            : Text(LocalizationManager().getString('sync_now'), style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 9)),
+                                            : Text(LocalizationManager().getString('sync_now'), style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 9)),
                                     ),
                                 )
                         ],
@@ -445,7 +445,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
   Future<void> _exportData() async {
     AudioManager().playSfxId(SfxId.uiClick);
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Veriler hazırlanıyor...'), duration: Duration(seconds: 1), backgroundColor: Colors.blue)
+        SnackBar(content: Text(LocalizationManager().getString('msg_data_preparing')), duration: Duration(seconds: 1), backgroundColor: Colors.blue)
     );
     
     final result = await PrivacyManager().shareUserData();
@@ -453,7 +453,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
     
     if (!result) {
          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Veri dışa aktarma başarısız.'), backgroundColor: Colors.red)
+            SnackBar(content: Text(LocalizationManager().getString('msg_export_fail')), backgroundColor: Colors.red)
         );
     }
   }
@@ -484,9 +484,9 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
       showDialog(
         context: context,
         builder: (ctx) => _confirmDialog(
-          "Veri Çakışması",
-          "Buluttaki verileriniz ile cihazdaki verileriniz farklı görünüyor. Hangisini kullanmak istersiniz?",
-          "Bulutu İndir",
+          LocalizationManager().getString('title_conflict'),
+          LocalizationManager().getString('msg_conflict'),
+          LocalizationManager().getString('btn_download_cloud'),
           Colors.orange, 
           () async {
             Navigator.pop(ctx);
@@ -509,7 +509,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           children: [
             Icon(icon, color: color, size: 14),
             const SizedBox(width: 4),
-            Text(label, style: GoogleFonts.dynaPuff(color: color, fontSize: 9)),
+            Text(label, style: TextStyle(fontFamily: 'DynaPuff', color: color, fontSize: 9)),
           ],
         ),
       ),
@@ -538,7 +538,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
               borderRadius: BorderRadius.circular(6),
               border: isSelected ? Border.all(color: PrismazeTheme.primaryPurple) : null,
             ),
-            child: Text(e.value, style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10)),
+            child: Text(e.value, style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 10)),
           ),
         );
       }).toList(),
@@ -561,7 +561,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
               children: [
                 Icon(Icons.info_outline, color: Colors.white60, size: 14),
                 const SizedBox(width: 6),
-                Text(LocalizationManager().getString('settings_about'), style: GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 11)),
+                Text(LocalizationManager().getString('settings_about'), style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white70, fontSize: 11)),
               ],
             ),
           ),
@@ -581,7 +581,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          SizedBox(width: 80, child: Text(label, style: GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 10))),
+          SizedBox(width: 80, child: Text(label, style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white70, fontSize: 10))),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
@@ -595,7 +595,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
               child: Slider(value: val.clamp(0.0, 1.0), onChanged: onChange, onChangeEnd: onEnd),
             ),
           ),
-          SizedBox(width: 28, child: Text('${(val * 100).toInt()}%', style: GoogleFonts.dynaPuff(color: Colors.white60, fontSize: 9))),
+          SizedBox(width: 28, child: Text('${(val * 100).toInt()}%', style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white60, fontSize: 9))),
         ],
       ),
     );
@@ -606,7 +606,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         children: [
-          Expanded(child: Text(label, style: GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 10))),
+          Expanded(child: Text(label, style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white70, fontSize: 10))),
           Transform.scale(
             scale: 0.7,
             child: Switch(value: val, onChanged: onChange, activeColor: PrismazeTheme.primaryPurple),
@@ -693,9 +693,9 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(title, style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+              Text(title, style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              Text(msg, style: GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 11), textAlign: TextAlign.center),
+              Text(msg, style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white70, fontSize: 11), textAlign: TextAlign.center),
               const SizedBox(height: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -705,7 +705,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
-                      child: Text(LocalizationManager().getString('btn_cancel'), style: GoogleFonts.dynaPuff(color: Colors.white70, fontSize: 10)),
+                      child: Text(LocalizationManager().getString('btn_cancel'), style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white70, fontSize: 10)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -714,7 +714,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16)),
-                      child: Text(confirmText, style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                      child: Text(confirmText, style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
                     ),
                   ),
                 ],
@@ -736,7 +736,7 @@ class _SettingsOverlayState extends State<SettingsOverlay> {
             Expanded(
               child: Text(
                 LocalizationManager().getString('language_change_notice'),
-                style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 11),
+                style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 11),
               ),
             ),
           ],

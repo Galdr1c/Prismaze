@@ -6,7 +6,8 @@ import '../game/easter_egg_manager.dart';
 import '../game/event_manager.dart'; // Added
 import '../game/localization_manager.dart';
 import '../game/audio_manager.dart';
-import '../game/progress/campaign_progress.dart';
+import '../game/progress_manager.dart'; // Added
+// import '../game/progress/campaign_progress.dart'; // Deleted
 import '../game/utils/security_utils.dart';
 import '../theme/app_theme.dart';
 import 'components/styled_back_button.dart';
@@ -14,7 +15,6 @@ import 'components/fast_page_route.dart';
 import '../game/privacy_manager.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
-import '../game/procedural/campaign_loader.dart';
 
 /// About Screen with Developer Credits and Hidden Debug Menu
 class AboutScreen extends StatefulWidget {
@@ -244,19 +244,16 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                               setModalState(() => _isLoadingDebug = true);
                                 try {
                                   // Ensure manifest is loaded so we know correct level counts
-                                  final manifest = await CampaignLevelLoader.loadManifest();
-                                  final progress = CampaignProgress();
-                                  await progress.initWithManifest(manifest ?? {'episodes': {}});
+                                  // final manifest = {'episodes': {}}; // STUBBED
+                                  final progress = ProgressManager();
+                                  await progress.init();
 
-                                  // NEW: Use CampaignProgress for episode-based system (5 episodes x 200 levels = 1000 total)
-                                  for (int episode = 1; episode <= 5; episode++) {
-                                    final levelCount = progress.getLevelCount(episode);
-                                    await progress.debugSetProgress(episode, levelCount, 3);
-                                  }
+                                  // Unlock All Debug
+                                  await progress.debugUnlockAll_DANGEROUS();
                                 
                                 AudioManager().playSfxId(SfxId.achievementUnlocked);
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tüm leveller açıldı (5 Episode x 200 = 1000 level, 3★)!'), backgroundColor: Colors.green));
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tüm leveller açıldı (Debug)!'), backgroundColor: Colors.green));
                                 }
                               } catch (e) {
                                 print('Debug unlock error: $e');
@@ -270,8 +267,9 @@ class _AboutScreenState extends State<AboutScreen> with TickerProviderStateMixin
                             Expanded(child: _devButton('LEVELLERİ SIFIRLA', Icons.restart_alt, Colors.orange, () async {
                               setModalState(() => _isLoadingDebug = true);
                               try {
-                                // NEW: Use CampaignProgress.resetAll() for episode-based system
-                                await CampaignProgress().resetAll();
+                                final progress = ProgressManager();
+                                await progress.init();
+                                await progress.debugResetProgress();
                                 
                                 AudioManager().playSfx('trash.mp3');
                                 if (mounted) {

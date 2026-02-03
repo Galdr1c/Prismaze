@@ -177,7 +177,7 @@ class AudioManager {
     final audioContext = ap.AudioContext(
       iOS: ap.AudioContextIOS(
         category: ap.AVAudioSessionCategory.playback,
-        options: {ap.AVAudioSessionOptions.mixWithOthers},
+        options: [ap.AVAudioSessionOptions.mixWithOthers],
       ),
       android: ap.AudioContextAndroid(
         isSpeakerphoneOn: true,

@@ -78,9 +78,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                         _buildSectionHeader(loc.getString('stat_personal'), Icons.person),
                         const SizedBox(height: 12),
                         GridView.count(
-                            crossAxisCount: 6, // 3 cols is better than 6
+                            crossAxisCount: 3, // 2 columns for portrait readability
                             shrinkWrap: true,
-                            childAspectRatio: 1.5,
+                            childAspectRatio: 2.5,
                             crossAxisSpacing: 8,
                             mainAxisSpacing: 8,
                             physics: const NeverScrollableScrollPhysics(),

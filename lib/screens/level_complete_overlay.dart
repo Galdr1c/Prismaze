@@ -130,7 +130,7 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
                     final isLandscape = orientation == Orientation.landscape;
                     
                     return Container(
-                      width: isLandscape ? 550 : 300,
+                      width: isLandscape ? 550 : 600, // Balanced for 720px portrait width
                       constraints: BoxConstraints(
                         maxHeight: MediaQuery.of(context).size.height * 0.85, 
                       ),

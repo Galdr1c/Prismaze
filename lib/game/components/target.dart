@@ -5,7 +5,8 @@ import '../utils/physics_utils.dart';
 import '../utils/color_blindness_utils.dart';
 import '../audio_manager.dart';
 import '../prismaze_game.dart'; // For settings access
-import '../procedural/models/models.dart'; // For LightColor and ColorMixer
+import '../../core/models/models.dart'; // Correct Path
+import '../../core/logic/color_mixer.dart'; // Explicit import if needed for logic
 
 class TargetParticle {
   Vector2 position;
@@ -141,9 +142,13 @@ class Target extends PositionComponent with HasGameRef<PrismazeGame> {
       return;
     }
     
-    bool match = ColorMixer.satisfiesTarget(_currentFrameColors, requiredLightColor);
-    _isLit = match;
+    // Convert set to mixed color
+    int combinedMask = ColorMask.fromColors(_currentFrameColors);
+    LightColor combined = LightColor.fromMask(combinedMask);
     
+    bool match = ColorMixer.satisfies(combined, requiredLightColor);
+    _isLit = match;
+         
     // Trigger explosion on rising edge
     if (_isLit && !_wasLit) {
       _spawnConfetti();

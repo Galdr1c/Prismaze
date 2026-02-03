@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'tools/fps_overlay.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'screens/splash_screen.dart';
 import 'game/easter_egg_manager.dart';
 import 'game/utils/platform_utils.dart';
@@ -16,26 +16,19 @@ void main() async {
   print("=== PRISMAZE MAIN STARTED ===");
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Disable Google Fonts network fetching - use bundled fonts only
-  // This prevents font errors when offline
-  GoogleFonts.config.allowRuntimeFetching = false;
-  
-  // Force landscape mode
+  // Force portrait mode
   await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
   ]);
   
-  // Enable fullscreen immersive mode
-  await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.immersiveSticky,
-    overlays: [],
-  );
+  // Reset System UI to standard style for portrait mobile feel
+  // await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge); // Optional: keep immersive but with status bar visible?
   
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarColor: Colors.black,
+    statusBarIconBrightness: Brightness.light, // Light icons for dark background
+    systemNavigationBarColor: Colors.transparent,
     systemNavigationBarIconBrightness: Brightness.light,
   ));
   

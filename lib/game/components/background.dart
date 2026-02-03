@@ -52,9 +52,9 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
 
   @override
   Future<void> onLoad() async {
-    // FIX: Set size to match resolution, but larger to ensure coverage
-    size = Vector2(1344, 756); 
-    position = Vector2(-32, -18); // Center the 5% zoom out (1344-1280=64, 756-720=36 -> Half is 32, 18)
+    // FIX: Set size to portrait resolution (720x1280) + 5% for zoom/shake margin
+    size = Vector2(756, 1344); 
+    position = Vector2(-18, -32); // Center the zoom out (756-720=36, 1344-1280=64 -> Half is 18, 32)
     
     _currentTheme = gameRef.customizationManager.selectedTheme;
     gameRef.customizationManager.addListener(_onThemeChanged);
@@ -165,7 +165,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       // Fish silhouettes
       for (int i = 0; i < 5; i++) {
           _fish.add(_FishSilhouette(
-            position: Vector2(rng.nextDouble() * size.x, size.y * 0.5 + rng.nextDouble() * size.y * 0.4),
+            position: Vector2(rng.nextDouble() * size.x, size.y * 0.6 + rng.nextDouble() * size.y * 0.3), // Lower half in portrait
             speed: 20 + rng.nextDouble() * 30,
             scale: 0.5 + rng.nextDouble() * 0.8,
             direction: rng.nextBool() ? 1 : -1,
@@ -676,7 +676,7 @@ class BackgroundComponent extends PositionComponent with HasGameRef<PrismazeGame
       // Flying bats
       for (int i = 0; i < 8; i++) {
           _bats.add(_Bat(
-            position: Vector2(rng.nextDouble() * size.x, 50 + rng.nextDouble() * size.y * 0.4),
+            position: Vector2(rng.nextDouble() * size.x, 100 + rng.nextDouble() * size.y * 0.5), // More vertical spread
             speed: 30 + rng.nextDouble() * 40,
             scale: 0.4 + rng.nextDouble() * 0.4,
             direction: rng.nextBool() ? 1 : -1,

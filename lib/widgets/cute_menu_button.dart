@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../theme/app_theme.dart';
 import 'bouncing_button.dart';
 
@@ -168,7 +168,8 @@ class _CuteMenuButtonState extends State<CuteMenuButton> with SingleTickerProvid
                                ],
                                Text(
                                  widget.label.toUpperCase(),
-                                 style: GoogleFonts.dynaPuff(
+                                 style: TextStyle(
+                                   fontFamily: 'DynaPuff',
                                    color: widget.textColor ?? Colors.white,
                                    fontSize: widget.fontSize,
                                    fontWeight: FontWeight.w900,

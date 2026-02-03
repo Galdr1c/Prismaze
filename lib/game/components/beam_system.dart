@@ -13,8 +13,8 @@ import '../utils/physics_utils.dart';
 import '../utils/color_blindness_utils.dart';
 import '../audio_manager.dart';
 import '../prismaze_game.dart';
-import '../procedural/ray_tracer_adapter.dart';
-import '../procedural/models/models.dart' as proc;
+// import '../procedural/ray_tracer_adapter.dart';
+// import '../procedural/models/models.dart' as proc;
 
 class BeamSegment {
   final Vector2 start;
@@ -51,12 +51,12 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   final List<BeamParticle> _particles = [];
   final Random _rng = Random();
   
-  // External segments from RayTracer (procedural mode)
-  List<RenderSegment>? _externalSegments;
+  // External segments from RayTracer (procedural mode) - STUBBED
+  List<dynamic>? _externalSegments;
   
   /// Use RayTracer segments instead of legacy beam calculation.
   /// When true, BeamSystem only renders; it does not compute physics.
-  bool useRayTracerMode = true; // DEFAULT TO NEW SYSTEM
+  bool useRayTracerMode = false; // DISABLED FOR RESET
   
   // Debug getters
   int get debugParticleCount => _particles.length;
@@ -152,7 +152,9 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   
   /// Set external segments from RayTracer.
   /// When set, these segments are rendered instead of (or in addition to) legacy segments.
-  void setExternalSegments(List<RenderSegment> segments) {
+  /// Set external segments from RayTracer.
+  /// When set, these segments are rendered instead of (or in addition to) legacy segments.
+  void setExternalSegments(List<dynamic> segments) {
     _externalSegments = segments;
   }
   
@@ -163,8 +165,10 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   
   /// Render segments from RayTracer (procedural mode).
   /// This is the primary method for campaign/procedural levels.
-  void renderRayTracerSegments(List<RenderSegment> segments) {
-    _externalSegments = segments;
+  /// Render segments from RayTracer (procedural mode).
+  /// This is the primary method for campaign/procedural levels.
+  void renderRayTracerSegments(List<dynamic> segments) {
+    _externalSegments = [];
     // In RayTracer mode, we don't need to recalculate legacy beams
     if (useRayTracerMode) {
       _segments.clear();
@@ -606,7 +610,7 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
   /// Handles "Secondary" beams (splitter outputs) with reduced visuals.
   void _renderExternalSegments(
     Canvas canvas,
-    List<RenderSegment> segments,
+    List<dynamic> segments,
     bool reducedGlow,
     bool highContrast,
   ) {
@@ -659,7 +663,10 @@ class BeamSystem extends Component with HasGameRef<PrismazeGame> {
     // RENDER: Helper Function
     // =========================================================
     void renderBatch(Map<Color, Path> paths, {required bool isSecondary}) {
-        for (final entry in paths.entries) {
+        final sortedEntries = paths.entries.toList()
+          ..sort((a, b) => a.key.value.compareTo(b.key.value));
+
+        for (final entry in sortedEntries) {
             final color = entry.key;
             final path = entry.value;
 

@@ -180,22 +180,14 @@ class _GameScreenState extends ConsumerState<GameScreen> with WidgetsBindingObse
                   ),
                 ),
                 
-                // === RIGHT SIDE CONTROLS ===
+                // === BOTTOM CONTROLS ===
                 Positioned(
+                  left: 16,
                   right: 16,
-                  bottom: 50,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                  bottom: 24, // Lift up slightly
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // RESTART
-                      _buildActionButton(
-                        icon: Icons.refresh,
-                        label: LocalizationManager().getString('btn_restart'),
-                        onTap: () => _game.restartLevel(),
-                      ),
-                      
-                      const SizedBox(height: 24),
-                      
                       // UNDO
                       ListenableBuilder(
                         listenable: _game.undoSystem,
@@ -228,9 +220,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with WidgetsBindingObse
                             );
                         }
                       ),
-                      
-                      const SizedBox(height: 24),
-                      
+
                       // HINT
                       _buildActionButton(
                         icon: Icons.lightbulb_outline,
@@ -238,32 +228,24 @@ class _GameScreenState extends ConsumerState<GameScreen> with WidgetsBindingObse
                         color: Colors.amber,
                         onTap: () => _game.hintManager.showLightHint(),
                       ),
+
+                      // RESTART
+                      _buildActionButton(
+                        icon: Icons.refresh,
+                        label: LocalizationManager().getString('btn_restart'),
+                        onTap: () => _game.restartLevel(),
+                      ),
+
+                      // ZOOM (Debug Only) - Optional in Portrait
+                      if (SettingsManager().debugModeEnabled)
+                             _buildCircleButton(
+                              icon: Icons.zoom_in, 
+                              onTap: () => _game.zoomIn(),
+                              color: Colors.white,
+                             )
                     ],
                   ),
                 ),
-                
-                // === LEFT SIDE ZOOM CONTROLS (Debug Only) ===
-                if (SettingsManager().debugModeEnabled)
-                  Positioned(
-                    left: 16,
-                    bottom: 50,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _buildCircleButton(
-                          icon: Icons.add,
-                          onTap: () => _game.zoomIn(),
-                          color: Colors.white,
-                        ),
-                        const SizedBox(height: 16),
-                        _buildCircleButton(
-                          icon: Icons.remove,
-                          onTap: () => _game.zoomOut(),
-                          color: Colors.white,
-                        ),
-                      ],
-                    ),
-                  ),
               ],
             ),
           ),

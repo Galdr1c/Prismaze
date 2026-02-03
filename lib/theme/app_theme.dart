@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../game/settings_manager.dart';
 
 /// Prismaze App Theme - Dynamic Accessibility Support
@@ -96,12 +96,13 @@ class PrismazeTheme {
   static const double borderRadiusXL = 32.0;
 
   // Text Styles (Dynamic Colors)
-  static TextStyle get headingMedium => GoogleFonts.dynaPuff(fontSize: 24, fontWeight: FontWeight.w600, color: textPrimary);
-  static TextStyle get headingSmall => GoogleFonts.dynaPuff(fontSize: 18, fontWeight: FontWeight.w600, color: textPrimary);
-  static TextStyle get bodyLarge => GoogleFonts.dynaPuff(fontSize: 16, fontWeight: FontWeight.w500, color: textPrimary);
-  static TextStyle get bodyMedium => GoogleFonts.dynaPuff(fontSize: 14, fontWeight: FontWeight.w400, color: textSecondary);
-  static TextStyle get bodySmall => GoogleFonts.dynaPuff(fontSize: 12, fontWeight: FontWeight.w400, color: textMuted);
-  static TextStyle get labelLarge => GoogleFonts.dynaPuff(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white);
+  // Text Styles (Dynamic Colors)
+  static TextStyle get headingMedium => const TextStyle(fontFamily: 'DynaPuff', fontSize: 24, fontWeight: FontWeight.w600).copyWith(color: textPrimary);
+  static TextStyle get headingSmall => const TextStyle(fontFamily: 'DynaPuff', fontSize: 18, fontWeight: FontWeight.w600).copyWith(color: textPrimary);
+  static TextStyle get bodyLarge => const TextStyle(fontFamily: 'DynaPuff', fontSize: 16, fontWeight: FontWeight.w500).copyWith(color: textPrimary);
+  static TextStyle get bodyMedium => const TextStyle(fontFamily: 'DynaPuff', fontSize: 14, fontWeight: FontWeight.w400).copyWith(color: textSecondary);
+  static TextStyle get bodySmall => const TextStyle(fontFamily: 'DynaPuff', fontSize: 12, fontWeight: FontWeight.w400).copyWith(color: textMuted);
+  static TextStyle get labelLarge => const TextStyle(fontFamily: 'DynaPuff', fontSize: 16, fontWeight: FontWeight.w600).copyWith(color: Colors.white);
 
   // === TEXT COLORS (Dynamic) ===
   static Color get textPrimary => _sm.highContrastEnabled ? Colors.white : const Color(0xFFFFFFFF);
@@ -147,16 +148,17 @@ class PrismazeTheme {
       
       scaffoldBackgroundColor: bgDark,
       
-      // Text Theme (DynaPuff)
+      // Text Theme (DynaPuff Local)
+      fontFamily: 'DynaPuff',
       textTheme: TextTheme(
-        displayLarge: GoogleFonts.dynaPuff(fontSize: 48, fontWeight: FontWeight.w700, color: Colors.white),
-        displayMedium: GoogleFonts.dynaPuff(fontSize: 32, fontWeight: FontWeight.w600, color: Colors.white),
-        displaySmall: GoogleFonts.dynaPuff(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white),
-        headlineMedium: GoogleFonts.dynaPuff(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
-        bodyLarge: GoogleFonts.dynaPuff(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white),
-        bodyMedium: GoogleFonts.dynaPuff(fontSize: 14, fontWeight: FontWeight.w400, color: txtSec),
-        bodySmall: GoogleFonts.dynaPuff(fontSize: 12, fontWeight: FontWeight.w400, color: highContrast ? Colors.white70 : textMuted),
-        labelLarge: GoogleFonts.dynaPuff(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+        displayLarge: const TextStyle(fontFamily: 'DynaPuff', fontSize: 48, fontWeight: FontWeight.w700, color: Colors.white),
+        displayMedium: const TextStyle(fontFamily: 'DynaPuff', fontSize: 32, fontWeight: FontWeight.w600, color: Colors.white),
+        displaySmall: const TextStyle(fontFamily: 'DynaPuff', fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white),
+        headlineMedium: const TextStyle(fontFamily: 'DynaPuff', fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+        bodyLarge: const TextStyle(fontFamily: 'DynaPuff', fontSize: 16, fontWeight: FontWeight.w500, color: Colors.white),
+        bodyMedium: TextStyle(fontFamily: 'DynaPuff', fontSize: 14, fontWeight: FontWeight.w400, color: txtSec),
+        bodySmall: TextStyle(fontFamily: 'DynaPuff', fontSize: 12, fontWeight: FontWeight.w400, color: highContrast ? Colors.white70 : textMuted),
+        labelLarge: const TextStyle(fontFamily: 'DynaPuff', fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
       ),
       
       elevatedButtonTheme: ElevatedButtonThemeData(

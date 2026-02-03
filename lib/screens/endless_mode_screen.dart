@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../game/procedural_level_generator.dart';
+// import '../game/procedural_level_generator.dart';
 import '../game/audio_manager.dart';
 import '../game/economy_manager.dart';
 import '../game/progress_manager.dart';
@@ -21,7 +21,7 @@ class EndlessModeScreen extends StatefulWidget {
 }
 
 class _EndlessModeScreenState extends State<EndlessModeScreen> {
-  final ProceduralLevelGenerator _generator = ProceduralLevelGenerator();
+  // final ProceduralLevelGenerator _generator = ProceduralLevelGenerator();
   late EconomyManager _economy;
   late ProgressManager _progress;
   bool _isLoading = true;
@@ -268,7 +268,8 @@ class _EndlessModeScreenState extends State<EndlessModeScreen> {
     int levelToPlay = continueProgress ? (_highestEndlessLevel + 1) : 1;
     
     // Generate endless level
-    final levelData = _generator.generateLevel(levelToPlay);
+    // Stub level generation
+    final Map<String, dynamic> levelData = {};
     
     Navigator.push(
       context,

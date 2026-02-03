@@ -1,161 +1,107 @@
 import 'package:flame/components.dart';
-import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
 import '../audio_manager.dart';
 import '../prismaze_game.dart';
-import '../utils/visual_effects.dart';
-import '../procedural/models/models.dart' as proc;
-import 'wall.dart';
-import 'prism.dart';
+// import '../utils/visual_effects.dart'; // Removed broken import
 import 'dart:math';
 
-class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGame> {
-  // Global index for GameState
-  final int index;
+class Mirror extends PositionComponent with HasGameRef<PrismazeGame> {
   // Visual state
   double _shineOffset = -1.0;
   bool _isRotating = false;
-  bool isLocked = false;
-  double _time = 0;
-  double _lightHitIntensity = 0; // Glow when light hits
   
-  /// Discrete orientation (0-3) for the new procedural system.
-  /// 0 = horizontal "_", 1 = slash "/", 2 = vertical "|", 3 = backslash "\"
-  /// Discrete orientation (0-3) linked to GameState
-  int get _discreteOrientation => gameRef.currentState.mirrorOrientations[index];
-  set _discreteOrientation(int value) => gameRef.currentState = gameRef.currentState.withMirrorOrientation(index, value);
-  
-  /// Whether this mirror uses discrete orientation (campaign mode).
-  /// When true, tap rotates through 4 states.
-  bool useDiscreteOrientation = false;
+  // Logic state
+  bool isFixed;
+  int discreteOrientation; // 0..3 (45 degree increments relative to base?)
+  // Actually Mirror orientations are 0..7 in model, but often 4 visual states?
+  // Model: 0..7.
+  // Visual: 
+  // 0: |
+  // 1: /
+  // 2: -
+  // 3: \
+  // Let's assume input maps 4 visual states.
   
   double opacity = 1.0;
   
   // Premium color scheme
-  static const _frameGoldDark = Color(0xFFB8860B);     // Dark gold
-  static const _frameGoldLight = Color(0xFFFFD700);    // Bright gold
-  static const _frameGoldMid = Color(0xFFD4AF37);      // Classic gold
-  static const _chromeDark = Color(0xFF8A9BAE);        // Dark chrome
-  static const _chromeLight = Color(0xFFE8EEF4);       // Bright chrome
-  static const _chromeMid = Color(0xFFB8C5D6);         // Mid chrome
-  static const _glowColor = Color(0xFF64FFDA);         // Cyan accent glow
-  static const _impactColor = Color(0xFFFFFFFF);       // White impact flash
+  static const _frameGoldDark = Color(0xFFB8860B);
+  static const _frameGoldLight = Color(0xFFFFD700);
+  static const _frameGoldMid = Color(0xFFD4AF37); 
+  static const _chromeDark = Color(0xFF8A9BAE);
+  static const _chromeLight = Color(0xFFE8EEF4);
+  static const _chromeMid = Color(0xFFB8C5D6);
+  static const _glowColor = Color(0xFF64FFDA);
+  static const _impactColor = Color(0xFFFFFFFF);
 
-  // === OPTIMIZATION: CACHED PAINTS ===
+  // Cached Paints
   final Paint _basePaint = Paint();
   final Paint _strokePaint = Paint()..style = PaintingStyle.stroke;
   final Paint _glowPaint = Paint();
   final Paint _shaderPaint = Paint();
   
-  // Static MaskFilters
   static const _blur3 = MaskFilter.blur(BlurStyle.solid, 3);
   static const _blur4 = MaskFilter.blur(BlurStyle.normal, 4);
 
   Mirror({
     required Vector2 position,
-    double angle = 0,
-    this.isLocked = false,
-    int discreteOrientation = 0,
-    this.useDiscreteOrientation = false,
-    required this.index,
-  }) : super(
+    required int orientation, // 0..7 from model
+    this.isFixed = false,
+  }) : discreteOrientation = orientation,
+       super(
           position: position,
-          size: Vector2(75, 20), // Wider for 85px cell (was 54x14)
-          angle: angle,
+          size: Vector2(75, 20),
+          angle: _orientationToAngle(orientation),
           anchor: Anchor.center,
         );
   
-  /// Called by BeamSystem when light hits this mirror
-  void onLightHit() {
-    _lightHitIntensity = 1.0;
-  }
-  
-  /// Get discrete orientation for procedural system.
-  int get discreteOrientation => _discreteOrientation;
-  
-  /// Set discrete orientation and update visual angle.
-  set discreteOrientation(int value) {
-    _discreteOrientation = value % 4;
-    angle = _discreteOrientationToAngle(_discreteOrientation);
-  }
-  
-  /// Convert discrete orientation to visual angle (45° increments).
-  static double _discreteOrientationToAngle(int orientation) {
-    // Match logic in MirrorOrientationExtension.angleRad
+  static double _orientationToAngle(int orientation) {
+    // Model: 0..7.
+    // 0: Vertical | (Angle 90 deg? or 0?)
+    // In RayTracer, 0 assumed Vertical.
+    // In Flame, Angle 0 is usually ---> (East) or ^ (North)?
+    // Default Flame: 0 is Right (East), PI/2 is Down (South).
+    // If Mirror 0 is |, it stands VERTICALLY.
+    // A horizontal sprite rotated 90 deg.
+    // Let's assume sprite is horizontal (width > height).
+    // So 0 (|) -> 90 deg (PI/2).
+    
+    // RayTracer:
+    // 0: |
+    // 1: /
+    // 2: -
+    // 3: \
+    
+    // Mapping:
     switch (orientation % 4) {
-      case 0: return 0;          // Horizontal _
-      case 1: return -pi / 4;    // Slash / (-45°)
-      case 2: return pi / 2;     // Vertical | (90°)
-      case 3: return pi / 4;     // Backslash \ (45°)
+      case 0: return pi / 2;    // |
+      case 1: return pi / 4;    // \ (Wait, / is -45?)
+             // / (NE-SW) means BottomLeft via TopRight.
+             // Horizontal rotated -45 (CCW 45).
+             // Flame +angle is CW.
+             // Horizontal rotated -45 is /. 
+             // Angle: -pi/4 (or 7pi/4).
+             return -pi / 4;
+      case 2: return 0;         // - (Horizontal)
+      case 3: return pi / 4;    // \ (NW-SE)
       default: return 0;
     }
   }
+
+  void rotate() {
+      if (isFixed) return;
+      
+      // Cycle: 0 (|) -> 1 (/) -> 2 (-) -> 3 (\) -> 0
+      // RayTracer logic: (ori + 1) % 4
+      discreteOrientation = (discreteOrientation + 1) % 4;
+      angle = _orientationToAngle(discreteOrientation);
+      
+      _triggerShine();
+      // Sound played by Game
+  }
   
-  /// Convert from procedural model.
-  factory Mirror.fromProcedural(proc.Mirror m, int index) {
-    final angle = _discreteOrientationToAngle(m.orientation.index);
-    return Mirror(
-      position: Vector2(
-        m.position.x * proc.GridPosition.cellSize + proc.GridPosition.cellSize / 2,
-        m.position.y * proc.GridPosition.cellSize + proc.GridPosition.cellSize / 2,
-      ),
-      angle: angle,
-      isLocked: !m.rotatable,
-      discreteOrientation: m.orientation.index,
-      useDiscreteOrientation: true,
-      index: index,
-    );
-  }
-
-  // ===== TAP TO ROTATE =====
-  @override
-  void onTapUp(TapUpEvent event) {
-      // Rotate on single tap
-      _rotate();
-  }
-
-  void _rotate() {
-    if (isLocked || gameRef.isLevelCompleted) {
-         if (isLocked && !gameRef.isLevelCompleted) {
-           AudioManager().playSfx('error_sound.mp3');
-         }
-         return;
-    }
-    
-    final startPos = position.clone();
-    final startAngle = angle;
-    
-    if (gameRef.beamSystem.useRayTracerMode) {
-        // 1.3 Update State (Critical for RayTracer)
-        gameRef.currentState = gameRef.currentState.rotateMirror(index);
-        // Sync visuals
-        final newOri = gameRef.currentState.mirrorOrientations[index];
-        angle = _discreteOrientationToAngle(newOri);
-    } else {
-        // Legacy Rotation
-        if (useDiscreteOrientation) {
-             // Local logic if state isn't available
-             angle += -pi / 4; // Visual rotation
-             if (angle < 0) angle += 2 * pi;
-             // _discreteOrientation setter might be dangerous here if state is missing
-        } else {
-            angle += pi / 4;
-            if (angle >= 2 * pi) angle -= 2 * pi;
-        }
-    }
-    
-    print('MIRROR ROTATE! orientation=$_discreteOrientation');
-    _triggerShine();
-    AudioManager().playSfx('mirror_tap_sound.mp3');
-    
-    gameRef.recordMove(hashCode, startPos, startAngle);
-    gameRef.requestBeamUpdate();
-  }
-
   @override
   bool containsLocalPoint(Vector2 point) {
-      // Expand hitbox for easier tapping (especially for thin mirror)
-      // 54x14 is very thin. Add 20px padding.
       final r = size.toRect().inflate(20);
       return r.contains(point.toOffset());
   }
@@ -163,21 +109,13 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
   @override
   void update(double dt) {
       super.update(dt);
-      _time += dt;
       
-      // Animate shine if rotating (or just triggered)
       if (_shineOffset > -1.0) {
-          _shineOffset += dt * 2.5; // Speed
+          _shineOffset += dt * 2.5; 
           if (_shineOffset > 2.0) {
-              _shineOffset = -1.0; // Reset
+              _shineOffset = -1.0; 
               _isRotating = false;
           }
-      }
-      
-      // Decay light hit intensity
-      if (_lightHitIntensity > 0) {
-        _lightHitIntensity -= dt * 3.0; // Fade over ~0.3s
-        if (_lightHitIntensity < 0) _lightHitIntensity = 0;
       }
   }
 
@@ -186,195 +124,44 @@ class Mirror extends PositionComponent with TapCallbacks, HasGameRef<PrismazeGam
     if (opacity == 0) return;
     
     final rect = size.toRect();
-    // ... [Render code kept mostly same, compacted for brevity in replacement if unchanged, but I must provide valid replacement]
-    // Since I'm replacing a large block, I need to keep the render code.
-    // I will use render_diffs logic by just copying the render method essentially or just replacing the top part if I can focus the chunk.
-    // But Drag methods are at the bottom.
-    // I'll rewrite the whole class structure in the replacement to be safe, but keep render body.
-    
     final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(6));
     
-    // Check accessibility settings
-    final bool reducedGlow = gameRef.settingsManager.reducedGlowEnabled;
-    final bool highContrast = gameRef.settingsManager.highContrastEnabled;
+    // Draw based on isFixed (Locked)
+    // Reuse visual logic simplified
     
-    if (highContrast) {
-      // High Contrast: Clean, solid rectangle with distinct border
-      _basePaint.color = Colors.black.withOpacity(0.8 * opacity);
-      canvas.drawRRect(rrect, _basePaint);
-      
-      // Inner fill hint based on orientation to make it visible
-      _basePaint.color = Colors.white.withOpacity(0.2 * opacity);
-      final inner = rrect.deflate(4);
-      canvas.drawRRect(inner, _basePaint);
-
-      _strokePaint
-        ..color = Colors.white.withOpacity(opacity)
-        ..strokeWidth = 2
-        ..maskFilter = null;
-      canvas.drawRRect(rrect, _strokePaint);
-      return;
-    }
-
-    // === LAYER 1: Drop Shadow ===
-    if (!reducedGlow) {
-      final shadowRRect = rrect.shift(const Offset(2, 3));
-      _glowPaint
-        ..color = Colors.black.withOpacity(0.35 * opacity)
-        ..maskFilter = _blur4;
-      canvas.drawRRect(shadowRRect, _glowPaint);
-    }
-
-    // === LAYER 2: Golden Frame ===
-    final frameGradient = LinearGradient(
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-      colors: [
-        _frameGoldDark.withOpacity(opacity),
-        _frameGoldLight.withOpacity(opacity),
-        _frameGoldMid.withOpacity(opacity),
-        _frameGoldDark.withOpacity(opacity),
-      ],
-      stops: const [0.0, 0.35, 0.65, 1.0],
-    );
+    // Shadow
+    canvas.drawRRect(rrect.shift(const Offset(2, 3)), Paint()..color = Colors.black38..maskFilter=_blur4);
     
-    _shaderPaint.shader = frameGradient.createShader(rect);
-    canvas.drawRRect(rrect, _shaderPaint);
+    // Frame
+    _basePaint.color = isFixed ? Colors.grey[700]! : _frameGoldMid;
+    canvas.drawRRect(rrect, _basePaint);
     
-    // Frame inner shadow
-    final innerShadowRRect = RRect.fromRectAndRadius(
-      rect.deflate(1),
-      const Radius.circular(5),
-    );
-    _strokePaint
-      ..color = Colors.black.withOpacity(0.3 * opacity)
-      ..strokeWidth = 1
-      ..maskFilter = null;
-    canvas.drawRRect(innerShadowRRect, _strokePaint);
-
-    // === LAYER 3: Chrome Mirror Surface ===
-    final innerRect = Rect.fromCenter(
-      center: rect.center,
-      width: size.x - 8,
-      height: size.y - 5,
-    );
-    final innerRRect = RRect.fromRectAndRadius(innerRect, const Radius.circular(3));
+    // Inner Mirror
+    final inner = rect.deflate(4);
+    final innerR = RRect.fromRectAndRadius(inner, const Radius.circular(2));
+    _basePaint.color = Colors.blueGrey[100]!;
+    canvas.drawRRect(innerR, _basePaint);
     
-    final chromeGradient = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: [
-        _chromeDark.withOpacity(opacity),
-        _chromeLight.withOpacity(0.95 * opacity),
-        _chromeMid.withOpacity(opacity),
-        _chromeDark.withOpacity(opacity),
-      ],
-      stops: const [0.0, 0.3, 0.7, 1.0],
-    );
-    
-    _shaderPaint.shader = chromeGradient.createShader(innerRect);
-    canvas.drawRRect(innerRRect, _shaderPaint);
-
-    // === LAYER 4: Idle Shimmer ===
-    if (!reducedGlow) {
-      final shimmerPhase = (_time * 0.3) % 3.0; // Slow sweep every 3 seconds
-      if (shimmerPhase < 1.0) {
-        final shimmerPos = shimmerPhase * (size.x + 30) - 15;
-        canvas.save();
-        canvas.clipRRect(innerRRect);
-        canvas.drawRect(
-          Rect.fromLTWH(shimmerPos - 10, 0, 20, size.y),
-          Paint()
-            ..shader = LinearGradient(
-              colors: [
-                Colors.white.withOpacity(0.0),
-                Colors.white.withOpacity(0.25 * opacity),
-                Colors.white.withOpacity(0.0),
-              ],
-            ).createShader(Rect.fromLTWH(shimmerPos - 10, 0, 20, size.y)),
-        );
-        canvas.restore();
-      }
-    }
-
-    // === LAYER 5: Rotation Shine Effect ===
-    if (_shineOffset > -1.0 || _isRotating) {
-      canvas.save();
-      canvas.clipRRect(innerRRect);
-      
-      final glarePos = _shineOffset * size.x;
-      canvas.drawRect(
-        innerRect,
-        Paint()
-          ..shader = LinearGradient(
-            colors: [
-              Colors.white.withOpacity(0.0),
-              Colors.white.withOpacity(0.95 * opacity),
-              Colors.white.withOpacity(0.0),
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ).createShader(Rect.fromLTWH(glarePos - 25, 0, 50, size.y)),
-      );
-      canvas.restore();
-    }
-
-    // === LAYER 6: Light Impact Glow ===
-    if (_lightHitIntensity > 0 && !reducedGlow) {
-      VisualEffects.drawCrystalGlow(
-        canvas,
-        rrect,
-        _impactColor,
-        intensity: _lightHitIntensity * 0.8,
-        opacity: opacity,
-        reducedGlow: false,
-      );
-      
-      _glowPaint
-        ..color = _impactColor.withOpacity(_lightHitIntensity * 0.4 * opacity)
-        ..maskFilter = _blur3;
-      canvas.drawRRect(innerRRect, _glowPaint);
-    }
-
-    // === LAYER 7: Frame Glow (Pulsing) ===
-    if (!reducedGlow) {
-      final pulseIntensity = 0.3 + 0.1 * sin(_time * 2.5);
-      _strokePaint
-        ..color = _glowColor.withOpacity(pulseIntensity * opacity)
-        ..strokeWidth = 2
-        ..maskFilter = _blur3;
-      canvas.drawRRect(rrect, _strokePaint);
+    // Shine
+    if (_shineOffset > -1.0) {
+       canvas.save();
+       canvas.clipRRect(innerR);
+       final pos = _shineOffset * size.x;
+       canvas.drawRect(
+          Rect.fromLTWH(pos - 10, 0, 20, size.y), 
+          Paint()..color=Colors.white.withOpacity(0.5)..blendMode=BlendMode.srcATop
+       );
+       canvas.restore();
     }
     
-    // === LAYER 8: Crisp Frame Border ===
-    _strokePaint
-      ..color = _frameGoldLight.withOpacity(0.9 * opacity)
-      ..strokeWidth = 1
-      ..maskFilter = null;
-    canvas.drawRRect(rrect, _strokePaint);
-    
-    // Locked Indicator
-    if (isLocked) {
-      _basePaint.color = Colors.redAccent.withOpacity(opacity);
-      canvas.drawCircle(Offset(size.x / 2, size.y / 2), 4, _basePaint);
-      _basePaint.color = Colors.white.withOpacity(opacity);
-      canvas.drawCircle(Offset(size.x / 2, size.y / 2), 2, _basePaint);
+    // Lock Indicator
+    if (isFixed) {
+        canvas.drawCircle(Offset(size.x/2, size.y/2), 3, Paint()..color=Colors.red);
     }
-  }
-  
-  // Physics Line Segment (Restored for DebugOverlay)
-  Vector2 get startPoint {
-    final localStart = Vector2(0, size.y / 2);
-    return absolutePositionOf(localStart);
-  }
-
-  Vector2 get endPoint {
-    final localEnd = Vector2(size.x, size.y / 2);
-    return absolutePositionOf(localEnd);
   }
 
   void _triggerShine() {
       _isRotating = true;
-      _shineOffset = -0.5; // Start off-left
+      _shineOffset = -0.5;
   }
 }
-

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../game/economy_manager.dart';
 import '../game/progress_manager.dart';
-import '../game/progress/campaign_progress.dart';
+// import '../game/progress/campaign_progress.dart'; // Deleted
 import '../game/audio_manager.dart';
 import '../game/settings_manager.dart';
 import '../game/localization_manager.dart';
@@ -23,9 +23,7 @@ import 'store_screen.dart';
 import 'achievements_screen.dart';
 import 'customization_screen.dart';
 import 'about_screen.dart';
-import 'endless_mode_screen.dart';
 import 'statistics_screen.dart';
-import 'campaign_screen.dart';
 import 'daily_quests_screen.dart';
 import 'components/menu_icon_button.dart';
 import 'components/daily_login_overlay.dart';
@@ -171,40 +169,34 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                 // --- TOP SECTION ---
                 _buildTopBar(),
                 
-                // --- MAIN CONTENT: Two Column Layout ---
+                // --- MAIN CONTENT: Vertical Stack for Portrait ---
                 Expanded(
-                  child: Row(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // LEFT SIDE: Title & Info
-                      Expanded(
-                        flex: 5,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildTitle(),
-                            const SizedBox(height: 8),
-                            _buildLastPlayedInfo(),
-                          ],
-                        ),
+                      // Info Section (Top half of center)
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildTitle(),
+                          const SizedBox(height: 16),
+                          _buildLastPlayedInfo(),
+                        ],
                       ),
-                      // RIGHT SIDE: All Buttons
-                      Expanded(
-                        flex: 5,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildContinueButton(),
-                            const SizedBox(height: 14),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildLevelsButton(),
-                                const SizedBox(width: 16),
-                                _buildEndlessModeButton(),
-                              ],
-                            ),
-                          ],
-                        ),
+                      
+                      const SizedBox(height: 48),
+                      
+                      // Buttons Section (Bottom half of center)
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildContinueButton(),
+                          const SizedBox(height: 16),
+                          _buildNewGameButton(), // ADDED
+                          // _buildLevelsButton() and _buildEndlessModeButton() removed
+                          // Keeping spacing for visual balance if needed
+                          const SizedBox(height: 16),
+                        ],
                       ),
                     ],
                   ),
@@ -270,8 +262,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                     Icon(Icons.star, color: PrismazeTheme.starGold, size: 18),
                     const SizedBox(width: 6),
                     Text(
-                      '${CampaignProgress().getTotalStars()}', 
-                      style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                      '${progress.totalStars}', 
+                      style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -296,7 +288,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                     const SizedBox(width: 6),
                     Text(
                       '${economy.hints}',
-                      style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
+                      style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -333,7 +325,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
       final text = Text(
         LocalizationManager().getString('app_title'),
         textAlign: TextAlign.center,
-        style: GoogleFonts.dynaPuff(
+        style: TextStyle(
+          fontFamily: 'DynaPuff',
           fontSize: 42,
           fontWeight: FontWeight.w900,
           color: Colors.white,
@@ -375,7 +368,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
       
       return Text(
           "${loc.getString('last_played')}: $episodeStr - $levelStr",
-          style: GoogleFonts.dynaPuff(
+          style: TextStyle(
+            fontFamily: 'DynaPuff',
             color: PrismazeTheme.textSecondary, 
             letterSpacing: 2,
             fontSize: 14,
@@ -385,19 +379,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   }
   
   Widget _buildContinueButton() {
-      final campaignProgress = CampaignProgress();
-      final episodeIds = campaignProgress.episodeIds;
-      int targetEpisode = 1;
-      int targetLevelIndex = 0;
-      for (final ep in episodeIds) {
-        final epProgress = campaignProgress.getEpisodeProgress(ep);
-        if (epProgress.currentLevelIndex < epProgress.totalLevels) {
-          targetEpisode = ep;
-          targetLevelIndex = epProgress.currentLevelIndex;
-          break;
-        }
-      }
-      final displayLevelId = (targetEpisode - 1) * 200 + targetLevelIndex + 1;
+      // Use efficient last played tracking from ProgressManager
+      // This supports the new linear procedural generation
+      final lastLevel = progress.lastPlayedLevelId;
       
       return CuteMenuButton(
         label: LocalizationManager().getString('continue'),
@@ -405,51 +389,38 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
         onTap: () {
             AudioManager().playSfxId(SfxId.uiClick);
             Navigator.push(context, FastPageRoute(page: GameScreen(
-                levelId: displayLevelId,
-                episode: targetEpisode,
-                levelIndex: targetLevelIndex,
-            )))
-              .then((_) {
-                   AudioManager().setContext(AudioContext.menu);       
-                   _loadData();
-              });
+                levelId: lastLevel,
+                levelIndex: lastLevel, // Maps 1:1 for now
+            ))).then((_) {
+                 AudioManager().setContext(AudioContext.menu);       
+                 _loadData(); // Refresh stats
+            });
         },
       );
   }
   
-  Widget _buildLevelsButton() {
-     return CuteMenuButton(
-       label: LocalizationManager().getString('levels'),
-       baseColor: PrismazeTheme.accentCyan,
-       width: 160,
-       fontSize: 16,
-       onTap: () {
-         AudioManager().playSfxId(SfxId.uiClick);
-         Navigator.push(context, FastPageRoute(page: const CampaignScreen()))
-           .then((_) {
-                AudioManager().setContext(AudioContext.menu);
-                _loadData();
-           });
-       },
-     );
+  Widget _buildNewGameButton() {
+      return CuteMenuButton(
+        label: LocalizationManager().getString('new_game'),
+        baseColor: PrismazeTheme.accentPink, // Distinct color
+        width: 160,
+        fontSize: 14,
+        onTap: () {
+            AudioManager().playSfxId(SfxId.uiClick);
+            // Confirm reset? For now just start Level 1.
+            // Doesn't wipe progress, just starts over.
+            Navigator.push(context, FastPageRoute(page: const GameScreen(
+                levelId: 1,
+                levelIndex: 1,
+            ))).then((_) {
+                 AudioManager().setContext(AudioContext.menu);       
+                 _loadData();
+            });
+        },
+      );
   }
   
-  Widget _buildEndlessModeButton() {
-     return CuteMenuButton(
-       label: LocalizationManager().getString('endless_mode'),
-       baseColor: const Color(0xFFFF9800), // Orange for contrast
-       width: 160,
-       fontSize: 14,
-       onTap: () {
-           AudioManager().playSfxId(SfxId.mirrorMove);
-           Navigator.push(context, FastPageRoute(page: const EndlessModeScreen()))
-             .then((_) {
-                  AudioManager().setContext(AudioContext.menu);
-                  _loadData();
-             });
-       },
-     );
-  }
+  // Unused buttons removed (Level/Endless)
   
   Widget _buildBottomBar() {
       return Padding(
@@ -564,15 +535,15 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
           borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusLarge),
           side: BorderSide(color: PrismazeTheme.primaryPurple.withOpacity(0.3), width: 1.5),
         ),
-        title: Text(loc.getString('privacy_consent_title'), style: GoogleFonts.dynaPuff(color: Colors.white, fontSize: 18)),
-        content: Text(loc.getString('privacy_consent_body'), style: GoogleFonts.dynaPuff(color: PrismazeTheme.textSecondary, fontSize: 14)),
+        title: Text(loc.getString('privacy_consent_title'), style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white, fontSize: 18)),
+        content: Text(loc.getString('privacy_consent_body'), style: TextStyle(fontFamily: 'DynaPuff', color: PrismazeTheme.textSecondary, fontSize: 14)),
         actions: [
             TextButton(
                 onPressed: () {
                     PrivacyManager().denyConsent();
                     Navigator.pop(ctx);
                 },
-                child: Text(loc.getString('privacy_decline'), style: GoogleFonts.dynaPuff(color: PrismazeTheme.errorRed))
+                child: Text(loc.getString('privacy_decline'), style: TextStyle(fontFamily: 'DynaPuff', color: PrismazeTheme.errorRed))
             ),
             ElevatedButton(
                 onPressed: () {
@@ -583,7 +554,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
                   backgroundColor: PrismazeTheme.accentPink,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(PrismazeTheme.borderRadiusSmall)),
                 ),
-                child: Text(loc.getString('privacy_accept'), style: GoogleFonts.dynaPuff(color: Colors.white)),
+                child: Text(loc.getString('privacy_accept'), style: TextStyle(fontFamily: 'DynaPuff', color: Colors.white)),
             ),
         ],
       ),

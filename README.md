@@ -1,16 +1,12 @@
-# prismaze
+# PrismaZe - Vertical Endless Puzzle Game
 
-A new Flutter project.
+Procedurally generated light puzzle game optimized for vertical mobile screens.
 
-## Getting Started
+## Project Structure
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+- `core/`: Constants, models, and utility functions.
+- `generator/`: Level generation pipeline based on templates.
+- `engine/`: Deterministic light simulation and color mixing logic.
+- `cache/`: Persistence and performance optimization.
+- `game/`: Flame game engine implementation and components.
+- `screens/`: Flutter UI screens and overlays.

@@ -4,7 +4,7 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
 import '../prismaze_game.dart';
-import '../utils/visual_effects.dart';
+// import '../utils/visual_effects.dart';
 
 class Wall extends PositionComponent with HasGameRef<PrismazeGame> {
   double opacity = 1.0;

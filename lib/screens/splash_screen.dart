@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'main_menu_screen.dart';
 import '../game/audio_manager.dart';
 import '../game/localization_manager.dart';
@@ -125,7 +125,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             Text(
                               "PRISMAZE",
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.dynaPuff(
+                              style: TextStyle(
+                                fontFamily: 'DynaPuff',
                                 fontSize: 52,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
@@ -142,7 +143,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             Text(
                               LocalizationManager().getString('splash_subtitle'),
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.dynaPuff(
+                              style: TextStyle(
+                                fontFamily: 'DynaPuff',
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                                 color: PrismazeTheme.textSecondary,
@@ -205,7 +207,8 @@ class _TapIndicatorState extends State<_TapIndicator> with SingleTickerProviderS
               const SizedBox(height: 8),
               Text(
                 LocalizationManager().getString('tap_to_start'),
-                style: GoogleFonts.dynaPuff(
+                style: TextStyle(
+                  fontFamily: 'DynaPuff',
                   color: PrismazeTheme.textSecondary, 
                   fontSize: 12,
                   fontWeight: FontWeight.w500,

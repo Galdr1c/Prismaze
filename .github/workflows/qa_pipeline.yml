@@ -1,0 +1,37 @@
+name: Prismaze Generator QA Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  qa_validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0'
+          channel: 'stable'
+          
+      - name: Install Dependencies
+        run: flutter pub get
+        
+      - name: Run Determinism & Metrics
+        run: flutter test test/qa/determinism_test.dart
+        
+      - name: Run Replay Validation
+        run: flutter test test/qa/replay_test.dart
+        
+      - name: Run Performance Benchmarks
+        run: flutter test test/qa/performance_test.dart
+        
+      - name: Verify Version Bump
+        run: dart tool/version_guard.dart
+        
+  # Future: Add step to upload Metrics Report as Artifact

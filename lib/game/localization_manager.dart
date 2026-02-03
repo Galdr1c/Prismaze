@@ -53,6 +53,7 @@ class LocalizationManager {
       'last_played': {'tr': 'SON OYNANAN', 'en': 'LAST PLAYED'},
       'splash_subtitle': {'tr': 'Işığı yönlendir, hedefi aydınlat!', 'en': 'Guide the light, illuminate the target!'},
       'tap_to_start': {'tr': 'Başlamak için dokun', 'en': 'Tap to start'},
+      'new_game': {'tr': 'YENİ OYUN', 'en': 'NEW GAME'},
             
       // --- CAMPAIGN EPISODES ---
       'ep_1_title': {'tr': 'Başlangıç Işıkları', 'en': 'Beginning Lights'},
@@ -483,6 +484,22 @@ class LocalizationManager {
       'debug_tools': {'tr': 'GELİŞTİRİCİ ARAÇLARI', 'en': 'DEBUG TOOLS'},
       'debug_unlock_all': {'tr': 'TÜMÜNÜ AÇ', 'en': 'UNLOCK ALL'},
       'debug_reset': {'tr': 'SIFIRLA', 'en': 'RESET PROGRESS'},
+      
+      // --- CAMPAIGN REFACTOR ---
+      'campaign_title': {'tr': 'SEFER', 'en': 'CAMPAIGN'},
+      'btn_completed': {'tr': 'TAMAMLANDI', 'en': 'COMPLETED'},
+      'msg_all_levels_done': {'tr': 'Tüm seviyeler bitti!', 'en': 'All levels done!'},
+      'dialog_jump_title': {'tr': 'Seviyeye Atla', 'en': 'Jump to Level'},
+      'dialog_jump_unlocked': {'tr': '{max} açık', 'en': '{max} unlocked'},
+      'short_level': {'tr': 'S{0}', 'en': 'L{0}'},
+      'btn_play': {'tr': 'Oyna', 'en': 'Play'},
+      
+      // --- SETTINGS REFACTOR ---
+      'msg_data_preparing': {'tr': 'Veriler hazırlanıyor...', 'en': 'Preparing data...'},
+      'msg_export_fail': {'tr': 'Veri dışa aktarma başarısız.', 'en': 'Data export failed.'},
+      'title_conflict': {'tr': 'Veri Çakışması', 'en': 'Data Conflict'},
+      'msg_conflict': {'tr': 'Buluttaki verileriniz ile cihazdaki verileriniz farklı görünüyor. Hangisini kullanmak istersiniz?', 'en': 'Cloud data differs from local data. Which one do you want to keep?'},
+      'btn_download_cloud': {'tr': 'Bulutu İndir', 'en': 'Download Cloud'},
       
       'video_playing_time': {'tr': 'Oynatılıyor... {time}s', 'en': 'Playing... {time}s'},
       'video_skip': {'tr': 'Atla', 'en': 'Skip'},

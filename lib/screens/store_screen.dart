@@ -213,7 +213,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
     return LayoutBuilder(
       builder: (context, constraints) {
         final screenWidth = MediaQuery.of(context).size.width;
-        final cardWidth = (screenWidth - 8 * 4) / 3; 
+        final cardWidth = (screenWidth - 8 * 4) / 2; 
         
         return ConstrainedBox(
           constraints: BoxConstraints(
