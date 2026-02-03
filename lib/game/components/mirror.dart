@@ -102,8 +102,10 @@ class Mirror extends PositionComponent with HasGameRef<PrismazeGame> {
   
   @override
   bool containsLocalPoint(Vector2 point) {
-      final r = size.toRect().inflate(20);
-      return r.contains(point.toOffset());
+      // Standardize to grid cell size (85) with circular falloff for priority
+      const double threshold = 42.5; // 85 / 2
+      final center = size / 2;
+      return (point - center).length <= threshold;
   }
 
   @override

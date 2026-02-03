@@ -39,6 +39,9 @@ class GeneratedLevel {
     );
   }
 
+  /// The 'Par' (ideal moves) is strictly the number of solution steps (HATA 4).
+  int get par => template.solutionSteps.length;
+
   @override
   String toString() => 'GeneratedLevel(id: $id, sig: ${signature.substring(0, 8)})';
 }

@@ -1,5 +1,5 @@
 import 'package:prismaze/core/utils/utils.dart';
-import '../../generator/recipe_deriver.dart';
+import 'package:prismaze/core/utils/deterministic_hash.dart';
 import '../templates/template_family.dart';
 import '../templates/template_catalog.dart'; // To maybe check existence per variant?
 import 'pacing_rules.dart';
@@ -48,8 +48,9 @@ class TemplateSelector {
         continue;
       } else {
         // Calculate new
-        // 1. Derive Seed for this step
-        final int stepSeed = RecipeDeriver.deriveSeed(version, i);
+         // 1. Derive Seed for this step (Inline logic to avoid circular dep with RecipeDeriver)
+        final input = "$version:$i";
+        final int stepSeed = DeterministicHash.hash(input);
         final rng = DeterministicRNG(stepSeed);
         
         // 2. Get Eligible (Weights + Cooldown)

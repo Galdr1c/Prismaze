@@ -31,10 +31,16 @@ class LoopLite {
           requiredColor: LightColor.white,
         ),
       ],
-      variableSlots: [],
+      variableSlots: [
+        VariableSlot(position: GridPosition(2, 4), allowedTypes: ['blocker'], probability: 0.5),
+        VariableSlot(position: GridPosition(3, 4), allowedTypes: ['blocker'], probability: 0.5),
+      ],
       wallPresets: [
          WallPattern([
             GridPosition(2,2), GridPosition(3,2),
+         ]),
+         WallPattern([
+            GridPosition(0,4), GridPosition(5,4),
          ]),
       ],
       solutionSteps: [

@@ -61,6 +61,10 @@ class FallbackHandler {
     
     // 3. Replay
     if (!ReplayValidator.validate(level)) return false;
+
+    // 4. Readability
+    final readabilityErrors = ReadabilityValidator.validate(level);
+    if (readabilityErrors.isNotEmpty) return false;
     
     return true;
   }

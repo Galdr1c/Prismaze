@@ -63,7 +63,7 @@ class LevelCacheManager {
     // or run in isolate if strictly necessary. For now, simple async wrapper.
     await Future.delayed(Duration.zero);
     
-    final level = _pipeline.generateLevel(version: version, levelIndex: index);
+    final level = await _pipeline.generateLevel(version: version, levelIndex: index);
     
     // Add to Cache
     if (_cache.length >= maxCacheSize) {

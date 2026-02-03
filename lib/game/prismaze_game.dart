@@ -59,7 +59,7 @@ class PrismazeGame extends FlameGame with TapDetector {
   bool isLevelCompleted = false;
 
   // Components
-  final World gridWorld = World();
+  // final World gridWorld = World(); // REMOVED: Managed by FlameGame
   late BeamRenderer beamRenderer;
   
   // Notifiers
@@ -89,11 +89,15 @@ class PrismazeGame extends FlameGame with TapDetector {
   final LevelCacheManager cacheManager = LevelCacheManager();
 
   PrismazeGame(this.ref, {dynamic levelData, int? episode, int? levelIndex}) : super(
+    world: World(), // We will use this passed world as our gridWorld reference
     camera: CameraComponent.withFixedResolution(
        width: 720,
        height: 1280, // Portrait Ratio 9:16
-    ),
+    )..viewfinder.anchor = Anchor.center,
   );
+
+  // Helper to access the world instance created by super or assigned
+  World get gridWorld => world;
 
   @override
   Future<void> onLoad() async {
@@ -114,16 +118,19 @@ class PrismazeGame extends FlameGame with TapDetector {
     
     // undoSystem is now initialized at declaration
     adManager = AdManager();
-    hintManager = HintManager();
     
     // Setup Visuals
     add(BackgroundComponent());
-    add(gridWorld); // Add World for components
     
     beamRenderer = BeamRenderer();
     gridWorld.add(beamRenderer);
     
+    hintManager = HintManager();
+    gridWorld.add(hintManager);
+    
     // Load Level
+    // RESUME: Use the last played level index from progress manager (HATA 4)
+    currentLevelId = progressManager.lastPlayedLevelId;
     await loadLevel(currentLevelId);
     
     // Camera setup
@@ -140,27 +147,38 @@ class PrismazeGame extends FlameGame with TapDetector {
     moves = 0;
     movesNotifier.value = 0;
     
+    // Crash-Safe: Save current level as last played IMMEDIATELY (HATA 4)
+    progressManager.setLastPlayedLevel(index);
+
     // Clear old
     gridWorld.removeAll(gridWorld.children.whereType<PositionComponent>().where((c) => c != beamRenderer));
     
     try {
-      // 1. Get from Cache
-      final level = await cacheManager.getLevel('v1', index);
+      // 1. Get from Cache (Model 1: use locked version)
+      final version = progressManager.generatorVersion;
+      final level = await cacheManager.getLevel(version, index);
       currentLevel = level;
+      
+      // Update UI Par from template
+      currentLevelPar = level.par;
+      parNotifier.value = currentLevelPar;
       
       // 2. Factory Create
       final components = ObjectFactory.createComponents(level);
       gridWorld.addAll(components);
       
+      // Center Camera on the Level Grid (8 cols x 85.0 = 680 width, 10 rows x 85.0 = 850 height)
+      // Level origin is (0,0). Center is approx (340, 425).
+      camera.viewfinder.position = Vector2(340, 425);
+      
       // 3. Prefetch Next
-      cacheManager.prepareNextLevels('v1', index);
+      cacheManager.prepareNextLevels(version, index);
       
       // 4. Initial Trace
       _updateTrace();
       
     } catch (e) {
       print("Level Load Failed: $e");
-      // Show error?
     }
   }
 
@@ -173,27 +191,38 @@ class PrismazeGame extends FlameGame with TapDetector {
     // Convert tap to world coordinates
     final worldPoint = camera.viewfinder.parentToLocal(info.eventPosition.widget);
     
-    bool rotated = false;
-    
+    // Find all potential candidates
+    final candidates = <PositionComponent>[];
     for (var c in gridWorld.children) {
       if (c is PositionComponent && c.containsPoint(worldPoint)) {
-         if (c is Mirror) {
-            if (!c.isFixed) {
-              c.rotate();
-              // Update Model State
-              final gridPos = GridPosition.fromPixel(c.position, 85.0);
-              _rotateObjectInModel(gridPos);
-              rotated = true;
-            }
-         } else if (c is Prism) {
-            if (!c.isFixed) {
-               c.rotate();
-               final gridPos = GridPosition.fromPixel(c.position, 85.0);
-               _rotateObjectInModel(gridPos);
-               rotated = true;
-            }
-         }
+        if ((c is Mirror && !c.isFixed) || (c is Prism && !c.isFixed)) {
+          candidates.add(c);
+        }
       }
+    }
+    
+    if (candidates.isEmpty) return;
+
+    // Tap Priority: Sort by distance to center
+    candidates.sort((a, b) {
+      double distA = (a.position - worldPoint).length;
+      double distB = (b.position - worldPoint).length;
+      return distA.compareTo(distB);
+    });
+
+    final best = candidates.first;
+    bool rotated = false;
+    
+    if (best is Mirror) {
+      best.rotate();
+      final gridPos = GridPosition.fromPixel(best.position, 85.0);
+      _rotateObjectInModel(gridPos);
+      rotated = true;
+    } else if (best is Prism) {
+      best.rotate();
+      final gridPos = GridPosition.fromPixel(best.position, 85.0);
+      _rotateObjectInModel(gridPos);
+      rotated = true;
     }
     
 
@@ -240,30 +269,37 @@ class PrismazeGame extends FlameGame with TapDetector {
     }
   }
   
-  void _handleWin() {
+  Future<void> _handleWin() async {
     if (isLevelCompleted) return;
     isLevelCompleted = true;
     AudioManager().playSfx('level_complete');
     
+    // 1. COMPLETION STATE WRITTEN FIRST (HATA 4)
+    final par = currentLevel?.par ?? 10;
+    final stars = await progressManager.completeLevel(
+        currentLevelId, 
+        moves, 
+        par, 
+        false, 
+        0.0
+    );
+
+    // 2. INCREMENT CURRENT INDEX FOR CRASH-SAFETY
+    final nextLevelId = currentLevelId + 1;
+    await progressManager.setLastPlayedLevel(nextLevelId);
+
+    // 3. START PREFETCH
+    cacheManager.prepareNextLevels(progressManager.generatorVersion, nextLevelId);
+
     // Show overlay
     final result = LevelResult(
-      stars: 3, 
+      stars: stars, 
       moves: moves, 
-      par: 10, // Fake par
-      earnedHints: 1, 
+      par: par, 
+      earnedHints: stars == 3 ? 1 : 0, 
       oldStars: 0
     );
     levelCompleteNotifier.value = result;
-    
-    // Persist progress
-    // Persist progress
-    progressManager.completeLevel(
-        currentLevelId, 
-        moves, 
-        10, // Par
-        false, // UsedHints
-        0.0 // DurationSeconds
-    );
   }
 
   // API wrappers

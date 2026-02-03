@@ -43,11 +43,18 @@ class Staircase {
           requiredColor: LightColor.white,
         ),
       ],
-      variableSlots: [],
+      variableSlots: [
+        VariableSlot(position: GridPosition(0, 1), allowedTypes: ['blocker'], probability: 0.3),
+        VariableSlot(position: GridPosition(5, 9), allowedTypes: ['blocker'], probability: 0.4),
+      ],
       wallPresets: [
          WallPattern([
             GridPosition(1,1), GridPosition(2,1), GridPosition(3,1), GridPosition(4,1),
             GridPosition(1,6), GridPosition(2,6), GridPosition(3,6), GridPosition(4,6),
+         ]),
+         WallPattern([
+            GridPosition(1,2), GridPosition(2,2), GridPosition(3,2), GridPosition(4,2),
+            GridPosition(1,7), GridPosition(2,7), GridPosition(3,7), GridPosition(4,7),
          ]),
       ],
       solutionSteps: [

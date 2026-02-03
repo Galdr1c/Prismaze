@@ -37,9 +37,10 @@ class Prism extends PositionComponent with HasGameRef<PrismazeGame> {
 
   @override
   bool containsLocalPoint(Vector2 point) {
-      // Circle check
+      // Standardize to grid cell size (85)
+      const double threshold = 42.5;
       final center = size / 2;
-      return (point - center).length <= size.x * 0.45; 
+      return (point - center).length <= threshold;
   }
 
   @override

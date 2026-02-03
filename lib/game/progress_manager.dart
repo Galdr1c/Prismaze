@@ -13,6 +13,7 @@ class ProgressManager extends ChangeNotifier {
   static const String keyLastPlayedLevel = 'last_played_level_id'; // Absolute numerical ID
   static const String keyLastPlayedEpisode = 'last_played_episode_id';
   static const String keyLastPlayedIndex = 'last_played_level_index';
+  static const String keyGeneratorVersion = 'generator_version';
   
   late SharedPreferences _prefs;
   
@@ -30,6 +31,7 @@ class ProgressManager extends ChangeNotifier {
   int get lastPlayedLevelId => _prefs.getInt(keyLastPlayedLevel) ?? 1;
   int get lastPlayedEpisode => _prefs.getInt(keyLastPlayedEpisode) ?? 1;
   int get lastPlayedLevelIndex => _prefs.getInt(keyLastPlayedIndex) ?? 0;
+  String get generatorVersion => _prefs.getString(keyGeneratorVersion) ?? 'v1';
   
   Future<void> setLastPlayedLevel(int levelId, {int? episode, int? index}) async {
       await _prefs.setInt(keyLastPlayedLevel, levelId);
@@ -42,6 +44,11 @@ class ProgressManager extends ChangeNotifier {
   
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    
+    // 0. Lock Generator Version (Model 1)
+    if (!_prefs.containsKey(keyGeneratorVersion)) {
+        await _prefs.setString(keyGeneratorVersion, 'v1');
+    }
     
     // Load Data Securely
     final secureData = await SecureSaveManager().loadData(keyLevelStars);

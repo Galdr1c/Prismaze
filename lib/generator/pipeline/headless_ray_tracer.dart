@@ -1,6 +1,7 @@
 import 'dart:math';
 import '../../core/models/models.dart';
 import '../../core/models/objects.dart';
+import '../../core/logic/trace_result.dart';
 import '../models/generated_level.dart';
 
 /// Deterministic Trace Stats
@@ -10,6 +11,8 @@ class TraceStats {
   final int segmentCount;
   final bool solved;
   final bool loopDetected;
+  final int crossingCount;
+  final List<RaySegment> segments;
 
   TraceStats({
     required this.rayCount, 
@@ -17,6 +20,8 @@ class TraceStats {
     required this.segmentCount,
     required this.solved,
     this.loopDetected = false,
+    this.crossingCount = 0,
+    this.segments = const [],
   });
 }
 
@@ -67,6 +72,7 @@ class HeadlessRayTracer {
     
     final Set<int> visited = {}; // State tracking for loop detection
     bool loopDetected = false;
+    final List<RaySegment> segments = [];
 
     // 2. Cast Rays
     for (var source in sources) {
@@ -83,9 +89,13 @@ class HeadlessRayTracer {
          (s) => segmentCount += s,
          visited,
          () => loopDetected = true,
+         segments,
        );
     }
     
+    // 3. Count Crossings (Beam Overlaps)
+    int crossingCount = _calculateCrossings(segments);
+
     // Strict Policy: Loop detected = Unsolved/Rejected (HATA 4)
     bool solved = !loopDetected && targets.every((t) => t.isLit);
     
@@ -95,7 +105,44 @@ class HeadlessRayTracer {
       segmentCount: segmentCount,
       solved: solved,
       loopDetected: loopDetected,
+      crossingCount: crossingCount,
+      segments: segments,
     );
+  }
+
+  static int _calculateCrossings(List<RaySegment> segments) {
+    int count = 0;
+    // Axis-aligned intersection test
+    for (int i = 0; i < segments.length; i++) {
+      for (int j = i + 1; j < segments.length; j++) {
+        if (_segmentsCross(segments[i], segments[j])) {
+          count++;
+        }
+      }
+    }
+    return count;
+  }
+
+  static bool _segmentsCross(RaySegment s1, RaySegment s2) {
+    // Only count if they are perpendicular (X-crossing)
+    // Horizontal segment: start.y == end.y
+    // Vertical segment: start.x == end.x
+    bool s1Horiz = s1.start.y == s1.end.y;
+    bool s2Horiz = s2.start.y == s2.end.y;
+    
+    if (s1Horiz == s2Horiz) return false; // Parallel beams don't "cross" in a way that adds noise? 
+    
+    final h = s1Horiz ? s1 : s2;
+    final v = s1Horiz ? s2 : s1;
+    
+    int hXmin = min(h.start.x, h.end.x);
+    int hXmax = max(h.start.x, h.end.x);
+    int vYmin = min(v.start.y, v.end.y);
+    int vYmax = max(v.start.y, v.end.y);
+    
+    // Crossing if v.x is strictly between h.x range AND h.y is strictly between v.y range
+    return v.start.x > hXmin && v.start.x < hXmax &&
+           h.start.y > vYmin && h.start.y < vYmax;
   }
   
   static bool validateSolution(GeneratedLevel level) {
@@ -115,6 +162,7 @@ class HeadlessRayTracer {
     Function(int) addSegment,
     Set<int> visited,
     Function() onLoop,
+    List<RaySegment> segments,
   ) {
     if (depth > maxBounces) {
       onLoop();
@@ -135,7 +183,7 @@ class HeadlessRayTracer {
     int x2 = x1 + dx * maxRayLength;
     int y2 = y1 + dy * maxRayLength;
     
-    int closestDistSq = 0x7FFFFFFFFFFFFFFF; // Max int
+    int closestDistSq = 9007199254740991; // Max safe int for JS/Web compatibility
     _SimMirror? hitMirror;
     _SimPrism? hitPrism;
     _IntPoint? hitPoint;
@@ -192,6 +240,14 @@ class HeadlessRayTracer {
        actualX2 = hitPoint.x;
        actualY2 = hitPoint.y;
     }
+    
+    // Collect Segment for crossing/readability checks
+    // Scale back to grid coords
+    segments.add(RaySegment(
+      GridPosition(x1 ~/ scale, y1 ~/ scale),
+      GridPosition(actualX2 ~/ scale, actualY2 ~/ scale),
+      color,
+    ));
 
     // Check Targets (Occlusion-aware)
     for (var t in targets) {
@@ -202,18 +258,18 @@ class HeadlessRayTracer {
     if (hitMirror != null && hitPoint != null) {
        addBounce(1);
        final newDir = _reflect(dx, dy, hitMirror.orientation);
-       _cast(hitPoint.x, hitPoint.y, newDir.dx, newDir.dy, color, depth + 1, mirrors, walls, targets, prisms, addBounce, addSegment, visited, onLoop);
+       _cast(hitPoint.x, hitPoint.y, newDir.dx, newDir.dy, color, depth + 1, mirrors, walls, targets, prisms, addBounce, addSegment, visited, onLoop, segments);
     } else if (hitPrism != null && hitPoint != null) {
        addBounce(1);
        if (color == LightColor.white) {
           // Split into 3 rays from the Prism's CENTER
           final dirs = _split(hitPrism.orientation);
           for (var d in dirs) {
-             _cast(hitPrism.cx, hitPrism.cy, d.dir.dx, d.dir.dy, d.color, depth + 1, mirrors, walls, targets, prisms, addBounce, addSegment, visited, onLoop);
+             _cast(hitPrism.cx, hitPrism.cy, d.dir.dx, d.dir.dy, d.color, depth + 1, mirrors, walls, targets, prisms, addBounce, addSegment, visited, onLoop, segments);
           }
        } else {
           // Pass through
-          _cast(hitPoint.x, hitPoint.y, dx, dy, color, depth + 1, mirrors, walls, targets, prisms, addBounce, addSegment, visited, onLoop);
+          _cast(hitPoint.x, hitPoint.y, dx, dy, color, depth + 1, mirrors, walls, targets, prisms, addBounce, addSegment, visited, onLoop, segments);
        }
     }
   }
@@ -319,7 +375,7 @@ class _SimWall {
       _intersect(rx1, ry1, rx2, ry2, x, y + h, x, y),
     ];
     _IntPoint? best;
-    int minDistSq = 0x7FFFFFFFFFFFFFFF;
+    int minDistSq = 9007199254740991;
     for (var p in points) {
       if (p != null) {
         int dSq = (p.x - rx1) * (p.x - rx1) + (p.y - ry1) * (p.y - ry1);
@@ -398,7 +454,7 @@ class _SimPrism {
       _intersect(rx1, ry1, rx2, ry2, cx - half, cy + half, cx - half, cy - half),
     ];
     _IntPoint? best;
-    int minDistSq = 0x7FFFFFFFFFFFFFFF;
+    int minDistSq = 9007199254740991;
     for (var p in points) {
       if (p != null) {
         int dSq = (p.x - rx1) * (p.x - rx1) + (p.y - ry1) * (p.y - ry1);

@@ -49,13 +49,20 @@ class VerticalCorridor {
         ),
         
       ],
-      variableSlots: [],
+      variableSlots: [
+        VariableSlot(position: GridPosition(0, 0), allowedTypes: ['blocker'], probability: 0.3),
+        VariableSlot(position: GridPosition(5, 0), allowedTypes: ['blocker'], probability: 0.3),
+        VariableSlot(position: GridPosition(2, 6), allowedTypes: ['blocker'], probability: 0.2),
+      ],
       wallPresets: [
         WallPattern([
           GridPosition(0, 4), GridPosition(1, 4), /* Gap at (2,4) */ GridPosition(3, 4),
           GridPosition(5, 4),
-          /* Gap at (0,9) */
           GridPosition(2, 9), GridPosition(3, 9), GridPosition(4, 9), GridPosition(5, 9),
+        ]),
+        WallPattern([
+          GridPosition(0, 4), GridPosition(1, 4), GridPosition(4, 4), GridPosition(5, 4),
+          GridPosition(0, 9), GridPosition(1, 9), GridPosition(4, 9), GridPosition(5, 9),
         ]),
       ],
       solutionSteps: [
