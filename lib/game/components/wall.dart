@@ -123,7 +123,7 @@ class Wall extends PositionComponent with HasGameRef<PrismazeGame> {
     required Vector2 size,
   }) : _patternOffsetX = Random().nextDouble() * 500,
        _patternOffsetY = Random().nextDouble() * 500,
-       super(position: position, size: size, anchor: Anchor.topLeft);
+       super(position: position, size: size, anchor: Anchor.center);
 
   @override
   Future<void> onLoad() async {

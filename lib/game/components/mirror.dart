@@ -56,34 +56,23 @@ class Mirror extends PositionComponent with HasGameRef<PrismazeGame> {
         );
   
   static double _orientationToAngle(int orientation) {
-    // Model: 0..7.
-    // 0: Vertical | (Angle 90 deg? or 0?)
-    // In RayTracer, 0 assumed Vertical.
-    // In Flame, Angle 0 is usually ---> (East) or ^ (North)?
-    // Default Flame: 0 is Right (East), PI/2 is Down (South).
-    // If Mirror 0 is |, it stands VERTICALLY.
-    // A horizontal sprite rotated 90 deg.
-    // Let's assume sprite is horizontal (width > height).
-    // So 0 (|) -> 90 deg (PI/2).
+    // RayTracer Mirror Orientations:
+    // 0: | (Vertical)   → Angle = 90° = pi/2
+    // 1: / (NE-SW)      → Angle = -45° = -pi/4
+    // 2: - (Horizontal) → Angle = 0°
+    // 3: \ (NW-SE)      → Angle = 45° = pi/4
+    //
+    // Mirror sprite is horizontal (width > height), so:
+    // - Angle 0 draws it as ---
+    // - Angle pi/2 draws it as |
+    // - Angle -pi/4 draws it as /
+    // - Angle pi/4 draws it as \
     
-    // RayTracer:
-    // 0: |
-    // 1: /
-    // 2: -
-    // 3: \
-    
-    // Mapping:
     switch (orientation % 4) {
-      case 0: return pi / 2;    // |
-      case 1: return pi / 4;    // \ (Wait, / is -45?)
-             // / (NE-SW) means BottomLeft via TopRight.
-             // Horizontal rotated -45 (CCW 45).
-             // Flame +angle is CW.
-             // Horizontal rotated -45 is /. 
-             // Angle: -pi/4 (or 7pi/4).
-             return -pi / 4;
+      case 0: return pi / 2;    // | (Vertical)
+      case 1: return -pi / 4;   // / (NE-SW diagonal)
       case 2: return 0;         // - (Horizontal)
-      case 3: return pi / 4;    // \ (NW-SE)
+      case 3: return pi / 4;    // \ (NW-SE diagonal)
       default: return 0;
     }
   }

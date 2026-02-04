@@ -12,6 +12,11 @@ class GeometryValidator {
     final grid = <int, GameObject>{};
 
     for (var obj in level.objects) {
+      // Skip border walls - they're intentionally at out-of-bounds positions
+      if (obj is WallObject && (obj.id?.startsWith('border_') ?? false)) {
+        continue;
+      }
+      
       // 1. Bounds Check
       if (!obj.position.isValid) {
         errors.add('Object out of bounds at ${obj.position}: ${obj.runtimeType}');

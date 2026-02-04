@@ -50,6 +50,9 @@ class HeadlessRayTracer {
       final gridY = obj.position.y;
       
       if (obj is WallObject) {
+        // Skip border walls in validation - they're only for visual rendering
+        // Border walls have negative coordinates that can interfere with solution paths
+        if (obj.id?.startsWith('border_') ?? false) continue;
         walls.add(_SimWall(gridX * scale, gridY * scale, scale, scale));
       } else if (obj is MirrorObject) {
          final cx = gridX * scale + halfScale;

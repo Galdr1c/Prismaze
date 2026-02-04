@@ -88,13 +88,18 @@ class PrismazeGame extends FlameGame with TapDetector {
   // Cache
   final LevelCacheManager cacheManager = LevelCacheManager();
 
-  PrismazeGame(this.ref, {dynamic levelData, int? episode, int? levelIndex}) : super(
+  PrismazeGame(this.ref, {int? levelId}) : super(
+    // Global Endless Mode: Only uses levelId
     world: World(), // We will use this passed world as our gridWorld reference
     camera: CameraComponent.withFixedResolution(
        width: 720,
        height: 1280, // Portrait Ratio 9:16
     )..viewfinder.anchor = Anchor.center,
-  );
+  ) {
+    if (levelId != null) {
+      currentLevelId = levelId;
+    }
+  }
 
   // Helper to access the world instance created by super or assigned
   World get gridWorld => world;
@@ -129,15 +134,17 @@ class PrismazeGame extends FlameGame with TapDetector {
     gridWorld.add(hintManager);
     
     // Load Level
-    // RESUME: Use the last played level index from progress manager (HATA 4)
-    currentLevelId = progressManager.lastPlayedLevelId;
+    // RESUME: Use passed levelId or last played from progress
+    if (currentLevelId <= 1) { // If default/not set
+        currentLevelId = progressManager.lastPlayedLevelId;
+    }
     await loadLevel(currentLevelId);
     
     // Camera setup
     camera.viewfinder.anchor = Anchor.center;
-    // Center the 6x12 grid (approx 510x1020 px) in screen
-    // Grid Center: (3*85, 6*85) = (255, 510)
-    camera.viewfinder.position = Vector2(255 + 30, 510); // Offset slightly
+    // Center the 6x12 grid: 6*85 = 510 width, 12*85 = 1020 height
+    // Grid center: 510/2 = 255, 1020/2 = 510
+    camera.viewfinder.position = Vector2(255, 510);
   }
   
   Future<void> loadLevel(int index) async {
@@ -167,9 +174,10 @@ class PrismazeGame extends FlameGame with TapDetector {
       final components = ObjectFactory.createComponents(level);
       gridWorld.addAll(components);
       
-      // Center Camera on the Level Grid (8 cols x 85.0 = 680 width, 10 rows x 85.0 = 850 height)
-      // Level origin is (0,0). Center is approx (340, 425).
-      camera.viewfinder.position = Vector2(340, 425);
+      // Center Camera on the 6x12 Grid
+      // Grid size: 6 cols * 85 = 510 width, 12 rows * 85 = 1020 height
+      // Grid center: 510/2 = 255, 1020/2 = 510
+      camera.viewfinder.position = Vector2(255, 510);
       
       // 3. Prefetch Next
       cacheManager.prepareNextLevels(version, index);
@@ -186,52 +194,66 @@ class PrismazeGame extends FlameGame with TapDetector {
   void onTapUp(TapUpInfo info) {
     if (isLevelCompleted || currentLevel == null) return;
     
-    // TapUpInfo provides eventPosition.widget (screen pixels)
+    // Convert screen tap to world coordinates properly
+    // info.eventPosition.global is screen position
+    // We need to convert through camera viewport then viewfinder
+    final screenPos = info.eventPosition.global;
+    final viewportPos = camera.viewport.globalToLocal(screenPos);
+    final worldPoint = camera.viewfinder.parentToLocal(viewportPos);
     
-    // Convert tap to world coordinates
-    final worldPoint = camera.viewfinder.parentToLocal(info.eventPosition.widget);
+    print('TAP DEBUG: Screen=$screenPos, Viewport=$viewportPos, World=$worldPoint');
     
-    // Find all potential candidates
-    final candidates = <PositionComponent>[];
-    for (var c in gridWorld.children) {
-      if (c is PositionComponent && c.containsPoint(worldPoint)) {
-        if ((c is Mirror && !c.isFixed) || (c is Prism && !c.isFixed)) {
-          candidates.add(c);
-        }
+    // Find all rotatable objects
+    final rotatables = <PositionComponent>[];
+    for (var c in world.children) {
+      if (c is Mirror && !c.isFixed) {
+        rotatables.add(c);
+      } else if (c is Prism && !c.isFixed) {
+        rotatables.add(c);
       }
     }
     
-    if (candidates.isEmpty) return;
-
-    // Tap Priority: Sort by distance to center
-    candidates.sort((a, b) {
-      double distA = (a.position - worldPoint).length;
-      double distB = (b.position - worldPoint).length;
-      return distA.compareTo(distB);
-    });
-
-    final best = candidates.first;
-    bool rotated = false;
+    print('TAP DEBUG: Found ${rotatables.length} rotatable objects');
     
-    if (best is Mirror) {
-      best.rotate();
-      final gridPos = GridPosition.fromPixel(best.position, 85.0);
-      _rotateObjectInModel(gridPos);
-      rotated = true;
-    } else if (best is Prism) {
-      best.rotate();
-      final gridPos = GridPosition.fromPixel(best.position, 85.0);
-      _rotateObjectInModel(gridPos);
-      rotated = true;
+    // Find closest object to tap point (distance-based)
+    PositionComponent? tapped;
+    double minDist = double.infinity;
+    
+    for (var obj in rotatables) {
+      final dist = (obj.position - worldPoint).length;
+      print('TAP DEBUG: Object ${obj.runtimeType} at ${obj.position}, dist=$dist');
+      
+      // Hit threshold: half cell size (42.5) plus some tolerance
+      if (dist < 50 && dist < minDist) {
+        minDist = dist;
+        tapped = obj;
+      }
     }
     
-
-    
-    if (rotated) {
-      moves++;
-      movesNotifier.value = moves;
-      AudioManager().playSfx('rotate');
-      _updateTrace();
+    if (tapped != null) {
+      print('TAP DEBUG: Rotating ${tapped.runtimeType} at ${tapped.position}');
+      
+      bool rotated = false;
+      if (tapped is Mirror) {
+        tapped.rotate();
+        final gridPos = GridPosition.fromPixel(tapped.position, 85.0);
+        _rotateObjectInModel(gridPos);
+        rotated = true;
+      } else if (tapped is Prism) {
+        tapped.rotate();
+        final gridPos = GridPosition.fromPixel(tapped.position, 85.0);
+        _rotateObjectInModel(gridPos);
+        rotated = true;
+      }
+      
+      if (rotated) {
+        moves++;
+        movesNotifier.value = moves;
+        AudioManager().playSfx('rotate');
+        _updateTrace();
+      }
+    } else {
+      print('TAP DEBUG: No object found at tap position');
     }
   }
   
@@ -288,8 +310,12 @@ class PrismazeGame extends FlameGame with TapDetector {
     final nextLevelId = currentLevelId + 1;
     await progressManager.setLastPlayedLevel(nextLevelId);
 
-    // 3. START PREFETCH
-    cacheManager.prepareNextLevels(progressManager.generatorVersion, nextLevelId);
+    // 2b. UPDATE ENDLESS HIGH SCORE (HATA 5)
+    // We unlocked nextLevelId, so that is the new highest reachable.
+    await progressManager.setHighestEndlessLevel(nextLevelId);
+
+    // 3. START PREFETCH via Optimized Handler (HATA 5)
+    cacheManager.onLevelComplete(progressManager.generatorVersion, currentLevelId);
 
     // Show overlay
     final result = LevelResult(

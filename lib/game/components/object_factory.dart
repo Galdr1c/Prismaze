@@ -8,7 +8,9 @@ import 'mirror.dart';
 import 'wall.dart';
 import 'target.dart';
 import 'prism.dart';
-import 'absorbing_wall.dart';
+import 'border_frame.dart';
+import '../../core/models/grid_position.dart';
+import 'wall_cluster.dart';
 
 /// Factory to convert immutable Data Objects into Flame Components.
 class ObjectFactory {
@@ -19,6 +21,10 @@ class ObjectFactory {
   static List<PositionComponent> createComponents(GeneratedLevel level) {
     final components = <PositionComponent>[];
     
+    // 1. Separate Walls for Clustering
+    final wallObjects = <WallObject>[];
+    
+    // 2. Process non-wall objects immediately, collect walls
     for (var obj in level.objects) {
        // Convert GridPosition -> Vector2
        final off = obj.position.toPixel(cellSize);
@@ -27,22 +33,27 @@ class ObjectFactory {
        if (obj is SourceObject) {
          components.add(LightSource(
             position: vecPos,
-            // SourceObject orientation usually int 0-3 (N,E,S,W).
-            // LightSource expects radians.
-            // Map int -> rads.
             angle: _orientationToRad(obj.orientation),
             color: obj.color.toFlutterColor(),
          ));
        } else if (obj is MirrorObject) {
          components.add(Mirror(
             position: vecPos,
-            orientation: obj.orientation, // Passes int model ori
+            orientation: obj.orientation,
             isFixed: !obj.rotatable, 
          ));
        } else if (obj is WallObject) {
-         components.add(Wall(
-            position: vecPos,
-            size: Vector2(cellSize, cellSize),
+         // Skip border walls - they're only for logic
+         if (obj.id?.startsWith('border_') ?? false) continue;
+         wallObjects.add(obj);
+       } else if (obj is BlockerObject) {
+         // User requested to treat Blockers as normal walls
+         // Create a temporary WallObject wrapper or just add to walls if logic permits
+         // WallObject and BlockerObject roughly same data?
+         // Converting Blocker to Wall for visual clustering
+         wallObjects.add(WallObject(
+           position: obj.position,
+           id: obj.id, 
          ));
        } else if (obj is TargetObject) {
          components.add(Target(
@@ -55,17 +66,65 @@ class ObjectFactory {
             orientation: obj.orientation,
             isFixed: !obj.rotatable,
          ));
-       } else if (obj is BlockerObject) {
-         components.add(AbsorbingWall(
-            position: vecPos,
-            size: Vector2(cellSize, cellSize),
-         ));
        }
+
     }
+    
+    // 3. Cluster Walls
+    final clusters = _clusterWalls(wallObjects);
+    for (final clusterSet in clusters) {
+      components.add(WallCluster(gridPositions: clusterSet));
+    }
+    
+    // Add thin aesthetic border frame around the grid
+    final gridWidth = 6 * cellSize;  // 510
+    final gridHeight = 12 * cellSize; // 1020
+    components.add(BorderFrame(
+      position: Vector2(0, 0),
+      gridWidth: gridWidth,
+      gridHeight: gridHeight,
+    ));
     
     return components;
   }
   
+  /// Group adjacent wall positions into clusters
+  static List<Set<GridPosition>> _clusterWalls(List<WallObject> walls) {
+    final positions = walls.map((w) => w.position).toSet();
+    final clusters = <Set<GridPosition>>[];
+    
+    while (positions.isNotEmpty) {
+      final start = positions.first;
+      final currentCluster = <GridPosition>{};
+      final queue = <GridPosition>[start];
+      
+      positions.remove(start);
+      currentCluster.add(start);
+      
+      while (queue.isNotEmpty) {
+        final current = queue.removeAt(0);
+        
+        // Check 4 directions
+        final neighbors = [
+          GridPosition(current.x + 1, current.y),
+          GridPosition(current.x - 1, current.y),
+          GridPosition(current.x, current.y + 1),
+          GridPosition(current.x, current.y - 1),
+        ];
+        
+        for (final n in neighbors) {
+          if (positions.contains(n)) {
+            positions.remove(n);
+            currentCluster.add(n);
+            queue.add(n);
+          }
+        }
+      }
+      clusters.add(currentCluster);
+    }
+    return clusters;
+  }
+
   static double _orientationToRad(int ori) {
       // 0: N, 1: E, 2: S, 3: W
       // Standard Flame: 0 is Right (E). 

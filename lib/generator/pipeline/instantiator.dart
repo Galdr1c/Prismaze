@@ -1,6 +1,7 @@
 import 'package:prismaze/core/models/models.dart';
 import 'package:prismaze/core/utils/deterministic_hash.dart';
 import 'package:prismaze/core/utils/deterministic_rng.dart';
+import 'package:prismaze/game/logic/border_manager.dart';
 import '../templates/template_models.dart';
 import '../models/generated_level.dart';
 
@@ -13,6 +14,9 @@ class Instantiator {
   }) {
     final rng = DeterministicRNG(seed);
     final objects = <GameObject>[];
+
+    // 0. Add Border Walls (MUST be first for proper ray blocking)
+    objects.addAll(BorderManager.createBorder());
 
     // 1. Apply Wall Patterns
     int wallCounter = 0;

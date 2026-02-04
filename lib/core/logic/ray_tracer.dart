@@ -211,7 +211,15 @@ class RayTracer {
     );
   }
 
+  /// Check if position is within traceable area (includes border layer).
+  /// Border walls at -1 and 6/12 should stop beams.
   static bool _isValid(GridPosition p) {
+    // Include border layer: x in [-1, 6], y in [-1, 12]
+    return p.x >= -1 && p.x <= 6 && p.y >= -1 && p.y <= 12;
+  }
+  
+  /// Check if position is within the playable grid (excludes border).
+  static bool _isPlayArea(GridPosition p) {
     return p.x >= 0 && p.x < width && p.y >= 0 && p.y < height;
   }
   

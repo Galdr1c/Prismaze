@@ -358,16 +358,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
   
   Widget _buildLastPlayedInfo() {
       final loc = LocalizationManager();
-      final episode = progress.lastPlayedEpisode;
-      final levelIndex = progress.lastPlayedLevelIndex;
-      final levelId = levelIndex + 1;
+      final levelId = progress.lastPlayedLevelId;
       
-      // Target: "Last Played: Episode 1 - Level 123"
-      final episodeStr = "${loc.getString('episode_prefix') ?? 'Episode'} $episode";
+      // Target: "Last Played: Level 123"
       final levelStr = "${loc.getString('level_prefix')} $levelId";
       
       return Text(
-          "${loc.getString('last_played')}: $episodeStr - $levelStr",
+          "${loc.getString('last_played')}: $levelStr",
           style: TextStyle(
             fontFamily: 'DynaPuff',
             color: PrismazeTheme.textSecondary, 
@@ -390,7 +387,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
             AudioManager().playSfxId(SfxId.uiClick);
             Navigator.push(context, FastPageRoute(page: GameScreen(
                 levelId: lastLevel,
-                levelIndex: lastLevel, // Maps 1:1 for now
             ))).then((_) {
                  AudioManager().setContext(AudioContext.menu);       
                  _loadData(); // Refresh stats
@@ -411,7 +407,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> with SingleTickerProvid
             // Doesn't wipe progress, just starts over.
             Navigator.push(context, FastPageRoute(page: const GameScreen(
                 levelId: 1,
-                levelIndex: 1,
             ))).then((_) {
                  AudioManager().setContext(AudioContext.menu);       
                  _loadData();

@@ -2,34 +2,28 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../prismaze_game.dart';
 import 'wall.dart';
+import '../../core/models/grid_position.dart';
 
-/// Optimized rendering for clustered walls
+/// Optimized rendering for clustered walls.
+/// Merges adjacent wall cells into a single continuous shape.
 class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
-  final List<Wall> walls;
+  final Set<GridPosition> gridPositions;
+  
   Path? _cachedOutlinePath;
   Path? _cachedBodyPath;
   int _themeHash = 0;
 
-  Path get outlinePath {
-    _cachedOutlinePath ??= _buildOutlinePath();
-    return _cachedOutlinePath!;
-  }
-
-  Path get bodyPath {
-    _cachedBodyPath ??= _buildBodyPath();
-    return _cachedBodyPath!;
-  }
-
-  // Grid constants synchronized with GridOverlay
+  // Grid constants
   static const double cellSize = 85.0;
-  static const double offsetX = 45.0;
-  static const double offsetY = 62.5;
-  
-  WallCluster(this.walls) : super(
-    priority: 10, // High priority to be above background and grid
-    size: Vector2(1344, 756), // Cover full game area
+
+  WallCluster({
+    required this.gridPositions,
+  }) : super(
+    priority: -5, // Render below objects but above bottom-most layers if any
+    // Anchor at top-left of the grid (0,0) effectively
+    position: Vector2.zero(), 
   );
-  
+
   @override
   void update(double dt) {
     super.update(dt);
@@ -46,18 +40,17 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
   
   @override
   void render(Canvas canvas) {
-    if (walls.isEmpty) return;
+    if (gridPositions.isEmpty) return;
     
     final reducedGlow = gameRef.settingsManager.reducedGlowEnabled;
     final highContrast = gameRef.settingsManager.highContrastEnabled;
     
-    // Build paths on first render or theme change
+    // Build paths if needed
     _cachedOutlinePath ??= _buildOutlinePath();
     _cachedBodyPath ??= _buildBodyPath();
     
-    // Check global opacity from first wall (if exists) or default to 1
-    final double globalOpacity = walls.isNotEmpty ? walls.first.opacity : 1.0;
-    if (globalOpacity < 0.01) return; // Skip if invisible
+    // Common Opacity (can be passed or animated later if needed)
+    const double opacity = 1.0;
     
     if (highContrast) {
       _renderHighContrast(canvas);
@@ -67,26 +60,33 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
     final theme = gameRef.customizationManager.selectedTheme;
     final glowColor = Wall.getThemeColorStatic(theme, 'glow');
     final borderColor = Wall.getThemeColorStatic(theme, 'border');
-    final darkColor = Wall.getThemeColorStatic(theme, 'dark');
-    final lightColor = Wall.getThemeColorStatic(theme, 'light');
+    final darkColor = Wall.getThemeColorStatic(theme, 'dark'); // Body color
     
-    // === SINGLE OUTER GLOW (Removed) ===
-    // Removed to match Wall.dart style
-    
-    // === BODY (Solid & Opaque) ===
-    final Paint bodyPaint = Paint();
-    bodyPaint.color = darkColor; // Match Wall.dart (Opaque Dark)
+    // === BODY ===
+    final Paint bodyPaint = Paint()
+      ..color = darkColor.withOpacity(opacity)
+      ..style = PaintingStyle.fill;
     
     canvas.drawPath(_cachedBodyPath!, bodyPaint);
     
-    // === SINGLE BORDER (Thicker) ===
-    canvas.drawPath(
-      _cachedOutlinePath!,
-      Paint()
-        ..color = borderColor // Fully opaque
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0, // Match Wall.dart
-    );
+    // === OUTLINE / BORDER ===
+    final Paint borderPaint = Paint()
+      ..color = borderColor.withOpacity(opacity)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.square // Cleaner corners
+      ..strokeJoin = StrokeJoin.miter;
+
+    // Optional: Draw inner bevel/highlight for "single object" feel?
+    // For now, simple border as requested.
+    canvas.drawPath(_cachedOutlinePath!, borderPaint);
+    
+    // === GLOW (Optional) ===
+    if (!reducedGlow) {
+       // Draw glow behind? Or on line?
+       // Wall.dart uses offset glow. 
+       // Keeping it clean for now as user requested "single unit".
+    }
   }
   
   void _renderHighContrast(Canvas canvas) {
@@ -103,74 +103,64 @@ class WallCluster extends PositionComponent with HasGameRef<PrismazeGame> {
     );
   }
   
-  /// Build outline path from individual walls
+  /// Build outline path tracing the outer edge of the cluster
   Path _buildOutlinePath() {
     final path = Path();
     
-    // Create a grid to track occupied cells
-    final grid = <String>{};
-    for (final wall in walls) {
-      final x = ((wall.position.x - offsetX) / cellSize).round();
-      final y = ((wall.position.y - offsetY) / cellSize).round();
-      grid.add('$x,$y');
-    }
+    // Convert set to string keys for fast lookup
+    final gridKeys = gridPositions.map((p) => '${p.x},${p.y}').toSet();
     
-    for (final wall in walls) {
-      final x = ((wall.position.x - offsetX) / cellSize).round();
-      final y = ((wall.position.y - offsetY) / cellSize).round();
+    for (final pos in gridPositions) {
+      final x = pos.x;
+      final y = pos.y;
       
-      // Check 4 edges
-      _addEdgeIfBoundary(path, x, y, grid, 'top');
-      _addEdgeIfBoundary(path, x, y, grid, 'right');
-      _addEdgeIfBoundary(path, x, y, grid, 'bottom');
-      _addEdgeIfBoundary(path, x, y, grid, 'left');
+      // Pixel coordinates of top-left corner of this cell
+      final px = x * cellSize;
+      final py = y * cellSize;
+      
+      // Check neighbors to decide if we draw an edge
+      
+      // Top Edge
+      if (!gridKeys.contains('$x,${y - 1}')) {
+        path.moveTo(px, py);
+        path.lineTo(px + cellSize, py);
+      }
+      
+      // Right Edge
+      if (!gridKeys.contains('${x + 1},$y')) {
+        path.moveTo(px + cellSize, py);
+        path.lineTo(px + cellSize, py + cellSize);
+      }
+      
+      // Bottom Edge
+      if (!gridKeys.contains('$x,${y + 1}')) {
+        path.moveTo(px, py + cellSize);
+        path.lineTo(px + cellSize, py + cellSize);
+      }
+      
+      // Left Edge
+      if (!gridKeys.contains('${x - 1},$y')) {
+        path.moveTo(px, py);
+        path.lineTo(px, py + cellSize);
+      }
     }
     
     return path;
   }
   
-  void _addEdgeIfBoundary(Path path, int x, int y, Set<String> grid, String edge) {
-    final px = offsetX + x * cellSize;
-    final py = offsetY + y * cellSize;
-    
-    bool isBoundary = false;
-    
-    switch (edge) {
-      case 'top':
-        isBoundary = !grid.contains('$x,${y - 1}');
-        if (isBoundary) {
-          path.moveTo(px, py);
-          path.lineTo(px + cellSize, py);
-        }
-        break;
-      case 'right':
-        isBoundary = !grid.contains('${x + 1},$y');
-        if (isBoundary) {
-          path.moveTo(px + cellSize, py);
-          path.lineTo(px + cellSize, py + cellSize);
-        }
-        break;
-      case 'bottom':
-        isBoundary = !grid.contains('$x,${y + 1}');
-        if (isBoundary) {
-          path.moveTo(px, py + cellSize);
-          path.lineTo(px + cellSize, py + cellSize);
-        }
-        break;
-      case 'left':
-        isBoundary = !grid.contains('${x - 1},$y');
-        if (isBoundary) {
-          path.moveTo(px, py);
-          path.lineTo(px, py + cellSize);
-        }
-        break;
-    }
-  }
-  
   Path _buildBodyPath() {
     final path = Path();
-    for (final wall in walls) {
-      path.addRect(Rect.fromLTWH(wall.position.x, wall.position.y, wall.size.x, wall.size.y));
+    for (final pos in gridPositions) {
+        // Add rect for each cell
+        // Overlapping rects merge into a single path usually, 
+        // but explicit path operations are expensive.
+        // Just adding rects works for filling.
+        path.addRect(Rect.fromLTWH(
+          pos.x * cellSize, 
+          pos.y * cellSize, 
+          cellSize, 
+          cellSize
+        ));
     }
     return path;
   }

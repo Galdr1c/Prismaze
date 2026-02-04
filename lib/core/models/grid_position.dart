@@ -17,8 +17,15 @@ class GridPosition {
     return GridPosition(index % width, index ~/ width);
   }
 
-  /// Returns true if the position is within the 6x12 grid bounds.
+  /// Returns true if the position is within the 6x12 play area (not border).
   bool get isValid => x >= 0 && x < 6 && y >= 0 && y < 12;
+  
+  /// Alias for clarity - checks if position is in playable area.
+  bool get isValidPlayArea => isValid;
+  
+  /// Returns true if position is within grid INCLUDING border walls.
+  /// Border extends from (-1,-1) to (6,12).
+  bool get isValidWithBorder => x >= -1 && x <= 6 && y >= -1 && y <= 12;
 
   /// Returns a new GridPosition moved one step in the given direction.
   GridPosition step(Direction dir) {

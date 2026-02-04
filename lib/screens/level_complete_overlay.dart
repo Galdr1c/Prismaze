@@ -5,6 +5,8 @@ import '../game/prismaze_game.dart';
 import '../game/audio_manager.dart';
 import '../game/localization_manager.dart';
 import '../theme/app_theme.dart';
+import '../widgets/cute_menu_button.dart';
+import '../widgets/bouncing_button.dart';
 
 class LevelCompleteOverlay extends StatefulWidget {
   final LevelResult result;
@@ -130,7 +132,7 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
                     final isLandscape = orientation == Orientation.landscape;
                     
                     return Container(
-                      width: isLandscape ? 550 : 600, // Balanced for 720px portrait width
+                      width: isLandscape ? 550 : 300, // Balanced for 720px portrait width
                       constraints: BoxConstraints(
                         maxHeight: MediaQuery.of(context).size.height * 0.85, 
                       ),
@@ -296,8 +298,6 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
               children: [
                   _buildStatRow(loc.getString('lbl_moves'), "${widget.result.moves} ", "/ ${widget.result.par}"),
                   const Divider(color: Colors.white10),
-                  if (widget.result.earnedHints > 0)
-                      _buildStatRow(loc.getString('lbl_earnings'), "+${widget.result.earnedHints} ", loc.getString('lbl_tokens')),
               ],
           ),
       );
@@ -305,61 +305,82 @@ class _LevelCompleteOverlayState extends State<LevelCompleteOverlay> with Ticker
   
   Widget _buildButtons() {
     final loc = LocalizationManager();
+    final isSuccess = widget.result.stars > 0;
+    
     return Column(
         children: [
-          // Next Level Button (Bounce In)
-          if (widget.result.stars > 0)
+          // Primary Action (Next Level / Try Again)
+          if (isSuccess)
               AnimatedScale(
                   scale: _buttonVisible ? 1.0 : 0.0,
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.elasticOut,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: PrismazeTheme.buttonGradient, // Use Theme Gradient
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: ElevatedButton(
-                      onPressed: widget.onNext,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent, // Transparent for gradient
-                        foregroundColor: Colors.white,
-                        shadowColor: Colors.transparent, // No shadow for performance
-                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      ),
-                      child: Text(loc.getString('btn_next_level'), style: PrismazeTheme.labelLarge),
-                    ),
+                  child: CuteMenuButton(
+                    label: loc.getString('btn_next_level'),
+                    onTap: widget.onNext,
+                    baseColor: Colors.green, // Success Green
+                    icon: Icons.play_arrow_rounded,
+                    width: 260,
                   ),
               )
           else
-              ElevatedButton(
-                    onPressed: widget.onReplay,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: PrismazeTheme.primaryPurple,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    ),
-                    child: Text(loc.getString('btn_try_again'), style: PrismazeTheme.labelLarge),
+              CuteMenuButton(
+                label: loc.getString('btn_try_again'),
+                onTap: widget.onReplay,
+                baseColor: PrismazeTheme.primaryPurple,
+                icon: Icons.refresh,
+                width: 260,
               ),
           
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
           
-          // Secondary Buttons
+          // Secondary Buttons (Replay & Menu)
+          // Displayed as smaller buttons or icons?
+          // User asked for CuteMenuButton/BouncingButton.
+          // Let's use two smaller CuteMenuButtons side-by-side or stacked.
+          // Given width 300, side-by-side fits if width ~120.
+          
           AnimatedOpacity(
               opacity: _statsVisible ? 1.0 : 0.0, 
               duration: const Duration(milliseconds: 500),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  TextButton.icon(
-                    icon: Icon(Icons.refresh, color: PrismazeTheme.textSecondary, size: 20),
-                    label: Text(loc.getString('btn_replay'), style: PrismazeTheme.bodyMedium),
-                    onPressed: widget.onReplay,
-                  ),
-                  TextButton.icon(
-                    icon: Icon(Icons.menu, color: PrismazeTheme.textSecondary, size: 20),
-                    label: Text(loc.getString('btn_menu'), style: PrismazeTheme.bodyMedium),
-                    onPressed: widget.onMenu,
+                  // Replay Button (Only show if Success, otherwise Try Again is main)
+                  if (isSuccess) ...[
+                      BouncingButton(
+                        onTap: widget.onReplay, // Fix: Ensure tap works
+                        child: Container(
+                          width: 60, height: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                                BoxShadow(color: Colors.black26, offset: Offset(0, 4), blurRadius: 4)
+                            ],
+                            border: Border.all(color: Colors.white24, width: 2)
+                          ),
+                          child: const Icon(Icons.refresh, color: Colors.white, size: 30),
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                  ],
+                  
+                  // Menu Button
+                  BouncingButton(
+                    onTap: widget.onMenu,
+                    child: Container(
+                      width: 60, height: 60,
+                      decoration: BoxDecoration(
+                        color: Colors.blueGrey,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                            BoxShadow(color: Colors.black26, offset: Offset(0, 4), blurRadius: 4)
+                        ],
+                        border: Border.all(color: Colors.white24, width: 2)
+                      ),
+                      child: const Icon(Icons.menu, color: Colors.white, size: 30),
+                    ),
                   ),
                 ],
               ),

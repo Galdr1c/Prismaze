@@ -11,7 +11,6 @@ class ProgressManager extends ChangeNotifier {
   static const String keyConsecutive3Stars = 'consecutive_3_stars';
   static const String keyAchievements = 'achievements';
   static const String keyLastPlayedLevel = 'last_played_level_id'; // Absolute numerical ID
-  static const String keyLastPlayedEpisode = 'last_played_episode_id';
   static const String keyLastPlayedIndex = 'last_played_level_index';
   static const String keyGeneratorVersion = 'generator_version';
   
@@ -25,18 +24,39 @@ class ProgressManager extends ChangeNotifier {
   int get levelsCompleted => _levelStars.length;
   int get maxLevel => _levelStars.isEmpty ? 1 : _levelStars.keys.reduce((a, b) => a > b ? a : b) + 1;
   
+  // Helpers for Endless Mode Screen
+  // Helpers for Endless Mode Screen
+  
+  /// Returns the highest level reached in Endless mode.
+  /// Defaults to 0 if never played.
+  Future<int> getHighestEndlessLevel() async {
+    return _prefs.getInt('highest_endless_level') ?? 0;
+  }
+
+  /// Updates highest level (only if new level is higher).
+  Future<void> setHighestEndlessLevel(int level) async {
+    final current = await getHighestEndlessLevel();
+    if (level > current) {
+      await _prefs.setInt('highest_endless_level', level);
+    }
+  }
+
+  /// Resets endless progress (for "New Game").
+  Future<void> resetEndlessProgress() async {
+    await _prefs.setInt('highest_endless_level', 0);
+    // Also reset stars? logic implies "New Game" in endless screen only resets this tracker + maybe starts from 1.
+  }
+  
   int getStarsForLevel(int levelId) => _levelStars[levelId] ?? 0;
   
   // Last played level (default to next playable if none)
   int get lastPlayedLevelId => _prefs.getInt(keyLastPlayedLevel) ?? 1;
-  int get lastPlayedEpisode => _prefs.getInt(keyLastPlayedEpisode) ?? 1;
   int get lastPlayedLevelIndex => _prefs.getInt(keyLastPlayedIndex) ?? 0;
   String get generatorVersion => _prefs.getString(keyGeneratorVersion) ?? 'v1';
   
-  Future<void> setLastPlayedLevel(int levelId, {int? episode, int? index}) async {
+  Future<void> setLastPlayedLevel(int levelId) async {
       await _prefs.setInt(keyLastPlayedLevel, levelId);
-      if (episode != null) await _prefs.setInt(keyLastPlayedEpisode, episode);
-      if (index != null) await _prefs.setInt(keyLastPlayedIndex, index);
+      // Removed episode concepts
       notifyListeners();
   }
   
@@ -315,6 +335,9 @@ class ProgressManager extends ChangeNotifier {
           // Check Star Rewards
           _checkStarRewards();
       }
+      
+      // Update Highest Endless Level Tracker
+      await setHighestEndlessLevel(levelId);
       
       notifyListeners();
       

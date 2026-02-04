@@ -7,7 +7,11 @@ class PerformanceValidator {
   static const int maxInteractiveObjects = 15;
 
   static bool validate(GeneratedLevel level) {
-    if (level.objects.length > maxTotalObjects) return false;
+    // Exclude border walls from count - they're infrastructure, not content
+    final nonBorderObjects = level.objects.where((o) => 
+      !(o is WallObject && (o.id?.startsWith('border_') ?? false))
+    ).length;
+    if (nonBorderObjects > maxTotalObjects) return false;
     
     final interactive = level.objects.where((o) => 
       o is MirrorObject || o is PrismObject || o is PortalObject

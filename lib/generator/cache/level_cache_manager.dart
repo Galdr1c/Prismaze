@@ -104,6 +104,21 @@ class LevelCacheManager {
     }
   }
 
+  // Alias for readability (HATA 5)
+  void onLevelComplete(String version, int completedLevelId) {
+      // Logic: If I just finished level 10, prefetch 11, 12, 13...
+      // Also potentially clear OLD levels?
+      // For LRU, removing 8 when at 10 is good.
+      
+      // Prefetch Next 3 aggressively
+      prepareNextLevels(version, completedLevelId, count: 3);
+  }
+
+  // Alias for New Game (HATA 5)
+  void preGenerateLevel(String version, int levelId) {
+      prepareNextLevels(version, levelId - 1, count: 1);
+  }
+
   /// Clears the cache strictly.
   void clear() {
     _cache.clear();

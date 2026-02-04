@@ -7,10 +7,13 @@ import '../data/level_design_system.dart';
 /// Faint grid overlay to visualize the 14x7 play area
 class GridOverlay extends PositionComponent with HasGameRef<PrismazeGame> {
   static const double cellSize = 85.0;
-  static const int gridCols = 14;
-  static const int gridRows = 7;
-  static const double offsetX = 45.0;
-  static const double offsetY = 62.5;
+  static const int gridCols = 6;
+  static const int gridRows = 12;
+  // Center Offsets for 720x1280 (Portrait)
+  // Grid Width: 6 * 85 = 510. Screen Width: 720. MarginX: (720-510)/2 = 105.
+  // Grid Height: 12 * 85 = 1020. Screen Height: 1280. MarginY: (1280-1020)/2 = 130.
+  static const double offsetX = 105.0; 
+  static const double offsetY = 130.0;
   
   GridOverlay() : super(priority: -100); // Render behind everything
   
@@ -28,7 +31,7 @@ class GridOverlay extends PositionComponent with HasGameRef<PrismazeGame> {
     final canvas = Canvas(recorder);
     
     // Draw the entire grid to this off-screen canvas (matching game resolution)
-    // Assuming 1344x756 coverage (safe bet)
+    // 720x1280 coverage
     final paint = Paint()
       ..color = Colors.white.withOpacity(0.05)
       ..style = PaintingStyle.stroke
@@ -55,7 +58,7 @@ class GridOverlay extends PositionComponent with HasGameRef<PrismazeGame> {
     
     final picture = recorder.endRecording();
     // Convert to image (size matching camera viewport)
-    picture.toImage(1344, 756).then((img) => _cachedImage = img);
+    picture.toImage(720, 1280).then((img) => _cachedImage = img);
   }
 
   @override

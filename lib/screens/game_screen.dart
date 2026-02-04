@@ -11,16 +11,10 @@ import '../widgets/bouncing_button.dart';
 
 class GameScreen extends ConsumerStatefulWidget {
   final int levelId;
-  final Map<String, dynamic>? levelData;
-  final int? episode;      // Episode number (1-5)
-  final int? levelIndex;   // 0-based index within episode
   
   const GameScreen({
     super.key, 
     required this.levelId, 
-    this.levelData,
-    this.episode,
-    this.levelIndex,
   });
 
   @override
@@ -37,16 +31,13 @@ class _GameScreenState extends ConsumerState<GameScreen> with WidgetsBindingObse
     WidgetsBinding.instance.addObserver(this);
     _game = PrismazeGame(
       ref, 
-      levelData: widget.levelData,
-      episode: widget.episode,
-      levelIndex: widget.levelIndex,
+      levelId: widget.levelId,
     );
     
-    // Explicitly set ID for display if not campaign (fallback)
-    if (widget.episode == null) {
-      _game.currentLevelId = widget.levelId;
-      _game.levelNotifier.value = widget.levelId;
-    }
+    
+    // Explicitly set ID for display
+    _game.currentLevelId = widget.levelId;
+    _game.levelNotifier.value = widget.levelId;
     
     // Start Gameplay Music
     AudioManager().playGameplayMusic(widget.levelId);
@@ -60,8 +51,6 @@ class _GameScreenState extends ConsumerState<GameScreen> with WidgetsBindingObse
         // Track Last Played
         _game.progressManager.setLastPlayedLevel(
           widget.levelId,
-          episode: widget.episode,
-          index: widget.levelIndex,
         );
       }
     });
