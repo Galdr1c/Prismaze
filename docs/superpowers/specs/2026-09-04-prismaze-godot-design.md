@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-09-04  
 **Durum:** Generator, monetization, font ve ekran akışı geri bildirimleriyle revize edildi, uygulama başlamadı  
-**Kapsam:** Android öncelikli, offline-first, 2D optik bulmaca oyunu
+**Kapsam:** Android öncelikli, offline çalışan, 2D optik bulmaca oyunu
 
 ## 1. Belgenin amacı
 
@@ -14,7 +14,7 @@ projenin geçerli gereksinimleridir.
 
 ## 2. Ürün tanımı
 
-Prismaze, dikey mobil ekran için tasarlanmış, tek oyunculu ve offline-first bir
+Prismaze, dikey mobil ekran için tasarlanmış, tek oyunculu ve offline çalışan bir
 optik bulmaca oyunudur. Oyuncu sabit bir ızgara üzerindeki aynaları ve
 prizmaları döndürerek ışığı doğru hedeflere ulaştırır.
 
@@ -74,7 +74,7 @@ Bütün hedefler doğru renkliyse bölüm tamamlanır
 
 İlk 12 bölümlük dikey dilim monetization kapalı olarak geliştirilecektir.
 Yayınlanabilir sürümde monetization etkinleştirilirse yalnızca Bölüm 8’deki
-offline-first sözleşmesine uyan reklam ve ürünler eklenebilir.
+offline oynanış sözleşmesine uyan reklam ve ürünler eklenebilir.
 
 ## 3. Teknoloji kararı
 
@@ -353,7 +353,7 @@ olacak; özel prizma türleri ileriki sürümlere bırakılacaktır.
   objeyi vurgular ve doğru yönünü kısa süre gösterir; otomatik döndürmez.
   Bir bölümde birden fazla çözüm varsa Hint her zaman canonical solution’a
   yönlendirir; alternatif çözüm aramaz.
-- Her bölümde bir adet canonical hint offline ve ücretsiz kullanılabilir.
++ Her bölümde bir adet canonical hint bağlantı olmadan ve ücretsiz kullanılabilir.
 - Monetized release’te oyuncu isterse rewarded reklam karşılığında bir adet
   ek `hint_credit` kazanabilir. Bu kredi yalnızca yerel HintController
   tarafından tüketilir; `HintService` reklam sağlayıcısını bilmez.
@@ -628,12 +628,13 @@ Oyuncu efektleri kapattığında bölümün mekanik okunabilirliği korunmalıd�
 Yüksek kontrast ve azaltılmış glow seçenekleri görsel sistemin başından
 itibaren desteklenir.
 
-## 8. Offline-first, Android ve monetization altyapısı
+## 8. Offline oynanış ve isteğe bağlı online servisler
 
-Temel oyun her zaman offline çalışır. Monetization etkinleştirilmiş bir
+Temel oyun ve kayıt sistemi cihazda çalışır. Monetization etkinleştirilmiş bir
 Android dağıtımında reklam, satın alma, restore ve consent işlemleri çevrimiçi
 olabilir; fakat bu servisler bölüm yükleme, bölüm oynama, kayıt veya temel
-ilerleme için zorunlu değildir.
+ilerleme için zorunlu değildir. Kullanıcı normal şekilde açar ve oynar;
+bağlantı yalnızca istediği online servis gerektiğinde kullanılır.
 
 ### 8.1. Yerel kayıt
 
@@ -697,7 +698,7 @@ Platform adapters
 `MonetizationController` hazır değilse veya herhangi bir servis hata verirse
 oyun reklam göstermeden ve satın alma sunmadan çalışmaya devam eder.
 
-### 8.3. Offline-first açılış davranışı
+### 8.3. Servislerin açılış davranışı
 
 ~~~
 Boot
@@ -791,7 +792,7 @@ premium_theme_pack
 
 Yerel kayıt entitlement bilgisinin cache’ini tutabilir; satın alma gerçeğinin
 kaynağı Google Play sorgusudur. Uygulama yeniden kurulup ilk kez offline
-açılırsa satın alma restore edilemeyebilir, ancak bu durum oyunun oynanmasını
+offline açılırsa satın alma restore edilemeyebilir, ancak bu durum oyunun oynanmasını
 engellemez. Bağlantı geldiğinde owned purchases sorgulanır ve cache yenilenir.
 
 `remove_ads` ürün açıklaması teknik davranışla birebir eşleşecektir:
@@ -920,7 +921,7 @@ değildir.
 - Aynı rewarded oturumu için ikinci callback ikinci ödül oluşturmaz.
 - Pending satın alma entitlement olarak işlenmez.
 - Non-consumable ürün yeniden sorgulandığında entitlement tekrar doğru kurulur.
-- Monetization bağlantı hatası offline bölüm oynanışını bozmaz.
++ Monetization bağlantı hatası offline bölüm oynanışını bozmaz.
 
 ### 9.5. UI/UX ve presentation testleri
 
@@ -1038,7 +1039,7 @@ seed katalog üretim aracı ve gerekirse Godot içi basit level editor eklenir.
 
 ### Aşama 7 — Android yayın hazırlığı
 
-Düşük/orta/üst cihaz matrisi, kayıt bozulması, offline davranış, farklı ekran
+Düşük/orta/üst cihaz matrisi, kayıt bozulması, offline çalışma davranışı, farklı ekran
 oranları, release imzalama, AAB ve mağaza görselleri doğrulanır.
 UI/UX usability eşikleri, ses tekrarı, safe-area, color assist ve reduced
 motion kombinasyonları fiziksel Android cihazlarda tekrar test edilir.
@@ -1066,7 +1067,7 @@ Yeni proje başarılı sayılırsa:
 - Background ve tema skin’leri beam/target okunabilirliğini azaltmaz.
 - Erişilebilirlik modları sunum efektleri kapalıyken de tüm mekanik bilgiyi
   korur.
-- Android’de temel oyun offline çalışır ve farklı ekranlarda güvenilir çalışır.
++ Android’de temel oyun offline çalışır ve farklı ekranlarda güvenilir çalışır.
 - Monetization bağlantı, consent veya plugin hatası temel oynanışı bloke etmez.
 - Yeni mekanik eklemek mevcut nesneleri ve kayıtları bozmaz.
 - Sonsuz içerik eklenmesi kampanya kalitesinin önüne geçmez.
@@ -1568,7 +1569,7 @@ açabilir.
 
 Durum ve hata metinleri ne olduğunu ve oyuncunun ne yapabileceğini söyler:
 
-- Offline mağaza: “Bağlantı yok. Oynamaya devam edebilirsin; mağaza sonra
++ Offline mağaza: “Bağlantı yok. Oynamaya devam edebilirsin; mağaza sonra
   yenilenecek.”
 - Rewarded reklam hazır değil: “Reklam şu anda hazır değil. Bölüme devam
   edebilirsin.”
@@ -1726,4 +1727,4 @@ olamaz. DynaPuff ve Noto Sans lisansları Lisanslar ekranında listelenir.
 - Level loading, save, asset, generator ve monetization hatalarının her biri
   güvenli bir fallback veya tekrar deneme eylemi sunar.
 - Monetization kapalı build’de Store, Restore ve Consent girişleri görünmez.
-- Privacy/legal/lisans içeriği offline açılır ve Noto Sans ile okunur.
++ Privacy/legal/lisans içeriği offline açılır ve Noto Sans ile okunur.

@@ -1,4 +1,5 @@
 # Source/staging material kept outside the new Godot project.
+/artifact/
 /artifacts/
 
 # Godot editor and import cache

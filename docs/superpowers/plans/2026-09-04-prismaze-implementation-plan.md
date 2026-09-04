@@ -204,7 +204,7 @@ kaldığı gözlenir, sonra minimum GDScript uygulanır ve tüm testler tekrar
 
 Bu aşamada efektler `TraceResult`’ı tüketir; gameplay kuralı üretmez.
 
-## 11. Aşama 7 — Save ve offline-first platform
+## 11. Aşama 7 — Save ve offline platformu
 
 1. `SaveService` ile `user://save_v1.json` ve backup dosyası.
 2. Her kabul edilen hamleden sonra atomik save.
