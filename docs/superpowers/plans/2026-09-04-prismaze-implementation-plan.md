@@ -2,8 +2,8 @@
 
 **Tarih:** 2026-09-04  
 **Tasarım kaynağı:** `docs/superpowers/specs/2026-09-04-prismaze-godot-design.md`  
-**Proje kökü:** `D:/Prismaze/prismaze-game/`  
-**Durum:** Uygulama başlatılıyor; Godot editörü henüz kurulu değil
+**Proje kökü:** `D:/Prismaze/`
+**Durum:** Proje köke taşındı; ilk Core RED/GREEN döngüsü hazır, root path yeniden doğrulanacak
 
 ## 1. Uygulama hedefi
 
@@ -32,7 +32,7 @@ geçmeden yapılmaz.
 ## 3. Proje iskeleti
 
 ~~~
-prismaze-game/
+Prismaze/
 ├── project.godot
 ├── scenes/
 │   ├── boot/boot.tscn
@@ -260,3 +260,19 @@ Her aşama kendi kabul kriterleri geçmeden sonraki aşamaya ilerlemez. Core
 testleri geçmeden görsel polish yapılmaz; ilk dikey dilim Android’de çalışmadan
 endless veya monetization yayın build’ine dahil edilmez. Her üretim kodu için
 önce başarısız test gözlenir, sonra minimum implementasyon yapılır.
+
+## 16. Güncel ilerleme
+
+- [x] Kök Git ignore ve attributes kuralları
+- [x] Godot dizin iskeleti
+- [x] `project.godot`
+- [x] Boot, MainMenu ve Game boş sahneleri
+- [x] Font ve startup stinger runtime asset’leri
+- [x] Asset lisans/kaynak kaydı
+- [x] Headless test runner
+- [x] İlk `GridPosition` RED testi
+- [x] Godot 4.7.2 kurulumu
+- [x] RED testinin gerçek runtime ile beklenen nedenle başarısız olduğunun gözlenmesi
+- [x] Minimum `GridPosition` implementasyonu
+- [x] Proje dosyalarının `D:/Prismaze` köküne taşınması
+- [ ] Taşıma sonrası root path ile headless test yeniden doğrulaması

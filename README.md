@@ -1,6 +1,6 @@
 # Prismaze
 
-Android öncelikli, offline çalışan, 2D optik bulmaca oyunu.
+Android öncelikli, offline, 2D optik bulmaca oyunu.
 
 ## Geliştirme sırası
 
@@ -15,11 +15,11 @@ Android öncelikli, offline çalışan, 2D optik bulmaca oyunu.
 
 Ana tasarım belgesi:
 
-`../docs/superpowers/specs/2026-09-04-prismaze-godot-design.md`
+`docs/superpowers/specs/2026-09-04-prismaze-godot-design.md`
 
 Uygulama planı:
 
-`../docs/superpowers/plans/2026-09-04-prismaze-implementation-plan.md`
+`docs/superpowers/plans/2026-09-04-prismaze-implementation-plan.md`
 
 ## Kapsam
 

@@ -11,11 +11,11 @@ Hazır:
 - Android Platform Tools 37.0.1
 - Android Emulator ve Android 36 sistem imajları
 - Microsoft OpenJDK 17
+- Godot Engine 4.7.2 standard edition
 - `ANDROID_HOME`, `ANDROID_SDK_ROOT` ve `JAVA_HOME`
 
 Eksik:
 
-- Godot Engine 4.7.2 standard edition
 - Android SDK NDK r28b (`28.1.13356709`)
 - Android SDK CMake (`3.10.2.4988404`)
 
@@ -66,4 +66,6 @@ git check-ignore -v .godot build artifacts
 ~~~
 
 Godot kurulduğunda önce proje import edilir, ardından Core için RED testi
-çalıştırılır. iOS export daha sonra macOS ve Xcode bulunan bir makinede yapılır.
+çalıştırılır. İlk RED/GREEN döngüsü Godot runtime’ında doğrulanmıştır; proje
+köküne taşındıktan sonraki yeniden doğrulama kullanım limiti nedeniyle bekliyor.
+iOS export daha sonra macOS ve Xcode bulunan bir makinede yapılır.

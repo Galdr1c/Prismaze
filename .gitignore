@@ -35,4 +35,4 @@ Thumbs.db
 *.temp
 
 # Editable source assets are not runtime exports.
-prismaze-game/assets/**/source/
+assets/**/source/
