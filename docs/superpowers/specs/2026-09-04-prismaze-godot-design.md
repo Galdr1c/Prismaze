@@ -1370,7 +1370,7 @@ SFX dosyaları uygulamayla birlikte gelir; streaming gerekmez.
 
 **Startup stinger sözleşmesi:**
 
-- Kaynak dosya: `D:/Prismaze/artifact/audio/sfx/starting_sound.mp3`.
++ Kaynak dosya: `D:/Prismaze/artifacts/audio/sfx/starting_sound.mp3`.
 - Runtime hedefi: `res://assets/audio/stingers/starting_sound.mp3`.
 - Mevcut teknik profil: yaklaşık 8,4 saniye, stereo, 48 kHz, 192 kbps.
 - Boot/Splash sırasında yalnızca bir kez çalar; loop’a girmez.

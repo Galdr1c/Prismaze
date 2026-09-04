@@ -1,1 +1,37 @@
-/artifact
+# Source/staging material kept outside the new Godot project.
+/artifacts/
+
+# Godot editor and import cache
+**/.godot/
+**/.import/
+
+# Local build and export output
+**/build/
+**/bin/
+**/exports/
+*.apk
+*.aab
+*.ipa
+
+# Signing keys and platform credentials
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
+*.provisionprofile
+
+# Local IDE and OS files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Editable source assets are not runtime exports.
+prismaze-game/assets/**/source/

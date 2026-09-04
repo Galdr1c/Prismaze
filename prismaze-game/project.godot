@@ -1,0 +1,28 @@
+; Engine configuration file.
+; Prismaze — Android-first offline optical puzzle
+; Godot 4.7.x
+
+config_version=5
+
+[application]
+
+config/name="Prismaze"
+config/description="Android-first offline optical puzzle game"
+run/main_scene="res://scenes/boot/boot.tscn"
+
+[display]
+
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/size/window_width_override=360
+window/size/window_height_override=640
+window/stretch/mode="canvas_items"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+
+[gui]
+
+theme/default_font_multichannel_signed_distance_field=true
