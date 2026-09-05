@@ -275,4 +275,13 @@ endless veya monetization yayın build’ine dahil edilmez. Her üretim kodu iç
 - [x] RED testinin gerçek runtime ile beklenen nedenle başarısız olduğunun gözlenmesi
 - [x] Minimum `GridPosition` implementasyonu
 - [x] Proje dosyalarının `D:/Prismaze` köküne taşınması
-- [ ] Taşıma sonrası root path ile headless test yeniden doğrulaması
+- [x] Taşıma sonrası root path ile headless test yeniden doğrulaması
+  (core 141, audio 11, ui 16, touch 7 — 0 hata)
+- [x] Aşama 0–7: core, level içerik, GameSession, onboarding, görsel/ses,
+  save/offline platformu tamamlandı
+- [x] Android debug APK üretimi (Aşama 10 öğelerinden biri erken tamamlandı)
+- [x] Aşama 8: Solver (BFS) — TDD döngüsü tamamlandı; RED gözlemlendi,
+  `scripts/levels/generator/solver.gd` implemente edildi, core paketi
+  193 kontrol / 0 hata ile GREEN
+- [ ] Aşama 8: SolvedBoardBuilder, ScrambleService, DifficultyValidator
+- [ ] Aşama 8: LayoutGenerator, generator_v1 ve doğrulanmış seed kataloğu tool’u

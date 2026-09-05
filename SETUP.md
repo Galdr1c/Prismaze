@@ -67,5 +67,6 @@ git check-ignore -v .godot build artifacts
 
 Godot kurulduğunda önce proje import edilir, ardından Core için RED testi
 çalıştırılır. İlk RED/GREEN döngüsü Godot runtime’ında doğrulanmıştır; proje
-köküne taşındıktan sonraki yeniden doğrulama kullanım limiti nedeniyle bekliyor.
+köküne taşındıktan sonra tam test paketi yeniden doğrulanmıştır
+(core 141, audio 11, ui 16, touch 7 — 0 hata).
 iOS export daha sonra macOS ve Xcode bulunan bir makinede yapılır.
