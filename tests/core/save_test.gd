@@ -9,6 +9,8 @@ func run() -> Array[Dictionary]:
 	if not ResourceLoader.exists(path):
 		check("SaveService exists", false)
 		return results
+	var default_service = load(path).new()
+	check("Default save preserves the user virtual directory", default_service.directory == "user://")
 	var directory := "user://test_save_%d" % Time.get_ticks_usec()
 	var service = load(path).new(directory)
 	var data: Dictionary = service.load_data()

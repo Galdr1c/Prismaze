@@ -4,7 +4,9 @@ var directory: String
 var recovery_message: String = ""
 
 func _init(save_directory: String = "user://") -> void:
-	directory = save_directory.trim_suffix("/")
+	directory = save_directory
+	if directory.ends_with("/") and not directory.ends_with("://"):
+		directory = directory.trim_suffix("/")
 	DirAccess.make_dir_recursive_absolute(directory)
 
 func defaults() -> Dictionary:
