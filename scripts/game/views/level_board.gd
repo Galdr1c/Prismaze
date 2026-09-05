@@ -6,7 +6,11 @@ const STYLE = preload("res://scripts/ui/ui_style.gd")
 const COLORS := [Color("#59627b"), Color("#ff6479"), Color("#72e89d"), Color("#ffe08a"), Color("#6eacff"), Color("#dc8bff"), Color("#65e8ee"), Color("#eef7ff")]
 var session: RefCounted
 var settings: Dictionary = {}
-var enabled := true
+var enabled := true:
+	set(value):
+		enabled = value
+		if not value:
+			_cancel_pointer()
 var tutorial := false
 var hint_id := ""
 var hint_orientation := -1
@@ -71,7 +75,10 @@ func _gui_input(event: InputEvent) -> void:
 	if not enabled:
 		return
 	if event is InputEventScreenTouch:
-		if event.pressed and _pointer == -2:
+		if event.canceled:
+			if _pointer == event.index:
+				_cancel_pointer()
+		elif event.pressed and _pointer == -2:
 			_pointer = event.index
 			_pressed_id = object_at(event.position)
 		elif not event.pressed and _pointer == event.index:
@@ -85,8 +92,12 @@ func _gui_input(event: InputEvent) -> void:
 
 func _release(point: Vector2) -> void:
 	var id := object_at(point)
-	if id == _pressed_id and not id.is_empty() and (not tutorial or id == "m1"):
+	var accepted := id == _pressed_id and not id.is_empty() and (not tutorial or id == "m1")
+	_cancel_pointer()
+	if accepted:
 		object_tapped.emit(id)
+
+func _cancel_pointer() -> void:
 	_pointer = -2
 	_pressed_id = ""
 

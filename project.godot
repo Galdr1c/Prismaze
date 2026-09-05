@@ -9,6 +9,7 @@ config_version=5
 config/name="Prismaze"
 config/description="Android-first offline gameplay optical puzzle game"
 run/main_scene="res://scenes/boot/boot.tscn"
+config/icon="res://assets/art/icon.svg"
 
 [display]
 

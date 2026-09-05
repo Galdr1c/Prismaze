@@ -48,9 +48,14 @@ func _ready() -> void:
 	add_child(audio)
 	audio.configure(profile.settings)
 	get_tree().auto_accept_quit = false
-	show_menu()
-	if not args.has("--silent"):
+	if args.has("--silent"):
+		var muted: Dictionary = profile.settings.duplicate()
+		muted.music = 0.0
+		muted.sfx = 0.0
+		audio.configure(muted)
+	else:
 		audio.startup()
+	show_menu()
 	if args.has("--preview-game"):
 		open_level(0, false)
 
@@ -415,7 +420,7 @@ func persist() -> void:
 		save_service.save_data(profile)
 
 func _notification(what: int) -> void:
-	if not is_inside_tree() or not is_instance_valid(audio):
+	if not is_inside_tree() or not is_instance_valid(audio) or screen == "quitting":
 		return
 	if what == NOTIFICATION_APPLICATION_PAUSED:
 		persist()
@@ -431,5 +436,13 @@ func _notification(what: int) -> void:
 		elif screen in ["levels", "settings", "result"]:
 			show_menu()
 		else:
-			persist()
-			get_tree().quit()
+			quit_game()
+
+func quit_game() -> void:
+	if screen == "quitting":
+		return
+	persist()
+	screen = "quitting"
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	await audio.shutdown_and_wait()
+	get_tree().quit()
