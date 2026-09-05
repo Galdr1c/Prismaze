@@ -295,5 +295,12 @@ endless veya monetization yayın build’ine dahil edilmez. Her üretim kodu iç
   seed+attempt deterministik retry, LevelDefinition çıktısı) ve
   GeneratorFactory (6.7 sürümleme) — 857 kontrol / 0 hata. v1 notları:
   duvar/prizma şablonları v2’ye ertelendi, hard ayna üst sınırı 7
-- [ ] Aşama 8: Doğrulanmış seed kataloğu tool’u (10.000 aday →
-  `endless_seed_catalog_v1.tres`) ve runtime katalog erişimi (6.6)
+- [x] Aşama 8: Doğrulanmış seed kataloğu — `CatalogBuilder` (deterministik
+  seed taraması), `SeedCatalog` (imza doğrulamalı yeniden üretim,
+  emergency fallback) ve `generate_seed_catalog.gd` tool’u;
+  `endless_seed_catalog_v1.tres` üretildi (4 profil × 500 = 2.000 kayıt,
+  388 KB); 872 kontrol / 0 hata. Tam 10.000 adaylık yeniden üretim:
+  `--count=2500` ile çalıştırılabilir
+
+Aşama 8 kabul kriterleri karşılandı: runtime yalnız katalogdaki doğrulanmış
+seed’i kullanır; rastgele retry yok; aynı seed aynı bölümü yeniden üretir.
