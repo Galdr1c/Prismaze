@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="LevelDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/definitions/level_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = 9
+title = "Sarı buluşma"
+lesson = "Kırmızı + yeşil = sarı. İki yolu aynı hedefte buluştur."
+objects = Array[Dictionary]([{"id":"s","kind":0,"x":0,"y":2,"orientation":1,"color":1},{"id":"m1","kind":1,"x":4,"y":2,"orientation":2,"color":7},{"id":"s2","kind":0,"x":0,"y":10,"orientation":1,"color":2},{"id":"m2","kind":1,"x":2,"y":10,"orientation":0,"color":7},{"id":"m3","kind":1,"x":2,"y":8,"orientation":0,"color":7},{"id":"t","kind":3,"x":4,"y":8,"orientation":0,"color":3},{"id":"w1","kind":4,"x":1,"y":5,"orientation":0,"color":7},{"id":"w2","kind":4,"x":2,"y":5,"orientation":0,"color":7}])
+solution = {"m1":3,"m2":1,"m3":1}
+par_moves = 3

@@ -5,6 +5,9 @@ const SUITES: Array[String] = [
 	"res://tests/core/direction_test.gd",
 	"res://tests/core/light_color_test.gd",
 	"res://tests/core/game_object_state_test.gd",
+	"res://tests/core/optics_test.gd",
+	"res://tests/core/session_test.gd",
+	"res://tests/core/save_test.gd",
 ]
 
 

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="LevelDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/definitions/level_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = 8
+title = "Mor buluşma"
+lesson = "Kırmızı ve mavi aynı hedefe ulaşınca mor oluşur."
+objects = Array[Dictionary]([{"id":"s","kind":0,"x":0,"y":2,"orientation":1,"color":1},{"id":"m1","kind":1,"x":3,"y":2,"orientation":2,"color":7},{"id":"s2","kind":0,"x":5,"y":8,"orientation":3,"color":4},{"id":"t","kind":3,"x":3,"y":8,"orientation":0,"color":5}])
+solution = {"m1":3}
+par_moves = 1

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="LevelDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/definitions/level_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = 5
+title = "Işık merdiveni"
+lesson = "Aynalar ışığı sırayla taşır. Yolu kaynaktan takip et."
+objects = Array[Dictionary]([{"id":"s","kind":0,"x":5,"y":1,"orientation":3,"color":7},{"id":"m1","kind":1,"x":1,"y":1,"orientation":0,"color":7},{"id":"m2","kind":1,"x":1,"y":6,"orientation":2,"color":7},{"id":"m3","kind":1,"x":4,"y":6,"orientation":2,"color":7},{"id":"t","kind":3,"x":4,"y":10,"orientation":0,"color":7},{"id":"w1","kind":4,"x":2,"y":3,"orientation":0,"color":7},{"id":"w2","kind":4,"x":3,"y":3,"orientation":0,"color":7},{"id":"w3","kind":4,"x":4,"y":3,"orientation":0,"color":7}])
+solution = {"m1":1,"m2":3,"m3":3}
+par_moves = 3

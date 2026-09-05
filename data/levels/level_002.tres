@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="LevelDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/definitions/level_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+id = 2
+title = "Yönünü bul"
+lesson = "Her dokunuş aynayı bir sonraki konuma çevirir."
+objects = Array[Dictionary]([{"id":"s","kind":0,"x":1,"y":1,"orientation":2,"color":7},{"id":"m1","kind":1,"x":1,"y":6,"orientation":1,"color":7},{"id":"t","kind":3,"x":4,"y":6,"orientation":0,"color":7}])
+solution = {"m1":3}
+par_moves = 2
