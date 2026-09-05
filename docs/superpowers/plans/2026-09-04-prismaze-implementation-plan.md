@@ -286,5 +286,8 @@ endless veya monetization yayın build’ine dahil edilmez. Her üretim kodu iç
 - [x] Aşama 8: SolvedBoardBuilder (DFS + hedef renkleri) ve
   ScrambleService (deterministik seed, çözülmemiş başlangıç garantisi) —
   TDD tamamlandı; core paketi 210 kontrol / 0 hata
-- [ ] Aşama 8: DifficultyValidator
+- [x] Aşama 8: DifficultyValidator — metrikler (aktif/alakasız obje, beam
+  uzunluğu, kesişim, renk bağımlılığı, cycle) ve 6.4 sabit ağırlıklı v1
+  skoru; 220 kontrol / 0 hata. v1'de decision_points, prism_dependencies ve
+  misleading_rotations 0 katkı verir (v2'de doldurulacak)
 - [ ] Aşama 8: LayoutGenerator, generator_v1 ve doğrulanmış seed kataloğu tool’u
