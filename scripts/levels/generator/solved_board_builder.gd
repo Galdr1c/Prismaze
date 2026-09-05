@@ -4,6 +4,7 @@ extends RefCounted
 const TRACER = preload("res://scripts/core/logic/ray_tracer.gd")
 const STATE = preload("res://scripts/core/models/game_object_state.gd")
 const CELL = preload("res://scripts/core/models/grid_position.gd")
+const ORIENTATION_ORDER := [3, 0, 1, 2]
 
 # Builds the valid light path for a layout: assigns each mirror/prism an
 # orientation so every source beam reaches every target, then fixes target
@@ -49,7 +50,9 @@ func _assign(placements: Array, board_size: Vector2i, tracer: RefCounted, rotata
 		if not lit:
 			return false
 		return tracer.trace(objects, board_size).solved
-	for orientation in range(4):
+	# v1 algorithm: try canonical-friendly orientations first so staircase
+	# templates (all mirrors at 3) resolve on the first leaf.
+	for orientation in ORIENTATION_ORDER:
 		assignment[rotatables[index].id] = orientation
 		if _assign(placements, board_size, tracer, rotatables, index + 1, assignment):
 			return true

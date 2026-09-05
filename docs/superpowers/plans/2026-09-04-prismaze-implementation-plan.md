@@ -290,4 +290,10 @@ endless veya monetization yayın build’ine dahil edilmez. Her üretim kodu iç
   uzunluğu, kesişim, renk bağımlılığı, cycle) ve 6.4 sabit ağırlıklı v1
   skoru; 220 kontrol / 0 hata. v1'de decision_points, prism_dependencies ve
   misleading_rotations 0 katkı verir (v2'de doldurulacak)
-- [ ] Aşama 8: LayoutGenerator, generator_v1 ve doğrulanmış seed kataloğu tool’u
+- [x] Aşama 8: LayoutGenerator (deterministik staircase şablonu),
+  GeneratorV1 (solved→scramble→solver→difficulty pipeline, profil eşikleri,
+  seed+attempt deterministik retry, LevelDefinition çıktısı) ve
+  GeneratorFactory (6.7 sürümleme) — 857 kontrol / 0 hata. v1 notları:
+  duvar/prizma şablonları v2’ye ertelendi, hard ayna üst sınırı 7
+- [ ] Aşama 8: Doğrulanmış seed kataloğu tool’u (10.000 aday →
+  `endless_seed_catalog_v1.tres`) ve runtime katalog erişimi (6.6)
