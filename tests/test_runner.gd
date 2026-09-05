@@ -8,6 +8,8 @@ const SUITES: Array[String] = [
 	"res://tests/core/optics_test.gd",
 	"res://tests/core/session_test.gd",
 	"res://tests/core/solver_test.gd",
+	"res://tests/levels/solved_board_builder_test.gd",
+	"res://tests/levels/scramble_service_test.gd",
 	"res://tests/core/save_test.gd",
 	"res://tests/core/audio_service_test.gd",
 	"res://tests/core/test_save_directory_test.gd",
