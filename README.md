@@ -24,8 +24,9 @@ Unity 6000.3.17f1, `D:/Unity/6000.3.17f1/Editor/Unity.exe` konumuna kuruldu.
 URP 17.3.0, uGUI 2.0.0 ve Test Framework 1.6.0 sürümleri sabitlendi.
 Saf C# çekirdeğinde **723 kontrol geçti**. Kurulu Unity'nin gerçek API'leri ve
 uGUI kaynaklarıyla bağımsız runtime C# derlemesi **0 hata, 0 uyarı** verdi.
-Unity import/EditMode/PlayMode ve Android APK doğrulaması, editörde aktif lisans
-bulunmadığı için henüz tamamlanmadı. Bu sonuçlar Unity'de oynanış QA'sı değildir.
+Unity Personal lisansı etkinleştirildi. Gerçek Unity import/derlemesi,
+4 EditMode testi ve 3 PlayMode testi geçti. Android APK, fiziksel cihaz ve
+grafik performansı doğrulaması henüz yapılmadı.
 
 ## Açma ve test
 

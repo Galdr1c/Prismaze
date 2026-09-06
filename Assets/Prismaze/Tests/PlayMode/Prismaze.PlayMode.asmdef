@@ -1,0 +1,5 @@
+{
+  "name": "Prismaze.PlayMode",
+  "references": ["Prismaze.Core", "Prismaze.Runtime", "UnityEngine.UI"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

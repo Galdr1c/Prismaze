@@ -50,7 +50,7 @@ namespace Prismaze.Unity.Editor
             PlayerSettings.bundleVersion="0.1.0";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android,"com.prismaze.game.dev");
             PlayerSettings.defaultInterfaceOrientation=UIOrientation.Portrait;
-            PlayerSettings.Android.minSdkVersion=AndroidSdkVersions.AndroidApiLevel24;
+            PlayerSettings.Android.minSdkVersion=AndroidSdkVersions.AndroidApiLevel25;
             PlayerSettings.Android.targetSdkVersion=AndroidSdkVersions.AndroidApiLevelAuto;
             PlayerSettings.Android.forceInternetPermission=false;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android,ScriptingImplementation.IL2CPP);
@@ -67,7 +67,10 @@ namespace Prismaze.Unity.Editor
             {
                 // Additively create the boot scene without discarding any open user scene.
                 var previous=SceneManagerActive();
-                var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Additive);
+                bool untitled=string.IsNullOrEmpty(previous.path);
+                if(untitled && previous.isDirty)
+                    throw new System.InvalidOperationException("Save the open untitled scene before preparing Prismaze.");
+                var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,untitled?NewSceneMode.Single:NewSceneMode.Additive);
                 UnityEngine.SceneManagement.SceneManager.SetActiveScene(scene);
                 var cameraObject=new GameObject("Camera",typeof(Camera),typeof(AudioListener));
                 var camera=cameraObject.GetComponent<Camera>();camera.orthographic=true;camera.orthographicSize=6;
@@ -76,8 +79,11 @@ namespace Prismaze.Unity.Editor
                 cameraObject.AddComponent<UniversalAdditionalCameraData>();
                 new GameObject("Prismaze").AddComponent<PrismazeApp>();
                 EditorSceneManager.SaveScene(scene,BootPath);
-                EditorSceneManager.CloseScene(scene,true);
-                if(previous.IsValid())UnityEngine.SceneManagement.SceneManager.SetActiveScene(previous);
+                if(!untitled)
+                {
+                    EditorSceneManager.CloseScene(scene,true);
+                    if(previous.IsValid())UnityEngine.SceneManagement.SceneManager.SetActiveScene(previous);
+                }
             }
             EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(BootPath,true)};
             AssetDatabase.SaveAssets();

@@ -3,9 +3,9 @@
 ## Mevcut durum — 2026-09-06
 
 Unity 6000.3.17f1 `D:/Unity/6000.3.17f1/Editor/Unity.exe` konumuna kuruldu.
-Editör çalıştırıldı ancak `No valid Unity Editor license found` hatasıyla durdu.
-Saf C# çekirdeğinde 723 kontrol geçti; gerçek Unity API'leriyle bağımsız runtime
-C# derlemesi 0 hata/uyarı verdi. Unity import/test/APK doğrulaması lisansı bekliyor.
+Unity Personal lisansı etkinleştirildi. Gerçek editör import/derlemesi ile
+4 EditMode ve 3 PlayMode testi geçti. Saf C# çekirdeğinde ayrıca 723 kontrol
+geçti. Android APK ve fiziksel cihaz QA'sı henüz yapılmadı.
 Ana uygulamanın ProjectSettings/ProjectVersion.txt pin'i 6000.3.17f1 olarak gözlendi.
 Resmi sürüm kaydı: [6000.3.17f1](https://unity.com/releases/editor/whats-new/6000.3.17f1);
 bu, en yeni sürüm iddiası değildir. Bu belge hiçbir araç indirmez.
@@ -39,7 +39,7 @@ dotnet build Tests/UnityCompile/RuntimeCompile.csproj -c Release
 .\tools\Test-Unity.ps1
 ```
 
-İlk iki komut geçti; üçüncüsü aktif Unity lisansı gerektirir.
+Üç komut da geçti; Unity testi etkinleştirilmiş editör lisansını kullanır.
 Unity test logları `artifacts/unity/` altında tutulur.
 
 ## Android ve editör kabulü

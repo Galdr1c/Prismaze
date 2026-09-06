@@ -12,6 +12,7 @@ namespace Prismaze.Unity
         public GameSession Session { get; } = new GameSession();
         public string ScreenName { get; private set; }
         public PlayerProfile Profile { get; private set; }
+        [NonSerialized] public string SaveDirectoryOverride;
         SaveService saves;
         GameAudio audioService;
         LevelData[] levels;
@@ -29,6 +30,7 @@ namespace Prismaze.Unity
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
         {
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().path != "Assets/Prismaze/Scenes/Boot.unity") return;
             if (FindFirstObjectByType<PrismazeApp>() == null) new GameObject("Prismaze").AddComponent<PrismazeApp>();
         }
         void Awake()
@@ -38,7 +40,7 @@ namespace Prismaze.Unity
             DontDestroyOnLoad(gameObject);
             Application.targetFrameRate = 60;
             Screen.orientation = ScreenOrientation.Portrait;
-            saves = new SaveService(Application.persistentDataPath);
+            saves = new SaveService(string.IsNullOrEmpty(SaveDirectoryOverride) ? Application.persistentDataPath : SaveDirectoryOverride);
             Profile = saves.Load();
             var assets = Resources.LoadAll<LevelDefinition>("Levels");
             levels = assets.Length == 12 ? assets.Select(x=>x.Data).OrderBy(x=>x.Id).ToArray() : Campaign.Create();

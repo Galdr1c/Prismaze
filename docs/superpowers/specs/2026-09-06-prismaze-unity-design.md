@@ -1,7 +1,7 @@
 # Prismaze — Unity Tasarım Belgesi
 
 **Tarih:** 2026-09-06  
-**Durum:** Unity geçişi onaylandı; uygulama geliştirme aşamasında. Unity Editor import, EditMode/PlayMode ve Android build/cihaz doğrulaması henüz raporlanmadı.  
+**Durum:** Unity import/derlemesi, 4 EditMode ve 3 PlayMode testi geçti; saf C# çekirdeğinde 723 kontrol geçti. Android build/cihaz ve görsel performans doğrulaması açıktır.
 **Kapsam:** Android öncelikli, offline çalışan, 2D optik bulmaca oyunu
 
 ## 1. Belgenin amacı
@@ -42,7 +42,7 @@ Bölüm yüklenir
     ↓
 Oyuncu bir aynaya veya prizmaya dokunur
     ↓
-Obje 90° döner
+Obje dört durumdan sıradakine geçer
     ↓
 RayTracer bütün ışınları yeniden hesaplar
     ↓
@@ -56,7 +56,7 @@ Bütün hedefler doğru renkliyse bölüm tamamlanır
 İlk dikey dilimde şunlar bulunur:
 
 - Kaynak, ayna, prizma, hedef ve duvar nesneleri
-- Dokunarak 90° döndürme
+- Dokunarak sıradaki yön durumuna geçirme
 - Işın yansıması ve renk karışımı
 - Bölüm sıfırlama
 - İpucu ile sıradaki ilgili objeyi gösterme
@@ -224,7 +224,7 @@ kopması engellenir.
 | Nesne | Durum | Oyuncu etkileşimi |
 |---|---|---|
 | Source | Konum, yön, ışık rengi | Sabit |
-| Mirror | Konum, 4 yön durumu | Dokununca 90° döner |
+| Mirror | Konum, 4 yön durumu | Dokununca dikey / çapraz / yatay / çapraz sıradaki duruma geçer |
 | Prism | Konum, 4 yön durumu | Dokununca 90° döner |
 | Target | Konum, istenen renk maskesi | Sabit |
 | Wall | Konum | Işını durdurur |
@@ -432,7 +432,7 @@ başlangıcın çözülmemiş olduğunu doğrular; alternatif çözüm varsa yal
 canonical'dan farklı yönler bulunması yeterli değildir.
 
 **Solver:** Başlangıç state’inden BFS ile olası yön kombinasyonlarını dener.
-Bir hamle, tek bir rotatable objeyi 90° döndürmektir. Her state RayTracer ve
+Bir hamle, tek bir rotatable objeyi sıradaki yön durumuna geçirmektir. Her state RayTracer ve
 WinChecker ile değerlendirilir. Solver en kısa çözümü, çözüm sayısı sinyalini
 ve kalite metrikleri için gerekli yolu döndürür.
 
@@ -645,9 +645,9 @@ kontrolü bölümü güvenli şekilde reddeder ve emergency entry’ye geçer.
 Dosya yapısı:
 
 ~~~
-Application.persistentDataPath/save_v1.json
-Application.persistentDataPath/save_v1.backup.json
-Application.persistentDataPath/settings_v1.json
+Application.persistentDataPath/save-unity-v1.json
+Application.persistentDataPath/save-unity-v1.backup.json
+Settings: aynı oyuncu JSON'u içinde
 ~~~
 
 JSON DTO'ları schema version, doğrulanan level id ve obje id/yön çiftleri taşır;
@@ -1271,7 +1271,7 @@ model yönü her komutta anında güncellenir, coroutine yalnız görünümü iz
 
 Nesne ve efekt davranışları:
 
-- Ayna/prizma 90° dönüşü `duration-fast` sürer.
+- Ayna durum değişimi/prizma 90° dönüşü `duration-fast` sürer.
 - Arka arkaya dokunma önceki tween’i iptal edip en güncel model yönüne
   retarget eder; giriş kaybolmaz.
 - RayTracer sonucu hamleyle hemen hesaplanır; ışın görseli 120–240 ms enerji

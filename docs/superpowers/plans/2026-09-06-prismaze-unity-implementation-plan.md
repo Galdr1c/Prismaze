@@ -3,8 +3,9 @@
 **Tarih:** 2026-09-06  
 **Tasarım:** [Unity tasarım sözleşmesi](../specs/2026-09-06-prismaze-unity-design.md)  
 **Proje kökü:** `D:/Prismaze/`  
-**Durum:** Unity geçişi sürüyor. Editor tespit edilmedi; Unity import, EditMode,
-PlayMode, APK/AAB ve cihaz kabulü doğrulanmadı. Bu plan kabul hedefidir.
+**Durum:** Unity 6000.3.17f1 kuruldu ve Personal lisansı etkinleştirildi.
+Unity import/derlemesi, 4 EditMode ve 3 PlayMode testi geçti; saf C# çekirdeği
+723 kontrolden geçti. APK/AAB, görsel performans ve fiziksel cihaz kabulü açıktır.
 
 ## 1. Teslim ve sorumluluk sınırları
 
@@ -146,8 +147,9 @@ Profiler ile ölçülür; masaüstü gözlemi yeterli değildir.
 
 ## 8. Aşama 6 — JSON save, recovery ve Android lifecycle
 
-1. Save adapter `Application.persistentDataPath` altında save_v1.json,
-   save_v1.backup.json ve settings_v1.json kullanır; testte geçici dizin enjekte edilir.
+1. Save adapter `Application.persistentDataPath` altında save-unity-v1.json ve
+   save-unity-v1.backup.json kullanır. Ayarlar aynı JSON'un Settings alanındadır;
+   testte geçici dizin enjekte edilir.
 2. Versioned DTO: bölüm/açılma durumu, obje id/yönleri, hamle/süre/yıldız,
    tutorial, ses/titreşim/kalite/accessibility; gelecekte catalog kimliği ve signature.
 3. Her kabul edilen hamle sonrası sıralı temp-write → flush/close → güvenli
@@ -175,7 +177,7 @@ process kill sonrası son kabul edilmiş hamle ve bozuk save recovery cihazda do
 
 Kabul raporu Editor tam sürümü, test kapsamı/sonucu, build komutu/profili,
 artifact yolu, cihaz/OS ve kalan sorunları içerir. APK üretimi cihaz QA değildir.
-Unity Editor yoksa bu aşama açık kalır; eski Godot APK ve 872 kontrol devralınmaz.
+Android kabulü ayrıca doğrulanır; eski Godot APK/test sonuçları devralınmaz.
 
 ## 10. Dikey dilim sonrası — Solver, generator ve seed kataloğu
 
@@ -220,9 +222,11 @@ günlük etkinlik ve tüketilebilir ekonomi bu planın ilk teslimine dahil deği
 - [x] Resources altında dört DynaPuff TTF ve altı runtime/stinger MP3 gözlendi.
 - [x] Aktif Unity tasarımı, planı ve kök dokümantasyon uyarlandı.
 - [x] Ana uygulamanın ProjectVersion.txt pin'i 6000.3.17f1 olarak gözlendi.
-- [ ] Unity Editor kurulumu/pin ile import ve derleme doğrulaması.
-- [ ] Saf C# test sonuçlarının Core sorumlusundan raporlanması.
-- [ ] Unity EditMode/PlayMode sonuçları.
+- [x] Unity Editor 6000.3.17f1 kurulumu/pin ile import ve derleme doğrulaması.
+- [x] Saf C# çekirdeği: 723 kontrol; 12 bölümün canonical çözümleri doğrulandı.
+- [x] Unity EditMode: 4/4; PlayMode: 3/3 geçti.
+- [x] 12 ScriptableObject bölüm dosyası, Boot sahnesi ve URP 2D varlıkları.
+- [x] Menü/oyun/tutorial/sonuç/ayarlar, ses ve JSON adapter kaynakları taşındı.
 - [ ] Android APK/AAB ve fiziksel cihaz kabul raporu.
 - [ ] Noto Sans/fallback, lisans/hak manifesti ve kullanıcı testleri.
 - [ ] Sonraki solver/generator/katalog ve opsiyonel servis kabulü.
