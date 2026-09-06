@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24808f4334f808422026090600000001, type: 3}
+  m_Name: Level009
+  m_EditorClassIdentifier: 
+  Data:
+    Id: 9
+    Width: 6
+    Height: 12
+    ParMoves: 3
+    Title: "Sarı buluşma"
+    Lesson: "Kırmızı + yeşil = sarı. İki yolu aynı hedefte buluştur."
+    Objects:
+    - Id: s
+      Kind: 0
+      X: 0
+      Y: 2
+      Orientation: 1
+      Color: 1
+    - Id: m1
+      Kind: 1
+      X: 4
+      Y: 2
+      Orientation: 2
+      Color: 7
+    - Id: s2
+      Kind: 0
+      X: 0
+      Y: 10
+      Orientation: 1
+      Color: 2
+    - Id: m2
+      Kind: 1
+      X: 2
+      Y: 10
+      Orientation: 0
+      Color: 7
+    - Id: m3
+      Kind: 1
+      X: 2
+      Y: 8
+      Orientation: 0
+      Color: 7
+    - Id: t
+      Kind: 3
+      X: 4
+      Y: 8
+      Orientation: 0
+      Color: 3
+    - Id: w1
+      Kind: 4
+      X: 1
+      Y: 5
+      Orientation: 0
+      Color: 7
+    - Id: w2
+      Kind: 4
+      X: 2
+      Y: 5
+      Orientation: 0
+      Color: 7
+    Solution:
+    - Id: m1
+      Orientation: 3
+    - Id: m2
+      Orientation: 1
+    - Id: m3
+      Orientation: 1
+

@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24808f4334f808422026090600000001, type: 3}
+  m_Name: Level002
+  m_EditorClassIdentifier: 
+  Data:
+    Id: 2
+    Width: 6
+    Height: 12
+    ParMoves: 2
+    Title: "Yönünü bul"
+    Lesson: "Her dokunuş aynayı bir sonraki konuma çevirir."
+    Objects:
+    - Id: s
+      Kind: 0
+      X: 1
+      Y: 1
+      Orientation: 2
+      Color: 7
+    - Id: m1
+      Kind: 1
+      X: 1
+      Y: 6
+      Orientation: 1
+      Color: 7
+    - Id: t
+      Kind: 3
+      X: 4
+      Y: 6
+      Orientation: 0
+      Color: 7
+    Solution:
+    - Id: m1
+      Orientation: 3
+

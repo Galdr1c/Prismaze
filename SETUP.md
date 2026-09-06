@@ -2,10 +2,12 @@
 
 ## Mevcut durum — 2026-09-06
 
-Unity 6.3 LTS + C# + URP 2D geçişi onaylıdır. Bu çalışma sırasında Unity Editor
-tespit edilmedi; kurulum, import, Unity testleri veya APK başarısı iddia edilmez.
-Ana uygulama kesin sürümü ProjectSettings/ProjectVersion.txt içinde seçer.
-Resmi doğrulanmış başlangıç adayı [6000.3.17f1](https://unity.com/releases/editor/whats-new/6000.3.17f1);
+Unity 6000.3.17f1 `D:/Unity/6000.3.17f1/Editor/Unity.exe` konumuna kuruldu.
+Editör çalıştırıldı ancak `No valid Unity Editor license found` hatasıyla durdu.
+Saf C# çekirdeğinde 723 kontrol geçti; gerçek Unity API'leriyle bağımsız runtime
+C# derlemesi 0 hata/uyarı verdi. Unity import/test/APK doğrulaması lisansı bekliyor.
+Ana uygulamanın ProjectSettings/ProjectVersion.txt pin'i 6000.3.17f1 olarak gözlendi.
+Resmi sürüm kaydı: [6000.3.17f1](https://unity.com/releases/editor/whats-new/6000.3.17f1);
 bu, en yeni sürüm iddiası değildir. Bu belge hiçbir araç indirmez.
 
 Önceki ortam kaydı Git, Android Studio, Android SDK Platform 36, Build Tools
@@ -20,10 +22,29 @@ ve motor dosyaları (181.057.040) yaklaşık 1,6 GiB alan açtı.
 Bunlar önceki temizlik raporudur; bu belge çalışması ek silme yapmadı.
 Godot kaynakları LegacyGodot/ içinde korunur.
 
-## Editor mevcut olduğunda
+## Lisansı etkinleştirme ve projeyi açma
+
+1. [Unity Hub](https://unity.com/download) uygulamasını aç veya kur, hesabına giriş yap.
+2. Settings/Preferences → Licenses → Add license yolundan lisansını etkinleştir.
+   Personal koşullarına uygunsan ücretsiz Personal seçeneğini kullan.
+3. Installs → Locate ile `D:/Unity/6000.3.17f1/Editor/Unity.exe` dosyasını seç.
+   Editörü tekrar indirmen gerekmez.
+4. Projects → Add ile `D:/Prismaze` klasörünü ekle.
+5. Import bittikten sonra `Prismaze > Open Game` menüsü Boot sahnesini ve
+   URP 2D ayarlarını hazırlar. Play ile oyuna girilir.
+
+```powershell
+.\tools\Test-Core.ps1
+dotnet build Tests/UnityCompile/RuntimeCompile.csproj -c Release
+.\tools\Test-Unity.ps1
+```
+
+İlk iki komut geçti; üçüncüsü aktif Unity lisansı gerektirir.
+Unity test logları `artifacts/unity/` altında tutulur.
+
+## Android ve editör kabulü
 
 1. Unity Hub'a D:/Prismaze kökünü ekle; ProjectVersion.txt ile aynı Editor'ü kullan.
-   Pin henüz oluşmadıysa ana uygulamanın seçiminden önce farklı sürümle yükseltme yapma.
 2. Seçilen Editor için Android Build Support ve desteklenen SDK/NDK/OpenJDK
    modüllerini kur/doğrula. Eski Godot NDK r28b ve CMake pin'lerini uygulama.
    Ortak SDK'yı değiştirmek yerine Unity'nin kendi araç modüllerini tercih et.
@@ -51,9 +72,9 @@ bu adımlar hazır proje veya başarı raporu anlamına gelmez.
 | Menü/oyun müziği ve SFX | Assets/Resources/Audio/runtime/ |
 | Açılış stinger | Assets/Resources/Audio/stingers/starting_sound.mp3 |
 | El yapımı bölümler (hedef) | Assets/Resources/Levels/ ScriptableObject asset'leri |
-| Oyuncu kaydı | Application.persistentDataPath/save_v1.json |
-| Son geçerli backup | Application.persistentDataPath/save_v1.backup.json |
-| Ayarlar | Application.persistentDataPath/settings_v1.json |
+| Oyuncu kaydı | Application.persistentDataPath/save-unity-v1.json |
+| Son geçerli backup | Application.persistentDataPath/save-unity-v1.backup.json |
+| Ayarlar | Aynı oyuncu JSON'undaki Settings alanı |
 
 Resources.Load kullanıldığında anahtar Resources'a göre ve uzantısızdır;
 örneğin Audio/stingers/starting_sound. Asset eksikliği kontrollü ele alınır.

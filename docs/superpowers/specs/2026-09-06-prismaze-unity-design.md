@@ -87,9 +87,9 @@ offline oynanış sözleşmesine uyan reklam ve ürünler eklenebilir.
 
 ### 3.1. Ana teknoloji
 
-- Motor: Unity 6.3 LTS; doğrulanmış başlangıç adayı `6000.3.17f1`.
-  Kesin pin ana uygulama tarafından `ProjectSettings/ProjectVersion.txt` içine
-  yazılır; daha yeni sürüm yalnız resmi doğrulamayla seçilir. Bu belge indirme yapmaz.
+- Motor: Unity 6.3 LTS; `6000.3.17f1` ana uygulamanın
+  `ProjectSettings/ProjectVersion.txt` dosyasında pin olarak gözlendi.
+  Daha yeni sürüm yalnız resmi doğrulamayla seçilir. Bu belge indirme yapmaz.
   [Resmi sürüm kaydı](https://unity.com/releases/editor/whats-new/6000.3.17f1)
 - Dil: C#. Core, UnityEngine bağımlılığı olmayan saf C# model ve algoritmalardır.
 - Grafik: URP 2D Renderer, orthographic Camera, SpriteRenderer/mesh tabanlı
@@ -427,7 +427,9 @@ kurar. Gerekli aynaların/prizmaların çözüm yönlerini bu aşamada bilir ve
 
 **ScrambleService:** Çözülmüş yönleri deterministik RNG ile başlangıç
 yönlerine çevirir. Bölümün başlangıç hali çözülmüş halde bırakılamaz; en az
-bir rotatable obje canonical yönünden farklı olmalıdır.
+bir rotatable obje canonical yönünden farklı olmalıdır. Ayrıca WinChecker
+başlangıcın çözülmemiş olduğunu doğrular; alternatif çözüm varsa yalnız
+canonical'dan farklı yönler bulunması yeterli değildir.
 
 **Solver:** Başlangıç state’inden BFS ile olası yön kombinasyonlarını dener.
 Bir hamle, tek bir rotatable objeyi 90° döndürmektir. Her state RayTracer ve
@@ -536,6 +538,11 @@ entry kullanılır; yeni rastgele bölüm üretilmez.
 ### 6.7. Generator sürümleme
 
 Yayınlanmış generator algoritması aynı version altında değiştirilemez.
+Deterministik C# implementasyonu obje sırasını, integer taşma davranışını,
+seed/hash byte formatını ve RNG algoritmasını sabitler. UnityEngine.Random veya
+System.Random'ın sürümler arası aynı diziyi üreteceği varsayılmaz. Godot seed ve
+signature'ları doğrudan Unity uyumluluğu kanıtı değildir; yeni version kimliği
+veya karşılaştırmalı testlerle kanıtlanan uyumluluk gerekir.
 Kod tarafında versioned factory kullanılır:
 
 ~~~
@@ -891,7 +898,7 @@ kapılar doğrulanmamış kalır; masaüstü C# başarısı APK başarısı say�
 - Farklı ekran oranları ve çentikler
 - Uygulamayı arka plana alıp geri dönme
 - Yeni uygulama oturumunda startup stinger bir kez çalar.
-- Scene reload, hot restart ve Main Menu’ye dönüşte startup stinger tekrar
+- Aynı uygulama/Play oturumunda scene reload ve Main Menu’ye dönüşte startup stinger tekrar
   tetiklenmez.
 - Ses kapalı veya Master/Music seviyesi sıfırken stinger açılış akışını
   bekletmeden atlar.
@@ -985,60 +992,24 @@ Unity Profiler ile cihazda CPU trace süresi, GC allocation, GPU ve overdraw
 
 ## 10. Uygulama sırası
 
-### Aşama 1 — Temiz temel
+Ayrıntılı iş/kabul sırası [aktif Unity planındadır](../plans/2026-09-06-prismaze-unity-implementation-plan.md).
 
-Unity projesi, Git yapısı, portre Android Build Profile, URP 2D renderer,
-C# assembly sınırları ve bootstrap sahnesi oluşturulur.
+1. Editor pin ve URP 2D bootstrap; C# assembly sınırları.
+2. Saf C# model, RayTracer, WinChecker ve HintService testleri.
+3. ScriptableObject adapter ve 12 el yapımı bölümün canonical replay doğrulaması.
+4. GameSession, Camera/Canvas board, input, menü ve sonuç akışı.
+5. İlk bölüm animasyonlu el tutorial'ı, tipografi ve erişilebilirlik.
+6. Crystal Lab görsel polish, motion token'ları, offline müzik ve tek oturum stinger.
+7. JSON save/recovery, Android Back, pause/resume ve fiziksel cihaz QA.
+8. Dikey dilim kabulünden sonra deterministik solved-state generator, solver,
+   difficulty validator ve doğrulanmış seed kataloğu; 30–50 campaign bölümü.
+9. Ayrı yayın kapsamı olarak opsiyonel monetization ve olası iOS.
 
-### Aşama 2 — Saf oyun mantığı
-
-Grid, renk, yön, nesne modelleri, RayTracer, WinChecker ve otomatik testler
-tamamlanır. Bu aşamada gelişmiş grafik yapılmaz.
-
-### Aşama 3 — İlk oynanabilir sürüm
-
-GameSession, dokunma ile döndürme, 12 el yapımı bölüm, reset, hint, bölüm
-geçişi ve yerel kayıt eklenir. Android cihazda ilk dikey dilim test edilir.
-Birinci bölüm için açıklama kartı, spotlight ve animasyonlu el kullanan
-TutorialController akışı eklenir.
-Dikey dilimde monetization kapalı tutulur; Hint’in ilk ücretsiz kullanımı
-internet olmadan çalışır.
-
-### Aşama 4 — UI/UX ve presentation
-
-Ana menü, HUD, sonuç ekranı, buton component sistemi, motion token’ları,
-art direction, 2.5D katmanları, gölgeler, shader’lar, ışın glow’u,
-parçacıklar, parallax, ses, titreşim ve accessibility modları eklenir.
-Startup stinger `AudioService` üzerinden Splash/logo reveal ile bağlanır.
-İlk usability testi bu aşamanın kabul kapısıdır.
-
-### Aşama 5 — Monetization entegrasyonu
-
-Android plugin adapter’ları, MonetizationController, AdPolicy, RewardService,
-ConsentService, EntitlementService ve ProductCatalog eklenir. Bu aşamada
-yalnızca test reklam kimlikleri kullanılır. Banner, starter pack, tüketilebilir
-hint paketi ve abonelik eklenmez.
-
-### Aşama 6 — İçerik genişletme
-
-Yeni mekanikler ve 30–50 kaliteli bölüm hazırlanır. Bölüm doğrulama aracı,
-seed katalog üretim aracı ve gerekirse Unity EditorWindow tabanlı basit level editor eklenir.
-
-### Aşama 7 — Android yayın hazırlığı
-
-Düşük/orta/üst cihaz matrisi, kayıt bozulması, offline çalışma davranışı, farklı ekran
-oranları, release imzalama, AAB ve mağaza görselleri doğrulanır.
-UI/UX usability eşikleri, ses tekrarı, safe-area, color assist ve reduced
-motion kombinasyonları fiziksel Android cihazlarda tekrar test edilir.
-Doğrulanmış seed kataloğu da bu aşamada bütün seçili entry’ler için yeniden
-üretilip signature ve difficulty metrikleriyle kontrol edilir. Kontrol
-başarısızsa endless mod yayın build’inde kapalı kalır; campaign yayınlanabilir.
-
-### Aşama 8 — Gelecek modu
-
-Çekirdek oyun ve kampanya stabil olduktan sonra doğrulanmış seed kataloğunu
-kullanan deterministik endless jeneratör, ileri prizma türleri, hareketli
-engeller, iOS export ve Apple StoreKit adapter’ı eklenebilir. Runtime'da rastgele bölüm retry sistemi bu sözleşmenin parçası değildir.
+Her dikey dilim kapısı kendi kanıtıyla kapanır. Unity editörü yokken kod ve
+belgeler hazırlanabilir; import, PlayMode veya APK geçmiş sayılmaz. Endless
+runtime yalnız doğrulanmış katalog kullanır; rastgele retry yapılmaz.
+İleri prizma türleri, hareketli engeller ve diğer yeni mekanikler ayrı
+tasarım kapsamıdır; temel campaign kabulünü geciktirmez.
 
 ## 11. Tasarımın başarı ölçütü
 
@@ -1368,7 +1339,7 @@ SFX dosyaları uygulamayla birlikte gelir; streaming gerekmez.
   eklenmez.
 - Ses kapalıysa veya Master/Music seviyesi sıfırsa atlanır; açılış akışı
   gecikmez.
-- Scene reload, hot restart veya Main Menu’ye dönüş startup stinger’ı yeniden
+- Aynı uygulama/Play oturumunda scene reload veya Main Menu’ye dönüş startup stinger’ı yeniden
   tetiklemez; yalnızca yeni uygulama oturumu tetikleyebilir.
 - AudioService ayrı AudioSource/AudioMixer gruplarıyla BGM, SFX ve stinger'i
   yönetir. Master/Music ayarları ses tetiklenmeden önce JSON'dan yüklenir.
@@ -1380,8 +1351,8 @@ SFX dosyaları uygulamayla birlikte gelir; streaming gerekmez.
   Play oturumunda scene reload guard'ı sıfırlamaz; background/resume tekrar çalmaz.
 - Melodi ve sample’lar Prismaze’e özgü olur; başka bir oyunun melodisi veya
   kaydı taklit edilmez.
-- Kullanıcının ürettiği/orijinal ses olduğu release asset manifestinde
-  kaynak ve kullanım hakkıyla kayıt altına alınır.
+- Kaynak, üretici ve kullanım hakkı release asset manifestinde kanıtıyla
+  kayıt altına alınır; mevcut dosyanın orijinalliği veya dağıtım hakkı varsayılmaz.
 
 ### 12.10. Art direction
 

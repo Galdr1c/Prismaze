@@ -1,0 +1,6 @@
+{
+  "name": "Prismaze.EditMode",
+  "references": ["Prismaze.Core", "Prismaze.Runtime"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"]
+}

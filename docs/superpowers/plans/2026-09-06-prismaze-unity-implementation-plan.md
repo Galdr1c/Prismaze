@@ -26,8 +26,8 @@ adları sorumluluk sözleşmesidir; ana uygulamanın gerçek yolları teslim rap
 
 ## 2. Aşama 0 — Editor ve proje hazırlığı
 
-1. Unity 6.3 LTS için resmi olarak doğrulanmış başlangıç adayı `6000.3.17f1`;
-   ana uygulama kesin sürümü ProjectVersion.txt içinde sabitler. Daha yeni
+1. Unity 6.3 LTS için resmi olarak doğrulanmış `6000.3.17f1`, ana uygulamanın
+   ProjectVersion.txt dosyasında pin olarak gözlendi. Daha yeni
    uygun sürüm seçilirse resmi kayıt ve gerekçesi kaydedilir. Otomatik indirme yoktur.
 2. Editor mevcut olduğunda proje kökünü Hub'a ekle; Android Build Support ve
    bu Editor'ün SDK/NDK/OpenJDK modüllerini doğrula. Ortak Android Studio SDK/JDK
@@ -219,6 +219,7 @@ günlük etkinlik ve tüketilebilir ekonomi bu planın ilk teslimine dahil deği
 - [x] Godot kaynakları LegacyGodot'a taşındı; eski tasarım/plan tarihsel arşive alındı.
 - [x] Resources altında dört DynaPuff TTF ve altı runtime/stinger MP3 gözlendi.
 - [x] Aktif Unity tasarımı, planı ve kök dokümantasyon uyarlandı.
+- [x] Ana uygulamanın ProjectVersion.txt pin'i 6000.3.17f1 olarak gözlendi.
 - [ ] Unity Editor kurulumu/pin ile import ve derleme doğrulaması.
 - [ ] Saf C# test sonuçlarının Core sorumlusundan raporlanması.
 - [ ] Unity EditMode/PlayMode sonuçları.

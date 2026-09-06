@@ -56,8 +56,13 @@ namespace Prismaze.Unity.Editor
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android,ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures=AndroidArchitecture.ARM64;
             PlayerSettings.SetApiCompatibilityLevel(NamedBuildTarget.Android,ApiCompatibilityLevel.NET_Standard);
-            var settings=new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset")[0]);
-            var input=settings.FindProperty("activeInputHandler");if(input!=null){input.intValue=0;settings.ApplyModifiedPropertiesWithoutUndo();}
+            var settingAssets=AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset");
+            if(settingAssets.Length>0)
+            {
+                var settings=new SerializedObject(settingAssets[0]);
+                var input=settings.FindProperty("activeInputHandler");
+                if(input!=null){input.intValue=0;settings.ApplyModifiedPropertiesWithoutUndo();}
+            }
             if(!File.Exists(BootPath))
             {
                 // Additively create the boot scene without discarding any open user scene.
@@ -79,6 +84,13 @@ namespace Prismaze.Unity.Editor
             Debug.Log("Prismaze Unity project prepared: 12 levels, URP 2D, Android portrait.");
         }
         static UnityEngine.SceneManagement.Scene SceneManagerActive() => UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+
+        [MenuItem("Prismaze/Open Game")]
+        public static void OpenGame()
+        {
+            Prepare();
+            if(EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())EditorSceneManager.OpenScene(BootPath);
+        }
 
         [MenuItem("Prismaze/Build Android Development APK")]
         public static void BuildAndroid()

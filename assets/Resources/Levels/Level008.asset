@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24808f4334f808422026090600000001, type: 3}
+  m_Name: Level008
+  m_EditorClassIdentifier: 
+  Data:
+    Id: 8
+    Width: 6
+    Height: 12
+    ParMoves: 1
+    Title: "Mor buluşma"
+    Lesson: "Kırmızı ve mavi aynı hedefe ulaşınca mor oluşur."
+    Objects:
+    - Id: s
+      Kind: 0
+      X: 0
+      Y: 2
+      Orientation: 1
+      Color: 1
+    - Id: m1
+      Kind: 1
+      X: 3
+      Y: 2
+      Orientation: 2
+      Color: 7
+    - Id: s2
+      Kind: 0
+      X: 5
+      Y: 8
+      Orientation: 3
+      Color: 4
+    - Id: t
+      Kind: 3
+      X: 3
+      Y: 8
+      Orientation: 0
+      Color: 5
+    Solution:
+    - Id: m1
+      Orientation: 3
+

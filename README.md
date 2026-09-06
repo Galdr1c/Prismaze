@@ -20,11 +20,30 @@ ilk bölümde gerçek dokunuşu bekleyen animasyonlu el tutorial'ı.
 Startup stinger yeni uygulama oturumunda yalnız bir kez çalar; bütün müzik,
 fontlar, bölümler ve kayıt internet olmadan çalışır.
 
-Unity geçişi geliştirme aşamasındadır. Unity Editor henüz tespit edilmedi;
-Unity import/derleme, EditMode/PlayMode ve Android APK/cihaz kabulü doğrulanmış
-değildir. Saf C# test sonucu ayrıca raporlanır; Unity/Android doğrulaması yerine geçmez.
-Kesin Editor pin'ini ana uygulama ProjectSettings/ProjectVersion.txt içinde seçer;
-resmi doğrulanmış başlangıç adayı 6000.3.17f1'dir.
+Unity 6000.3.17f1, `D:/Unity/6000.3.17f1/Editor/Unity.exe` konumuna kuruldu.
+URP 17.3.0, uGUI 2.0.0 ve Test Framework 1.6.0 sürümleri sabitlendi.
+Saf C# çekirdeğinde **723 kontrol geçti**. Kurulu Unity'nin gerçek API'leri ve
+uGUI kaynaklarıyla bağımsız runtime C# derlemesi **0 hata, 0 uyarı** verdi.
+Unity import/EditMode/PlayMode ve Android APK doğrulaması, editörde aktif lisans
+bulunmadığı için henüz tamamlanmadı. Bu sonuçlar Unity'de oynanış QA'sı değildir.
+
+## Açma ve test
+
+Unity lisansını etkinleştirdikten sonra bu proje kökünü editörde aç.
+`Prismaze > Open Game` menüsü URP 2D ayarlarını ve Boot sahnesini hazırlar;
+12 bölüm `Assets/Resources/Levels` altında ScriptableObject dosyalarıdır.
+Play düğmesi oyunu açar.
+
+```powershell
+.\tools\Test-Core.ps1
+dotnet build Tests/UnityCompile/RuntimeCompile.csproj -c Release
+.\tools\Test-Unity.ps1
+```
+
+Android modülü kurulduğunda `Prismaze > Build Android Development APK`
+menüsü `Builds/Android/Prismaze-dev.apk` üretir. Henüz Unity APK'sı yoktur.
+Yeni kayıt `Application.persistentDataPath/save-unity-v1.json` dosyasındadır;
+eski Godot kayıt formatı otomatik içeri alınmaz.
 
 Dikey dilimden sonra solved-state → scramble → solver → difficulty validation
 ile deterministik generator ve doğrulanmış seed kataloğu gelir. Runtime'da

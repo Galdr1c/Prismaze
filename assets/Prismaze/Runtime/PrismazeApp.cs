@@ -21,6 +21,9 @@ namespace Prismaze.Unity
         Font font;
         float saveClock;
         bool applicationPaused;
+        static PrismazeApp instance;
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetInstance() { instance = null; }
         static readonly Color Background = new Color(.035f,.06f,.115f), Panel = new Color(.09f,.13f,.21f), Accent = new Color(.4f,.91f,.93f);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -30,6 +33,9 @@ namespace Prismaze.Unity
         }
         void Awake()
         {
+            if (instance && instance != this) { Destroy(gameObject); return; }
+            instance = this;
+            DontDestroyOnLoad(gameObject);
             Application.targetFrameRate = 60;
             Screen.orientation = ScreenOrientation.Portrait;
             saves = new SaveService(Application.persistentDataPath);
@@ -175,6 +181,7 @@ namespace Prismaze.Unity
         void SaveProfile() { if(!saves.Save(Profile) && caption)caption.text="Kayıt yazılamadı. Cihazda boş alan açıp yeniden dene."; }
         void OnApplicationPause(bool paused) { if(Profile==null)return;applicationPaused=paused;if(paused){Persist();Pause();audioService.Suspend();}else audioService.Resume(); }
         void OnApplicationQuit() { Persist(); }
+        void OnDestroy() { if (instance == this) instance = null; }
 
         RectTransform Modal(string title)
         {

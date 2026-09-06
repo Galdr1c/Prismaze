@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 24808f4334f808422026090600000001, type: 3}
+  m_Name: Level007
+  m_EditorClassIdentifier: 
+  Data:
+    Id: 7
+    Width: 6
+    Height: 12
+    ParMoves: 2
+    Title: "İki renk"
+    Lesson: "Her hedefi kendi rengiyle aydınlat."
+    Objects:
+    - Id: s
+      Kind: 0
+      X: 0
+      Y: 2
+      Orientation: 1
+      Color: 1
+    - Id: m1
+      Kind: 1
+      X: 4
+      Y: 2
+      Orientation: 2
+      Color: 7
+    - Id: t
+      Kind: 3
+      X: 4
+      Y: 6
+      Orientation: 0
+      Color: 1
+    - Id: s2
+      Kind: 0
+      X: 5
+      Y: 9
+      Orientation: 3
+      Color: 4
+    - Id: m2
+      Kind: 1
+      X: 1
+      Y: 9
+      Orientation: 2
+      Color: 7
+    - Id: t2
+      Kind: 3
+      X: 1
+      Y: 5
+      Orientation: 0
+      Color: 4
+    Solution:
+    - Id: m1
+      Orientation: 3
+    - Id: m2
+      Orientation: 3
+
