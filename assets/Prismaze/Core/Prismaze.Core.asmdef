@@ -1,0 +1,7 @@
+{
+  "name": "Prismaze.Core",
+  "rootNamespace": "Prismaze.Core",
+  "references": [],
+  "autoReferenced": true,
+  "noEngineReferences": true
+}

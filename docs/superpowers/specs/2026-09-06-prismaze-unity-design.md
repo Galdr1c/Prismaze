@@ -1,16 +1,23 @@
-# Prismaze — Godot Yeniden Tasarım Belgesi
+# Prismaze — Unity Tasarım Belgesi
 
-**Tarih:** 2026-09-04  
-**Durum:** Generator, monetization, font ve ekran akışı geri bildirimleriyle revize edildi, uygulama başlamadı  
+**Tarih:** 2026-09-06  
+**Durum:** Unity geçişi onaylandı; uygulama geliştirme aşamasında. Unity Editor import, EditMode/PlayMode ve Android build/cihaz doğrulaması henüz raporlanmadı.  
 **Kapsam:** Android öncelikli, offline çalışan, 2D optik bulmaca oyunu
 
 ## 1. Belgenin amacı
 
-Bu belge, eski Flutter/Flame projesinin kodunu taşımadan Prismaze’i sıfırdan
-kurmak için teknik ve oynanış tasarımını tanımlar. Eski proje ve içindeki
-`README`, `design_master_plan`, `task_plan` ve benzeri dosyalar yalnızca geçmiş
-tasarım referansı olarak değerlendirilmiştir; bu belgedeki kararlar yeni
-projenin geçerli gereksinimleridir.
+Bu belge onaylanan Unity + C# + URP 2D mimarisinin aktif tasarım sözleşmesidir.
+[Unity uygulama planı](../plans/2026-09-06-prismaze-unity-implementation-plan.md)
+teslim ve doğrulama sırasını tanımlar. Önceki tasarımın oynanış, içerik, tutorial,
+ses, erişilebilirlik ve offline gereksinimleri korunmuştur; motor entegrasyonu
+Unity bileşenlerine göre yeniden tanımlanmıştır.
+
+[Godot tasarımı](../../archive/godot/2026-09-04-prismaze-godot-design.md) ve
+[eski plan](../../archive/godot/2026-09-04-prismaze-implementation-plan.md)
+yalnız tarihsel kayıttır. Kaynakları `LegacyGodot/` altındadır. Oradaki test
+sayıları, APK ve tamamlanma işaretleri Unity uygulamasının doğrulaması değildir.
+Kökteki PLAYER_PSYCHOLOGY_GUIDE.md de eski referanstır; içindeki “implemented”
+ifadeleri Unity durumu veya yeni ekonomi kapsamı sayılmaz.
 
 ## 2. Ürün tanımı
 
@@ -80,48 +87,38 @@ offline oynanış sözleşmesine uyan reklam ve ürünler eklenebilir.
 
 ### 3.1. Ana teknoloji
 
-- **Oyun motoru:** Godot 4.x’in kararlı sürümü
-- **Dil:** Tipli GDScript
-- **Grafik:** Godot 2D, `Node2D`, `CanvasItem`, özel çizim, shader ve
-  `GPUParticles2D`
-- **Temel renderer:** Android uyumluluğu için Compatibility renderer
-- **Kayıt:** Yerel, sürümlü JSON/ConfigFile dosyaları
-- **Monetization:** Opsiyonel Android plugin katmanı; Core ve GameSession’dan
-  bağımsız
-- **Kaynak kontrolü:** Git
-- **İlk dağıtım:** Android APK ile cihaz testi, Google Play için imzalı AAB
+- Motor: Unity 6.3 LTS; doğrulanmış başlangıç adayı `6000.3.17f1`.
+  Kesin pin ana uygulama tarafından `ProjectSettings/ProjectVersion.txt` içine
+  yazılır; daha yeni sürüm yalnız resmi doğrulamayla seçilir. Bu belge indirme yapmaz.
+  [Resmi sürüm kaydı](https://unity.com/releases/editor/whats-new/6000.3.17f1)
+- Dil: C#. Core, UnityEngine bağımlılığı olmayan saf C# model ve algoritmalardır.
+- Grafik: URP 2D Renderer, orthographic Camera, SpriteRenderer/mesh tabanlı
+  board ve beam, sıralama katmanları, shader ve kontrollü ParticleSystem.
+- UI: Canvas, RectTransform, CanvasScaler ve EventSystem ile mobil HUD/overlay.
+- İçerik: El yapımı bölümler ScriptableObject asset; çalışma durumu ayrı C# nesneleri.
+- Kayıt: Sürümlü yerel JSON; dosya yolu platform adapter'ından alınır.
+- Android önce; olası iOS aynı Core ile daha sonra macOS/Xcode üzerinde doğrulanır.
+- Git; debug APK cihaz testi, imzalı AAB mağaza teslimi.
 
-Tipli GDScript; tür hatalarının çalıştırmadan önce yakalanmasına, daha iyi
-otomatik tamamlamaya ve daha okunabilir uzun ömürlü koda yardımcı olur.
-[Godot tipli GDScript belgeleri](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/static_typing.html)
+### 3.2. Bileşen ve veri yaklaşımı
 
-Godot’un 2D sistemi özel çizim, 2D ışık/gölge, parçacık ve animasyon
-özelliklerini destekler. [Godot 2D belgeleri](https://docs.godotengine.org/en/stable/tutorials/2d/index.html)
-
-### 3.2. Neden Flutter/Flame taşınmıyor?
-
-Eski proje UI prototipi ve oyun fikrini doğrulamak için yararlı bir referanstır;
-ancak yeni projede oyun döngüsü, özel çizim, shader, parçacık, sahne ve Android
-export akışını tek bir oyun motorunda tutmak daha temizdir. Eski koddaki
-varlıklar veya sınıflar otomatik olarak taşınmayacak; yalnızca tasarım fikri
-ve test senaryoları yeniden değerlendirilecektir.
+MonoBehaviour bileşenleri GameObject yaşam döngüsü, input, ses ve sunumu bağlar.
+Core'da MonoBehaviour, Transform, fizik raycast'i, frame zamanı veya Unity RNG
+kullanılmaz. Optik ışın çözümü integer grid üzerinde RayTracer tarafından üretilir.
+ScriptableObject içeriği oyuncu kaydı değildir; runtime değişiklikleri asset'e yazılmaz.
+[Unity ScriptableObject belgesi](https://docs.unity3d.com/6000.3/Documentation/Manual/class-ScriptableObject.html)
 
 ### 3.3. Renderer ve cihaz hedefi
 
-Başlangıçta Compatibility renderer kullanılacaktır. İlk destek hedefi,
-Compatibility renderer’ın resmi tabanına uygun şekilde Android 7.0 ve
-üzeridir; gerçek yayın kapsamı düşük seviye cihaz matrisiyle doğrulanacaktır.
-Görsel efektler cihaz gücüne göre azaltılabilir.
+URP Asset'in varsayılan renderer'ı 2D Renderer olur ve Graphics ile her etkin
+Quality seviyesinde aynı sözleşme korunur. Kamera orthographic'tir; gölge/glow
+sunumdur. Post-processing ve parçacıklar Low kalitede kapatılabilir.
+[Unity 2D Renderer](https://docs.unity3d.com/6000.3/Documentation/Manual/urp/2DRendererData-overview.html)
 
-Godot’un resmi belgeleri Compatibility renderer için Android 7.0 tabanını,
-Mobile/Forward+ için Android 9.0 tabanını listeler ve düşük cihazlarda gerçek
-donanım testi ile grafik seçenekleri kullanılmasını önerir.
-[Godot sistem gereksinimleri](https://docs.godotengine.org/en/stable/about/system_requirements.html)
-
-Google Play’e yayın sırasında kullanılan hedef API, güncel mağaza şartının
-üzerinde tutulacaktır. 2026-08-31’den itibaren yeni uygulama ve güncellemeler
-için Android 16/API 36 veya üzeri hedef gereklidir.
-[Google Play hedef API şartı](https://developer.android.com/google/play/requirements/target-sdk)
+Android minimum sürümü ve grafik API listesi seçilen Editor'ün resmi desteği ile
+fiziksel cihaz matrisi doğrulanarak ProjectSettings'te sabitlenir. Eski Godot
+Android 7 tabanı devralınmaz. Google Play hedef API ve SDK şartları yayın gününde
+resmi kaynaktan tekrar kontrol edilir; geçmiş tarihli şartlar kabul kanıtı değildir.
 
 ## 4. Mimari
 
@@ -130,78 +127,49 @@ Hiçbir görsel nesne oyunun sonucunu kendi başına belirlemez.
 
 ### 4.1. Önerilen proje yapısı
 
+Aşağıdaki yapı sorumlulukları tarif eder; dosyaların oluşturulmuş olduğunu iddia etmez.
+Gerçek sınıf/dizin adlarını ana uygulama belirler.
+
 ~~~
-res://
-├── scenes/
-│   ├── boot/
-│   ├── menu/
-│   └── game/
-├── scripts/
-│   ├── core/
-│   │   ├── models/
-│   │   ├── logic/
-│   │   └── determinism/
-│   ├── levels/
-│   │   ├── definitions/
-│   │   ├── generator/
-│   │   │   ├── generator_factory.gd
-│   │   │   ├── generator_v1.gd
-│   │   │   ├── layout_generator.gd
-│   │   │   ├── solved_board_builder.gd
-│   │   │   ├── scramble_service.gd
-│   │   │   ├── solver.gd
-│   │   │   └── difficulty_validator.gd
-│   │   └── validation/
-│   ├── game/
-│   │   ├── session/
-│   │   ├── input/
-│   │   └── views/
-│   ├── visual/
-│   │   ├── effects/
-│   │   └── rendering/
-│   ├── ui/
-│   │   └── tutorial/
-│   ├── monetization/
-│   │   ├── monetization_controller.gd
-│   │   ├── ad_policy.gd
-│   │   ├── reward_service.gd
-│   │   ├── entitlement_service.gd
-│   │   ├── purchase_service.gd
-│   │   ├── consent_service.gd
-│   │   └── product_catalog.gd
-│   ├── platform/
-│   │   └── android/
-│   │       ├── ads/
-│   │       ├── billing/
-│   │       └── consent/
-│   └── tools/
-├── data/
-│   ├── levels/
-│   ├── catalogs/
-│   │   └── endless_seed_catalog_v1.tres
-│   ├── themes/
-│   └── localization/
-├── assets/
-│   ├── art/
-│   ├── audio/
-│   │   └── stingers/
-│   ├── fonts/
-│   ├── shaders/
-│   └── particles/
-└── tests/
-    ├── core/
-    ├── levels/
-    └── integration/
+Assets/
+├── Scripts/
+│   ├── Core/          # Saf C#: model, trace, hint, determinism
+│   ├── Levels/        # ScriptableObject → immutable Core tanımı adapter'ı
+│   ├── Game/          # Session bağlantısı, input, AppFlowController
+│   ├── UI/            # Canvas HUD, tutorial, menüler
+│   ├── Visual/        # Sprite/mesh, shader, motion
+│   └── Platform/      # JSON save, ses, haptic; gelecekte servis adapter'ları
+├── Editor/            # Asset üretimi/doğrulama ve build araçları
+├── Scenes/            # Boot/menu/game veya eşdeğer bootstrap kompozisyonu
+├── Resources/
+│   ├── Levels/        # 12 el yapımı ScriptableObject .asset
+│   ├── Fonts/         # DynaPuff TTF ve gerekli paketlenmiş fallback
+│   └── Audio/
+│       ├── runtime/   # menu, gameplay, click, rotate, complete
+│       └── stingers/  # starting_sound.mp3
+└── Tests/
+    ├── EditMode/
+    └── PlayMode/
+Packages/              # Ana uygulamanın sabitlediği bağımlılıklar
+ProjectSettings/       # Editor pin, URP, portre, platform ayarları
+LegacyGodot/           # Arşiv; Unity Assets dışında
+docs/
 ~~~
+
+Core için ayrı assembly definition Unity referanslarını dışlar. Runtime
+assembly Core'a bağımlıdır; Editor ve test assembly'leri player'a dahil edilmez.
+Boot kompozisyonu bağımlılıkları açıkça kurar. C# event abonelikleri simetrik
+kapatılır; sahne dönüşü aynı komutu iki kez çalıştırmaz. Tek oturum servisleri
+`DontDestroyOnLoad` ile korunabilir; duplicate instance guard zorunludur.
 
 ### 4.2. Sorumluluklar
 
 **Core:** `GridPosition`, `Direction`, `LightColor`, nesne durumları,
 `LevelState`, `RayTracer`, `WinChecker`, canonical çözümü hesaplayan
 `HintService`, deterministik hash ve RNG. Bu katman
-Godot sahnelerine veya Android API’lerine bağlı olmayacaktır.
+UnityEngine'e veya Android API’lerine bağlı olmayacaktır.
 
-**Levels:** Bölüm tanımları, el yapımı Resource dosyaları, canonical çözüm
+**Levels:** Bölüm tanımları, el yapımı ScriptableObject asset'leri, canonical çözüm
 adımları, Solver, DifficultyValidator, SeedCatalog ve deterministik jeneratör.
 
 **Game:** `GameSession` mevcut bölümün tek otoritesidir. `InputRouter` dokunmayı
@@ -353,7 +321,7 @@ olacak; özel prizma türleri ileriki sürümlere bırakılacaktır.
   objeyi vurgular ve doğru yönünü kısa süre gösterir; otomatik döndürmez.
   Bir bölümde birden fazla çözüm varsa Hint her zaman canonical solution’a
   yönlendirir; alternatif çözüm aramaz.
-+ Her bölümde bir adet canonical hint bağlantı olmadan ve ücretsiz kullanılabilir.
+- Her bölümde bir adet canonical hint bağlantı olmadan ve ücretsiz kullanılabilir.
 - Monetized release’te oyuncu isterse rewarded reklam karşılığında bir adet
   ek `hint_credit` kazanabilir. Bu kredi yalnızca yerel HintController
   tarafından tüketilir; `HintService` reklam sağlayıcısını bilmez.
@@ -367,7 +335,7 @@ olacak; özel prizma türleri ileriki sürümlere bırakılacaktır.
 
 ### 6.1. Bölüm tanımı
 
-`LevelDefinition` özel Godot Resource olarak saklanır. Her bölüm şunları
+`LevelDefinition` içeriği Unity ScriptableObject asset olarak saklanır; yükleme adapter'ı bunu saf C# bölüm tanımına dönüştürür. Her bölüm şunları
 içerir:
 
 ~~~
@@ -386,8 +354,10 @@ doğrulama amacıyla döndürülmesi gereken nesne ve son yön bilgisini taşır
 `tutorial_steps[]` her adım için hedef obje id’si, localization key, pointer
 tipi ve tamamlanma koşulunu taşır; tutorial kodu level geometrisine gömülmez.
 
-Bölüm Resource’ları `res://data/levels/` altında tutulur. Runtime state,
-Resource’ın kendisini değiştirmez; yönler, hamle sayısı ve süre ayrı
+Bölüm asset'leri `Assets/Resources/Levels/` altında tutulur ve Inspector'da
+serializable alanlarla düzenlenir. Editor validator benzersiz id, sınırlar,
+maskeler, canonical çözüm ve başlangıcın çözülmemiş olmasını kontrol eder.
+Runtime state, paylaşılan ScriptableObject'i değiştirmez; yönler, hamle sayısı ve süre ayrı
 `LevelState` içinde tutulur.
 
 ### 6.2. İlk içerik planı
@@ -553,7 +523,7 @@ generator bir development tool olarak çalıştırılır:
 2. Her aday solved-state → scramble → solver → difficulty pipeline’ından
    geçirilir.
 3. Kabul edilen adayların seed’i, bölüm imzası ve metrikleri kaydedilir.
-4. Seçilen kayıtlar `res://data/catalogs/endless_seed_catalog_v1.tres`
+4. Seçilen kayıtlar `Assets/Resources/Catalogs/endless_seed_catalog_v1.asset`
    içine yazılır.
 5. Runtime yalnızca katalogdaki doğrulanmış seed’i kullanır; rastgele retry
    yapmaz.
@@ -569,9 +539,9 @@ Yayınlanmış generator algoritması aynı version altında değiştirilemez.
 Kod tarafında versioned factory kullanılır:
 
 ~~~
-generator_factory.gd
-generator_v1.gd
-generator_v2.gd (gelecek)
+GeneratorFactory.cs
+GeneratorV1.cs
+GeneratorV2.cs (gelecek)
 ~~~
 
 Catalog-backed bir generator version’ın kodu, o version kullanan bölümler
@@ -597,7 +567,11 @@ GameScene
 └── HUDLayer
 ~~~
 
-HUD, oyun dünyasından ayrı CanvasLayer olarak çalışır. Grid’in mantıksal
+HUD, oyun dünyasından ayrı Screen Space Canvas üzerinde çalışır. Board
+orthographic Camera ile çizilir; Sorting Layer/order değerleri görsel sırayı
+belirler. CanvasScaler ve Screen.safeArea adaptasyonu HUD köküne uygulanır.
+UI hit testi EventSystem/GraphicRaycaster ile önce çözülür; ardından
+BoardLayout kamera ve ekran koordinatlarını tek dönüşümle grid'e çevirir. Grid’in mantıksal
 ölçüsü ile ekran pixel ölçüsü arasında tek bir `BoardLayout` dönüştürücüsü
 bulunur; dokunma ve çizim aynı dönüşümü kullanır.
 
@@ -638,8 +612,10 @@ bağlantı yalnızca istediği online servis gerektiğinde kullanılır.
 
 ### 8.1. Yerel kayıt
 
-Godot’un `user://` yolu dışa aktarılmış uygulamada da yazılabilir olduğundan
-oyuncu kayıtları burada tutulur. [Godot veri yolları](https://docs.godotengine.org/en/stable/tutorials/io/data_paths.html)
+SaveService dosya kökünü Unity adapter'ından `Application.persistentDataPath`
+olarak alır; Core ve serializer testleri geçici bir dizin enjekte edebilir.
+StreamingAssets ve Resources yazılabilir save dizini olarak kullanılmaz.
+[Unity persistentDataPath API](https://docs.unity3d.com/6000.3/Documentation/ScriptReference/Application-persistentDataPath.html)
 
 Kayıt kapsamı:
 
@@ -662,13 +638,18 @@ kontrolü bölümü güvenli şekilde reddeder ve emergency entry’ye geçer.
 Dosya yapısı:
 
 ~~~
-user://save_v1.json
-user://save_v1.backup.json
-user://settings.cfg
+Application.persistentDataPath/save_v1.json
+Application.persistentDataPath/save_v1.backup.json
+Application.persistentDataPath/settings_v1.json
 ~~~
 
-Yazma işlemi geçici dosyaya yapılıp başarıyla tamamlandıktan sonra ana dosyaya
-aktarılır. Okuma bozulursa backup denenir; ikisi de okunamazsa yalnızca
+JSON DTO'ları schema version, doğrulanan level id ve obje id/yön çiftleri taşır;
+Unity nesne referansları serialize edilmez. Ayarlar da sürümlü JSON'dur.
+Yazma aynı dizindeki geçici dosyaya yapılır, flush/close sonrası son geçerli
+ana kayıt backup olarak korunup platformun desteklediği atomik replace/rename
+uygulanır. Destek farkları Android/iOS üzerinde test edilir; yarım yazılmış ana
+kayıt yayınlanmaz. Yazmalar sıralanır; eski async snapshot yenisini ezemez.
+Bilinmeyen schema sürümü sessizce mevcut dosyanın üzerine yazılmaz. Okuma bozulursa backup denenir; ikisi de okunamazsa yalnızca
 ilerleme sıfırlanır, uygulama açılmaya devam eder.
 
 ### 8.2. Monetization sınırı ve mimarisi
@@ -800,16 +781,15 @@ engellemez. Bağlantı geldiğinde owned purchases sorgulanır ve cache yenileni
 edebilir.” Ürün metni tüm reklamların kaldırıldığını söylüyorsa rewarded
 reklam da kapatılmalıdır.
 
-Godot’un Android plugin mimarisi Gradle tabanlı v2 plugin’lerle Kotlin/Java
-SDK’larını GDScript’ten ayırmaya uygundur. [Godot Android plugin belgeleri](https://docs.godotengine.org/en/stable/tutorials/platform/android/android_plugin.html)
+Unity Android entegrasyonları C# arayüzlerinin arkasında tutulur; gerektiğinde
+AndroidJavaObject/JNI veya uyumlu resmi Unity SDK adapter'ı kullanılır.
+SDK callback'leri ana thread'e aktarılır, oturum id'si ile tekilleştirilir ve
+kapanmış sahneye erişmez. İlk dikey dilim bu SDK'ları paketlemez.
 
-Google Play Billing entegrasyonunda satın alma durumu sorgulanır, pending
-satın alma entitlement olarak verilmez, başarılı ürün teslimi idempotent
-olur ve gerekli acknowledge akışı tamamlanır. 2026-09-04 için entegrasyon
-tabanı Play Billing 9.1.0’dır; uygulama kodlanırken plugin’in bu sürümü veya
-daha güncel desteklenen bir sürümü kullandığı doğrulanacaktır.
-[Google Play Billing sürüm notları](https://developer.android.com/google/play/billing/release-notes)
- ve [Godot Google Play Billing](https://docs.godotengine.org/en/4.6/tutorials/platform/android/android_in_app_purchases.html)
+Google Play Billing satın alma durumu sorgulanır; pending satın alma entitlement
+vermez. Başarılı ürün teslimi ve restore idempotent olur, gerekli acknowledge
+tamamlanır. Unity SDK/package ve transitif Billing sürümü entegrasyon tarihinde
+resmi destek şartlarıyla doğrulanır; eski Godot plugin pin'i kullanılmaz.
 
 ### 8.7. Platform adaptörleri
 
@@ -827,21 +807,21 @@ sözleşmelerin iOS uygulaması kullanılacaktır.
 
 ### 8.8. Android yayın akışı
 
-- Godot Android export şablonları kullanılacak.
-- Geliştirme ve cihaz kurulumu için debug APK üretilecek.
-- Mağaza yayını için release keystore ve AAB üretilecek.
-- Uygulama portre modunda kilitlenecek.
-- Ekran çentiği ve güvenli alanlar hesaba katılacak.
-- Dikey dilim build’inde network izni, reklam SDK’sı veya billing plugin’i
-  bulunmayacak.
-- Monetized release’te yalnızca gerekli Android plugin ve izinleri eklenecek;
-  core oynanış ağ bağlantısına bağlı kalmayacak.
+- Unity Hub üzerinden seçilen Editor'e ait Android Build Support, SDK/NDK ve
+  OpenJDK modülleri kurulmalıdır; bu belge hazırlanırken Editor tespit edilmedi.
+- Android Build Profile, portre yönü, sahne/bootstrap girişi ve URP referansları
+  ana uygulama tarafından doğrulanır.
+- Debug APK gerçek cihaz testi içindir; release keystore ile AAB yayın içindir.
+- IL2CPP/ARM64, stripping ve serialization player build'inde ayrıca test edilir.
+- Dikey dilimin birleşik manifestinde INTERNET izni, ads, billing veya consent
+  SDK'sı bulunmadığı denetlenir; Resources içeriği tamamen yerelden gelir.
+- Çentik/safe-area, pause/resume, geri tuşu ve uçak modu cihazda doğrulanır.
+- Ortak Android Studio SDK/JDK silinmez; Unity'nin desteklediği araç sürümleri
+  ayrı kontrol edilir. Mevcut ortam değişkenleri tek başına uyumluluk kanıtı değildir.
 
-Godot’un Android export belgeleri AAB, release imzalama ve Android SDK
-kurulumunu tanımlar. [Godot Android export belgeleri](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_android.html)
-
-İleride iOS’a geçiş için macOS ve Xcode gerekecektir; oyun mantığı ve Godot
-sahneleri platformdan bağımsız tutulacaktır. [Godot iOS export belgeleri](https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_ios.html)
+iOS daha sonra macOS ve seçilen Unity sürümüyle uyumlu Xcode üzerinde export,
+imzalama, IL2CPP, yerel save ve offline cihaz testleri gerektirir. C# Core ve
+Unity sahne/bileşen sözleşmeleri platformdan bağımsız tutulur.
 
 ### 8.9. Backend sınırı
 
@@ -869,6 +849,13 @@ değildir.
 
 
 ### 9.1. Core testleri
+
+Saf C# test runner sonuçları yalnız Core kapsamını kanıtlar. Unity Test Framework
+EditMode testleri ayrıca ScriptableObject dönüşümü ve asset validation'ı;
+PlayMode testleri MonoBehaviour yaşam döngüsü, Canvas/input, tutorial, ses ve
+sahne geçişini kapsar. Test XML ve Editor logları saklanır. Editor yokken bu
+kapılar doğrulanmamış kalır; masaüstü C# başarısı APK başarısı sayılmaz.
+
 
 - Izgara sınırları ve komşuluk
 - Yön dönüşümü
@@ -921,7 +908,7 @@ değildir.
 - Aynı rewarded oturumu için ikinci callback ikinci ödül oluşturmaz.
 - Pending satın alma entitlement olarak işlenmez.
 - Non-consumable ürün yeniden sorgulandığında entitlement tekrar doğru kurulur.
-+ Monetization bağlantı hatası offline bölüm oynanışını bozmaz.
+- Monetization bağlantı hatası offline bölüm oynanışını bozmaz.
 
 ### 9.5. UI/UX ve presentation testleri
 
@@ -968,7 +955,8 @@ Cihaz ve sunum kontrolleri:
   ve rahatsız edici tekrar oluşturmaz.
 - Monetized build’de Store/Restore görünürlüğü; monetization kapalı build’de
   bu girişlerin tamamen gizlenmesi doğrulanır.
-- `assets/*/source/` içeriklerinin release paketine girmediği doğrulanır.
+- Assets dışındaki düzenlenebilir kaynaklar ve LegacyGodot'un release paketine
+  girmediği build raporuyla doğrulanır.
 
 ### 9.6. Performans hedefleri
 
@@ -978,9 +966,8 @@ Cihaz ve sunum kontrolleri:
 - Tek bölümün ışın hesaplaması, cihaz testlerinde frame bütçesini aşmayacak.
 - Parçacık ve glow sayısı kalite seviyesine göre sınırlandırılır.
 
-Godot belgeleri, görsel süslemelerin donanım ihtiyacını değiştirebileceğini ve
-düşük cihazlarda gerçek test ile grafik seçenekleri gerektiğini belirtiyor;
-bu nedenle performans yalnızca masaüstü editöründe ölçülmeyecektir.
+Unity Profiler ile cihazda CPU trace süresi, GC allocation, GPU ve overdraw
+ölçülür; yalnız masaüstü Editor FPS'i kabul kanıtı değildir.
 
 ### 9.7. İlk sürüm kabul kriterleri
 
@@ -1000,8 +987,8 @@ bu nedenle performans yalnızca masaüstü editöründe ölçülmeyecektir.
 
 ### Aşama 1 — Temiz temel
 
-Godot projesi, Git yapısı, portre ekran, Android export, Compatibility
-renderer, tipli GDScript kuralları ve temel sahne oluşturulur.
+Unity projesi, Git yapısı, portre Android Build Profile, URP 2D renderer,
+C# assembly sınırları ve bootstrap sahnesi oluşturulur.
 
 ### Aşama 2 — Saf oyun mantığı
 
@@ -1035,7 +1022,7 @@ hint paketi ve abonelik eklenmez.
 ### Aşama 6 — İçerik genişletme
 
 Yeni mekanikler ve 30–50 kaliteli bölüm hazırlanır. Bölüm doğrulama aracı,
-seed katalog üretim aracı ve gerekirse Godot içi basit level editor eklenir.
+seed katalog üretim aracı ve gerekirse Unity EditorWindow tabanlı basit level editor eklenir.
 
 ### Aşama 7 — Android yayın hazırlığı
 
@@ -1051,8 +1038,7 @@ başarısızsa endless mod yayın build’inde kapalı kalır; campaign yayınla
 
 Çekirdek oyun ve kampanya stabil olduktan sonra doğrulanmış seed kataloğunu
 kullanan deterministik endless jeneratör, ileri prizma türleri, hareketli
-engeller, iOS export ve Apple StoreKit adapter’ı eklenebilir. Runtime’da
-tamamen rastgele bölüm retry sistemi yalnızca ayrıca doğrulanırsa eklenir.
+engeller, iOS export ve Apple StoreKit adapter’ı eklenebilir. Runtime'da rastgele bölüm retry sistemi bu sözleşmenin parçası değildir.
 
 ## 11. Tasarımın başarı ölçütü
 
@@ -1067,7 +1053,7 @@ Yeni proje başarılı sayılırsa:
 - Background ve tema skin’leri beam/target okunabilirliğini azaltmaz.
 - Erişilebilirlik modları sunum efektleri kapalıyken de tüm mekanik bilgiyi
   korur.
-+ Android’de temel oyun offline çalışır ve farklı ekranlarda güvenilir çalışır.
+- Android’de temel oyun offline çalışır ve farklı ekranlarda güvenilir çalışır.
 - Monetization bağlantı, consent veya plugin hatası temel oynanışı bloke etmez.
 - Yeni mekanik eklemek mevcut nesneleri ve kayıtları bozmaz.
 - Sonsuz içerik eklenmesi kampanya kalitesinin önüne geçmez.
@@ -1300,9 +1286,11 @@ Motion ilkeleri:
 | `duration-moderate` | 320 ms | Panel ve ekran geçişi | `ease-enter` / `ease-exit` |
 | `duration-celebration` | 600 ms | Ana completion pulse’u | `ease-spring` + fade |
 
-Easing sözlüğü:
+Easing sözlüğü; merkezi C# motion sürücüsü/AnimationCurve ile uygulanır,
+üçüncü taraf tween paketi zorunlu değildir. UI geçişleri unscaled time kullanır;
+model yönü her komutta anında güncellenir, coroutine yalnız görünümü izler:
 
-| Easing token | Godot karşılığı | Kullanım |
+| Easing token | Unity uygulama eğrisi | Kullanım |
 |---|---|---|
 | `ease-standard` | Cubic In/Out | Aynı ekrandaki state değişimleri |
 | `ease-enter` | Cubic Out | Ekrana veya panele giriş |
@@ -1371,9 +1359,10 @@ SFX dosyaları uygulamayla birlikte gelir; streaming gerekmez.
 
 **Startup stinger sözleşmesi:**
 
-+ Kaynak dosya: `D:/Prismaze/artifacts/audio/sfx/starting_sound.mp3`.
-- Runtime hedefi: `res://assets/audio/stingers/starting_sound.mp3`.
-- Mevcut teknik profil: yaklaşık 8,4 saniye, stereo, 48 kHz, 192 kbps.
+- Kaynak dosya: `D:/Prismaze/artifacts/audio/sfx/starting_sound.mp3`.
+- Runtime hedefi: `Assets/Resources/Audio/stingers/starting_sound.mp3`.
+- Tarihsel kaynak profili: yaklaşık 8,4 saniye, stereo, 48 kHz, 192 kbps;
+  Unity AudioClip import ve cihaz sesi ayrıca doğrulanır.
 - Boot/Splash sırasında yalnızca bir kez çalar; loop’a girmez.
 - Logo reveal veya ilk marka görünümüyle senkronlanır ve kuyruğa ikinci kez
   eklenmez.
@@ -1381,7 +1370,14 @@ SFX dosyaları uygulamayla birlikte gelir; streaming gerekmez.
   gecikmez.
 - Scene reload, hot restart veya Main Menu’ye dönüş startup stinger’ı yeniden
   tetiklemez; yalnızca yeni uygulama oturumu tetikleyebilir.
-- AudioService stinger’i BGM ve tekrarlı SFX kanallarından ayrı yönetir.
+- AudioService ayrı AudioSource/AudioMixer gruplarıyla BGM, SFX ve stinger'i
+  yönetir. Master/Music ayarları ses tetiklenmeden önce JSON'dan yüklenir.
+- Oturum guard'ı denemeden önce işaretlenir; mute/eksik clip nedeniyle atlanan
+  stinger sonradan ses açılınca yeniden kuyruğa girmez. Menüye geçiş 8,4 saniyelik
+  clip'i beklemez. Persist eden servis duplicate AudioSource oluşturmaz.
+- Editor'de yeni Play oturumu yeni uygulama oturumudur; domain reload kapalıysa
+  RuntimeInitializeOnLoadMethod ile oturum başlangıcı doğru sıfırlanır. Aynı
+  Play oturumunda scene reload guard'ı sıfırlamaz; background/resume tekrar çalmaz.
 - Melodi ve sample’lar Prismaze’e özgü olur; başka bir oyunun melodisi veya
   kaydı taklit edilmez.
 - Kullanıcının ürettiği/orijinal ses olduğu release asset manifestinde
@@ -1439,7 +1435,11 @@ runtime’da ağdan indirilmez; uygulamayla birlikte paketlenir.
 DynaPuff güçlü ve eğlenceli bir karakter taşıdığı için logo, ana başlık,
 bölüm başlığı, kısa CTA ve yıldız/sonuç metinlerinde kullanılır. Uzun tutorial,
 ayar, consent, privacy ve legal metinlerinde daha nötr `Noto Sans` kullanılır.
-Fallback sırası `DynaPuff → Noto Sans → platform sans-serif` olacaktır.
+Unity text bileşeninde fallback listesi açıkça paketlenmiş font asset'leriyle
+kurulur; platform sans-serif'in kendiliğinden bulunacağı varsayılmaz. TextMeshPro
+kullanılıyorsa Türkçe glyph atlası ve fallback asset referansları doğrulanır.
+Noto Sans mevcut Assets envanterinde yoktur; eklenene kadar uzun metin tipografi
+kabul kapısı açık kalır.
 
 Temel tipografi token’ları:
 
@@ -1497,14 +1497,18 @@ Düzenlenebilir kaynak dosyalar ile oyunda kullanılan export dosyaları ayrı
 tutulur:
 
 ~~~
-assets/art/source/
-assets/art/runtime/
-assets/audio/source/
-assets/audio/runtime/
+artifacts/art/source/          # Assets dışında düzenlenebilir kaynak
+artifacts/audio/source/        # Assets dışında düzenlenebilir kaynak
+Assets/Art/                    # Unity referanslarıyla paketlenen export
+Assets/Resources/Audio/runtime/
+Assets/Resources/Audio/stingers/
+Assets/Resources/Fonts/
 ~~~
 
-`source/` klasörleri `.gdignore` ile Godot importundan ve release export’tan
-çıkarılır. Oyuna yalnızca doğrulanmış `runtime/` asset’leri paketlenir.
+Unity Assets altını import eder; `.gdignore` Unity exclusion mekanizması değildir.
+Düzenlenebilir kaynaklar ve LegacyGodot, Assets dışında kalır. Resources altındaki
+dosyalar build'e dahil olacağından yalnız gereken runtime dosyaları burada tutulur.
+.meta dosyaları ve referans GUID'leri korunur; build raporunda içerik denetlenir.
 
 Runtime asset adları küçük harfli ve amaç odaklıdır:
 
@@ -1517,8 +1521,10 @@ bg_crystal_lab_far_v01.webp
 ~~~
 
 Gameplay objelerinin pivot’u hücre merkezidir; bütün varyasyonlar aynı bounding
-box ve optik merkez standardını korur. UI ikonları mümkünse SVG, dokulu
-oyun objeleri kayıpsız PNG veya kalite doğrulanmış WebP olarak export edilir.
+box ve optik merkez standardını korur. UI ikonları kaynakta SVG olabilir; runtime'da doğrulanmış Unity importer veya
+PNG sprite kullanılır. Dokulu oyun objeleri kayıpsız PNG olarak export edilir;
+WebP desteği varsayılmaz. Sprite pivot, pixels-per-unit, filter ve Android texture
+compression ayarları aynı hücre standardını korur.
 Kullanılan bütün üçüncü taraf asset ve fontlar kaynak/lisans manifestine
 kaydedilir.
 
@@ -1569,7 +1575,7 @@ açabilir.
 
 Durum ve hata metinleri ne olduğunu ve oyuncunun ne yapabileceğini söyler:
 
-+ Offline mağaza: “Bağlantı yok. Oynamaya devam edebilirsin; mağaza sonra
+- Offline mağaza: “Bağlantı yok. Oynamaya devam edebilirsin; mağaza sonra
   yenilenecek.”
 - Rewarded reklam hazır değil: “Reklam şu anda hazır değil. Bölüme devam
   edebilirsin.”
@@ -1683,10 +1689,15 @@ iki level yükleme veya iki interstitial isteği oluşturmaz.
 - Result Overlay açıkken geri tuşu Ana Menü’ye dönme onayı açar.
 - Her modal/overlay önce kendisini kapatır; alttaki ekranı yanlışlıkla
   kapatmaz.
-- Uygulama arka plana geçince son kabul edilen hamle atomik kaydedilir, timer
+- OnApplicationPause(true)/OnApplicationFocus(false) tekilleştirilerek
+  uygulama arka plana geçince son kabul edilen hamle atomik kaydedilir, timer
   durur, müzik/SFX askıya alınır.
 - Uygulama geri geldiğinde aktif bölüm PAUSED açılır; kullanıcı onayı olmadan
   timer veya input başlamaz.
+
+OnApplicationQuit tek save tetikleyicisi olamaz; mobil işletim sistemi bu
+callback gelmeden süreci sonlandırabilir. Kabul edilen her hamle ve ayar değişimi
+kaydın kaynağıdır. Back input'u AppFlowController'a yönlendirilir.
 
 ### 13.5. Input ve eşzamanlılık kuralları
 
@@ -1727,4 +1738,4 @@ olamaz. DynaPuff ve Noto Sans lisansları Lisanslar ekranında listelenir.
 - Level loading, save, asset, generator ve monetization hatalarının her biri
   güvenli bir fallback veya tekrar deneme eylemi sunar.
 - Monetization kapalı build’de Store, Restore ve Consent girişleri görünmez.
-+ Privacy/legal/lisans içeriği offline açılır ve Noto Sans ile okunur.
+- Privacy/legal/lisans içeriği offline açılır ve Noto Sans ile okunur.

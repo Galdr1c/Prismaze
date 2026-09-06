@@ -1,3 +1,9 @@
+> TARİHSEL ARŞİV — 2026-09-06 tarihinde Unity geçişiyle yürürlükten kaldırıldı.
+> Aşağıdaki tamamlanma işaretleri, test sayıları ve APK sonuçları yalnız eski
+> Godot uygulamasının tarihsel kaydıdır; Unity için geçerli değildir.
+> Kaynaklar `LegacyGodot/` altındadır; eski build çıktıları temizlenmiştir.
+> Aktif belge: [Unity planı](../../superpowers/plans/2026-09-06-prismaze-unity-implementation-plan.md).
+
 # Prismaze — Uygulama Planı
 
 **Tarih:** 2026-09-04  

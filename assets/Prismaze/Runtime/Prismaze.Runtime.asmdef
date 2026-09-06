@@ -1,0 +1,6 @@
+{
+  "name": "Prismaze.Runtime",
+  "rootNamespace": "Prismaze.Unity",
+  "references": ["Prismaze.Core", "Unity.ugui"],
+  "autoReferenced": true
+}

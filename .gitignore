@@ -36,3 +36,19 @@ Thumbs.db
 
 # Editable source assets are not runtime exports.
 assets/**/source/
+
+# Unity generated caches and local builds (keep Assets and .meta files).
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Bb]uild/
+/[Bb]uilds/
+/[Mm]emoryCaptures/
+**/obj/
+*.csproj.user
+*.slnx
+/*.csproj
+/*.sln
+.vs/

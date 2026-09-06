@@ -1,28 +1,36 @@
 # Prismaze
 
-Android öncelikli, offline, 2D optik bulmaca oyunu.
+Android öncelikli, offline, portre 2D optik bulmaca oyunu.
+Aktif teknoloji: Unity 6.3 LTS, C#, URP 2D, ScriptableObject el yapımı
+bölümler ve JSON yerel kayıt. iOS daha sonraki olası hedeftir.
 
-## Geliştirme sırası
+## Aktif belgeler
 
-1. Core modelleri ve renk mantığı
-2. RayTracer ve WinChecker
-3. 12 el yapımı bölüm
-4. GameSession, board ve dokunma
-5. İlk bölüm onboarding
-6. UI, 2.5D görsel sunum ve ses
-7. Yerel kayıt ve Android QA
-8. Solver, generator ve doğrulanmış seed kataloğu
+- [Unity tasarımı](docs/superpowers/specs/2026-09-06-prismaze-unity-design.md)
+- [Unity uygulama planı ve kabul kapıları](docs/superpowers/plans/2026-09-06-prismaze-unity-implementation-plan.md)
+- [Yerel kurulum ve doğrulama](SETUP.md)
+- [Asset kaynak/lisans kaydı](ASSET_LICENSES.md)
+- [Godot tarihsel arşivi](docs/archive/godot/README.md)
 
-Ana tasarım belgesi:
+## Kapsam ve durum
 
-`docs/superpowers/specs/2026-09-04-prismaze-godot-design.md`
+İlk dikey dilim 12 el yapımı bölümdür: kaynak, ayna, prizma, hedef, duvar,
+deterministik ışın çözümü, reset, ücretsiz canonical hint, kayıt/devam ve
+ilk bölümde gerçek dokunuşu bekleyen animasyonlu el tutorial'ı.
+Startup stinger yeni uygulama oturumunda yalnız bir kez çalar; bütün müzik,
+fontlar, bölümler ve kayıt internet olmadan çalışır.
 
-Uygulama planı:
+Unity geçişi geliştirme aşamasındadır. Unity Editor henüz tespit edilmedi;
+Unity import/derleme, EditMode/PlayMode ve Android APK/cihaz kabulü doğrulanmış
+değildir. Saf C# test sonucu ayrıca raporlanır; Unity/Android doğrulaması yerine geçmez.
+Kesin Editor pin'ini ana uygulama ProjectSettings/ProjectVersion.txt içinde seçer;
+resmi doğrulanmış başlangıç adayı 6000.3.17f1'dir.
 
-`docs/superpowers/plans/2026-09-04-prismaze-implementation-plan.md`
+Dikey dilimden sonra solved-state → scramble → solver → difficulty validation
+ile deterministik generator ve doğrulanmış seed kataloğu gelir. Runtime'da
+solver araması veya rastgele retry yapılmaz. Reklam, billing, consent, backend
+ve online hesap ilk dilime dahil değildir.
 
-## Kapsam
-
-İlk dikey dilim tamamen çevrimdışı çalışır. Reklam, Google Play Billing ve
-consent entegrasyonları daha sonra Android platform katmanı olarak eklenebilir;
-Core ve GameSession bu servisleri bilmez.
+Godot kaynakları LegacyGodot/ altındadır; eski test/APK sonuçları yalnız
+tarihsel kayıttır. PLAYER_PSYCHOLOGY_GUIDE.md eski fikir referansıdır; içindeki
+tamamlanma ve ekonomi ifadeleri aktif Unity kapsamı sayılmaz.
