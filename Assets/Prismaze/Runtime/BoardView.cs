@@ -68,55 +68,84 @@ namespace Prismaze.Unity
             mesh.Clear();
             if (Session == null || Settings == null) return;
             Layout();
-            Quad(mesh, new Rect(origin.x-8, origin.y-Session.Definition.Height*cell-8, Session.Definition.Width*cell+16, Session.Definition.Height*cell+16), new Color(.04f,.075f,.14f));
+            var plate = new Rect(origin.x-10, origin.y-Session.Definition.Height*cell-10, Session.Definition.Width*cell+20, Session.Definition.Height*cell+20);
+            MeshDraw.RoundedRect(mesh, plate, 22, new Color(.13f,.19f,.30f));
+            MeshDraw.RoundedRect(mesh, new Rect(plate.x+2, plate.y+2, plate.width-4, plate.height-4), 20, new Color(.045f,.075f,.14f));
             for (int y=0; y<Session.Definition.Height; y++)
-                for(int x=0; x<Session.Definition.Width; x++) Circle(mesh, Point(x+.5f,y+.5f), 1.5f, new Color(.18f,.23f,.32f));
+            {
+                for(int x=0; x<Session.Definition.Width; x++)
+                {
+                    var p = Point(x+.5f,y+.5f);
+                    if (Settings.HighContrast) Circle(mesh,p,1.5f,new Color(.45f,.5f,.62f));
+                    else
+                    {
+                        Circle(mesh,p,cell*.20f,new Color(.07f,.11f,.20f));
+                        Circle(mesh,p,1.6f,new Color(.24f,.30f,.42f));
+                    }
+                }
+            }
             foreach (var segment in Session.Result.Segments)
             {
                 var start = Point(segment.FromX,segment.FromY); var end = Point(segment.ToX,segment.ToY);
                 var tint = Colors[segment.Color];
-                if (!Settings.ReducedGlow) { var glow = tint; glow.a=.09f; Line(mesh,start,end,cell*.3f,glow); glow.a=.2f; Line(mesh,start,end,cell*.14f,glow); }
-                Line(mesh,start,end,3,tint); Line(mesh,start,end,1,Color.white);
-                if (!Settings.ReducedMotion) Circle(mesh,Vector2.Lerp(start,end,Mathf.Repeat(Time.unscaledTime*.65f,1)),2.1f,Color.white);
+                if (!Settings.ReducedGlow) { var glow = tint; glow.a=.10f; Line(mesh,start,end,cell*.32f,glow); glow.a=.22f; Line(mesh,start,end,cell*.15f,glow); }
+                Line(mesh,start,end,4,tint); Line(mesh,start,end,1.4f,Color.white);
+                if (!Settings.ReducedMotion) Circle(mesh,Vector2.Lerp(start,end,Mathf.Repeat(Time.unscaledTime*.65f,1)),2.3f,Color.white);
             }
             foreach (var obj in Session.Objects)
             {
                 var p = Point(obj.X+.5f,obj.Y+.5f); float r=cell*.32f; var tint=Colors[obj.Color];
-                Circle(mesh,p+Vector2.down*4,r+2,new Color(0,0,0,.6f));
+                Circle(mesh,p+Vector2.down*4,r+2.5f,new Color(0,0,0,.6f));
+                if (obj.Rotatable && obj.Id!=HintId && !(Tutorial && obj.Id=="m1"))
+                {
+                    float pulse=Settings.ReducedMotion?0:Mathf.Sin(Time.unscaledTime*2.6f)*1.4f;
+                    var ring=Settings.HighContrast?new Color(.75f,.8f,.95f,.8f):new Color(.45f,.7f,.9f,.30f);
+                    for(int i=0;i<24;i++) Line(mesh,p+Rotate(Vector2.up,i*15)*(r+7+pulse),p+Rotate(Vector2.up,(i+1)*15)*(r+7+pulse),2,ring);
+                }
                 switch(obj.Kind)
                 {
                     case ObjectKind.Source:
+                        Circle(mesh,p,r+4,new Color(tint.r,tint.g,tint.b,.14f));
                         Circle(mesh,p,r,tint); Circle(mesh,p,r*.74f,new Color(.08f,.13f,.22f));
                         var forward = Rotate(Vector2.up,obj.Orientation*-90);
                         var side = new Vector2(-forward.y,forward.x);
-                        Triangle(mesh,p+forward*r*.7f,p-forward*r*.5f+side*r*.5f,p-forward*r*.5f-side*r*.5f,tint); break;
+                        Triangle(mesh,p+forward*r*.7f,p-forward*r*.5f+side*r*.5f,p-forward*r*.5f-side*r*.5f,tint);
+                        if (!Settings.ReducedGlow) Circle(mesh,p,r*.55f,new Color(tint.r,tint.g,tint.b,.35f));
+                        break;
                     case ObjectKind.Mirror:
-                        Circle(mesh,p,r+3,Settings.HighContrast?Color.white:new Color(.37f,.42f,.59f));
-                        Circle(mesh,p,r,new Color(.16f,.20f,.30f));
+                        Circle(mesh,p,r+3,Settings.HighContrast?Color.white:new Color(.45f,.52f,.72f));
+                        Circle(mesh,p,r,new Color(.18f,.24f,.36f));
                         var axis=Rotate(Vector2.up,obj.Orientation*-45)*r;
-                        Line(mesh,p-axis+Vector2.down*3,p+axis+Vector2.down*3,10,new Color(.28f,.25f,.4f));
-                        Line(mesh,p-axis,p+axis,8,new Color(.79f,.72f,1)); Line(mesh,p-axis,p+axis,2,Color.white); break;
+                        Line(mesh,p-axis+Vector2.down*3,p+axis+Vector2.down*3,11,new Color(.28f,.25f,.4f));
+                        Line(mesh,p-axis,p+axis,8,new Color(.86f,.8f,1)); Line(mesh,p-axis,p+axis,2,Color.white);
+                        Circle(mesh,p,r*.45f,new Color(.7f,.8f,.98f,.18f)); break;
                     case ObjectKind.Prism:
-                        Triangle(mesh,p+Vector2.up*r*1.3f,p+Vector2.left*r,p,new Color(.82f,.83f,1));
-                        Triangle(mesh,p+Vector2.up*r*1.3f,p,p+Vector2.right*r,new Color(.5f,.59f,.75f));
-                        Triangle(mesh,p+Vector2.left*r,p+Vector2.down*r*1.3f,p+Vector2.right*r,new Color(.3f,.35f,.55f));
+                        Triangle(mesh,p+Vector2.up*r*1.3f,p+Vector2.left*r,p,new Color(.9f,.91f,1));
+                        Triangle(mesh,p+Vector2.up*r*1.3f,p,p+Vector2.right*r,new Color(.56f,.66f,.82f));
+                        Triangle(mesh,p+Vector2.left*r,p+Vector2.down*r*1.3f,p+Vector2.right*r,new Color(.34f,.4f,.62f));
+                        Line(mesh,p+Vector2.up*r*.5f,p+Vector2.left*r*.7f,1.5f,new Color(1,1,1,.5f));
                         for(int port=0;port<3;port++) Circle(mesh,p+Rotate(Vector2.up,-90*(obj.Orientation+(port==2?3:port)))*r*.7f,3,Colors[1<<port]); break;
                     case ObjectKind.Target:
+                        Circle(mesh,p,r+3,new Color(tint.r,tint.g,tint.b,.18f));
                         Circle(mesh,p,r,tint); Circle(mesh,p,r-3,new Color(.06f,.11f,.19f));
                         if (Session.Result.Hits.TryGetValue(obj.Id,out int hit) && hit==obj.Color)
-                        { Line(mesh,p+new Vector2(-r*.5f,0),p+new Vector2(-r*.1f,-r*.3f),3,Color.white); Line(mesh,p+new Vector2(-r*.1f,-r*.3f),p+new Vector2(r*.5f,r*.4f),3,Color.white); }
+                        {
+                            Circle(mesh,p,r+2,new Color(tint.r,tint.g,tint.b,.5f));
+                            Line(mesh,p+new Vector2(-r*.5f,0),p+new Vector2(-r*.1f,-r*.3f),3,Color.white); Line(mesh,p+new Vector2(-r*.1f,-r*.3f),p+new Vector2(r*.5f,r*.4f),3,Color.white);
+                        }
                         else Circle(mesh,p,r*.25f,tint);
                         break;
                     case ObjectKind.Wall:
-                        Quad(mesh,new Rect(p-Vector2.one*r,Vector2.one*r*2),new Color(.17f,.2f,.28f));
-                        Line(mesh,p+new Vector2(-r+3,r-3),p+new Vector2(r-3,r-3),2,new Color(.43f,.47f,.57f)); break;
+                        Quad(mesh,new Rect(p-Vector2.one*r,Vector2.one*r*2),new Color(.19f,.23f,.32f));
+                        Quad(mesh,new Rect(p-Vector2.one*(r-3),Vector2.one*(r-3)*2),new Color(.13f,.16f,.24f));
+                        Line(mesh,p+new Vector2(-r+3,r-3),p+new Vector2(r-3,r-3),2,new Color(.5f,.55f,.66f)); break;
                 }
                 if (Settings.ColorAssist && (obj.Kind==ObjectKind.Source || obj.Kind==ObjectKind.Target))
                     for (int bit=0;bit<3;bit++) if ((obj.Color & (1<<bit))!=0) Quad(mesh,new Rect(p.x-r+bit*r*.7f,p.y-r-9,4,5+bit*2),Colors[1<<bit]);
                 if (obj.Id==HintId || (Tutorial && obj.Id=="m1"))
                 {
                     float pulse=Settings.ReducedMotion?0:Mathf.Sin(Time.unscaledTime*4)*3;
-                    for(int i=0;i<32;i++) Line(mesh,p+Rotate(Vector2.up,i*360/32f)*(r+10),p+Rotate(Vector2.up,(i+1)*360/32f)*(r+10),2,Colors[6]);
+                    for(int i=0;i<32;i++) Line(mesh,p+Rotate(Vector2.up,i*360/32f)*(r+11),p+Rotate(Vector2.up,(i+1)*360/32f)*(r+11),2.5f,Colors[6]);
                     if(Tutorial)
                     {
                         var finger=p+new Vector2(cell*.2f,-cell*.3f-pulse);

@@ -27,7 +27,7 @@ namespace Prismaze.Unity
         static PrismazeApp instance;
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetInstance() { instance = null; }
-        static readonly Color Background = new Color(.035f,.06f,.115f), Panel = new Color(.09f,.13f,.21f), Accent = new Color(.4f,.91f,.93f);
+        static readonly Color Background = new Color(.035f,.06f,.115f), Panel = new Color(.10f,.15f,.24f), PanelLight = new Color(.17f,.24f,.36f), Accent = new Color(.45f,.95f,.98f), AccentDim = new Color(.3f,.7f,.78f), TextLight = new Color(.93f,.96f,1f), TextDim = new Color(.62f,.68f,.82f);
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
@@ -59,7 +59,7 @@ namespace Prismaze.Unity
             canvasObject.GetComponent<Canvas>().renderMode=RenderMode.ScreenSpaceOverlay;
             var scaler=canvasObject.GetComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution=new Vector2(720,1280);scaler.matchWidthOrHeight=0;
-            var background=Rect("Background",canvasObject.transform);Stretch(background);background.gameObject.AddComponent<Image>().color=Background;
+            var background=Rect("Background",canvasObject.transform);Stretch(background);background.gameObject.AddComponent<GradientFill>();
             safe=Rect("SafeArea",canvasObject.transform);Stretch(safe);
             audioService.Startup(); ShowMenu();
         }
@@ -82,22 +82,28 @@ namespace Prismaze.Unity
         public void ShowMenu()
         {
             Persist();Clear();ScreenName="menu";audioService.SetContext(false);
-            Label("CRYSTAL LAB / İLK IŞIK",21);Space(0,true);Label("◇",120,Accent);Label("Prismaze",68);
-            Label("Işığı yönlendir. Renkleri buluştur.",25);Space(30);
-            Label(Profile.Stars.Count(x=>x>0)+" / 12 bölüm · "+Profile.Stars.Sum()+" / 36 yıldız",23,Accent);Space(0,true);
-            Button(Profile.Stars.Sum()==0 && Profile.Active==null?"Başla":"Devam Et · "+(Profile.Current+1).ToString("00"),()=>OpenLevel(Profile.Current),true);
-            Button("Bölümler",ShowLevels);Button("Ayarlar",()=>ShowSettings(false));Button("Nasıl oynanır?",()=>OpenLevel(0,false,true));
-            Label("12 bulmaca · Çevrimdışı · Kendi hızında",19);
+            Label("CRYSTAL LAB / İLK IŞIK",20,TextDim);Space(0,true);
+            Label("◇",104,Accent);
+            Label("Prismaze",66,TextLight);
+            Label("Işığı yönlendir. Renkleri buluştur.",24,TextDim);Space(26);
+            Label(Profile.Stars.Count(x=>x>0)+" / 12 bölüm · "+Profile.Stars.Sum()+" / 36 yıldız",22,Accent);Space(0,true);
+            Button(Profile.Stars.Sum()==0 && Profile.Active==null?"Başla":"Devam Et · "+(Profile.Current+1).ToString("00"),()=>OpenLevel(Profile.Current),true,content,92,26);
+            Space(12);
+            Button("Bölümler",ShowLevels,false,content,64,21);
+            Button("Ayarlar",()=>ShowSettings(false),false,content,64,21);
+            Button("Nasıl oynanır?",()=>OpenLevel(0,false,true),false,content,64,21);
+            Space(0,true);
+            Label("12 bulmaca · Çevrimdışı · Kendi hızında",18,TextDim);
             if(saves.RecoveryMessage.Length>0)Label(saves.RecoveryMessage,18,Accent);
         }
         void Header(string text,Action back)
-        { Button("‹  "+text,back); }
+        { Button("‹  "+text,back,false,null,64,21); }
         public void ShowLevels()
         {
             Clear();ScreenName="levels";Header("Işık yolculuğu",ShowMenu);
             var list=ScrollList();
             for(int i=0;i<levels.Length;i++)
-            { int index=i; var button=Button((i+1).ToString("00")+"  "+levels[i].Title+"  "+new string('★',Profile.Stars[i]),()=>OpenLevel(index,false),false,list);button.interactable=i<Profile.Unlocked; }
+            { int index=i; var button=Button((i+1).ToString("00")+"  "+levels[i].Title+"  "+new string('★',Profile.Stars[i]),()=>OpenLevel(index,false),false,list,62,20);button.interactable=i<Profile.Unlocked; }
         }
         public void OpenLevel(int index,bool resume=true,bool tutorial=false)
         {
@@ -105,16 +111,24 @@ namespace Prismaze.Unity
             Clear();Session.Start(levels[index]);
             if(resume && Profile.Active!=null)Session.Restore(Profile.Active);
             Profile.Current=index;ScreenName="playing";audioService.SetContext(true);
-            Header((index+1).ToString("00")+" / "+Session.Definition.Title,Pause);
-            status=Label("",22);
-            var rect=Rect("Board",content);var element=rect.gameObject.AddComponent<LayoutElement>();element.minHeight=300;element.flexibleHeight=1;
-            board=rect.gameObject.AddComponent<BoardView>();board.Session=Session;board.Settings=Profile.Settings;board.Tapped=Rotate;
+            // Overlay chrome so the board owns the middle of the screen.
+            var top=Anchored("TopBar",safe,new Vector2(0,1),new Vector2(1,1),new Vector2(16,-62),new Vector2(-16,-8));
+            var topLayout=top.gameObject.AddComponent<HorizontalLayoutGroup>();
+            topLayout.spacing=12;topLayout.childControlHeight=true;topLayout.childForceExpandHeight=true;topLayout.childForceExpandWidth=false;topLayout.childAlignment=TextAnchor.MiddleCenter;
+            Button("‹  "+(index+1).ToString("00")+"  "+Session.Definition.Title,Pause,false,top,50,19);
+            var spacer=Rect("Spacer",top).gameObject.AddComponent<LayoutElement>();spacer.flexibleWidth=1;spacer.minHeight=0;
+            status=Label("",20,TextDim,top);
+            var host=Anchored("BoardHost",safe,new Vector2(0,0),new Vector2(1,1),new Vector2(16,116),new Vector2(-16,-74));
+            board=host.gameObject.AddComponent<BoardView>();board.Session=Session;board.Settings=Profile.Settings;board.Tapped=Rotate;
             board.Tutorial=index==0 && (tutorial || !Profile.TutorialDone) && !Session.Result.Solved;
-            caption=Label(board.Tutorial?"Işığı hedefe ulaştır. Elin gösterdiği aynaya dokun.":Session.Definition.Lesson,24,Accent);
-            var row=Rect("Actions",content);row.gameObject.AddComponent<LayoutElement>().preferredHeight=88;
+            var bottom=Anchored("BottomBar",safe,new Vector2(0,0),new Vector2(1,0),new Vector2(16,12),new Vector2(-16,126));
+            var bottomLayout=bottom.gameObject.AddComponent<VerticalLayoutGroup>();
+            bottomLayout.spacing=4;bottomLayout.childForceExpandHeight=false;bottomLayout.childControlHeight=true;bottomLayout.childForceExpandWidth=true;bottomLayout.childAlignment=TextAnchor.UpperCenter;
+            caption=Label(board.Tutorial?"Aynayı döndürmek için dokun":Session.Definition.Lesson,19,Accent,bottom);
+            var row=Rect("Actions",bottom);row.gameObject.AddComponent<LayoutElement>().preferredHeight=62;
             var layout=row.gameObject.AddComponent<HorizontalLayoutGroup>();layout.spacing=12;layout.childForceExpandWidth=true;layout.childForceExpandHeight=true;
-            Button("Sıfırla",ConfirmReset,false,row);Button("İpucu",Hint,false,row);
-            if(board.Tutorial)Button("Atla",()=>{Profile.TutorialDone=true;Persist();OpenLevel(0);},false,row);
+            Button("Sıfırla",ConfirmReset,false,row,62,20);Button("İpucu",Hint,false,row,62,20);
+            if(board.Tutorial)Button("Atla",()=>{Profile.TutorialDone=true;Persist();OpenLevel(0);},false,row,62,20);
             UpdateStatus();Persist();if(Session.Result.Solved)Complete();
         }
         void Rotate(string id)
@@ -160,8 +174,8 @@ namespace Prismaze.Unity
             Persist();Clear();ScreenName="settings";
             Header("Ayarlar",()=>{if(fromGame){OpenLevel(Session.Definition.Id-1);Pause();}else ShowMenu();});
             var list=ScrollList();
-            Button("Müzik: "+(Profile.Settings.Music>0?"Açık":"Kapalı"),()=>{Profile.Settings.Music=Profile.Settings.Music>0?0:.65f;audioService.Configure(Profile.Settings);SaveProfile();ShowSettings(fromGame);},false,list);
-            Button("Efektler: "+(Profile.Settings.Sfx>0?"Açık":"Kapalı"),()=>{Profile.Settings.Sfx=Profile.Settings.Sfx>0?0:.65f;audioService.Configure(Profile.Settings);SaveProfile();ShowSettings(fromGame);},false,list);
+            Button("Müzik: "+(Profile.Settings.Music>0?"Açık":"Kapalı"),()=>{Profile.Settings.Music=Profile.Settings.Music>0?0:.65f;audioService.Configure(Profile.Settings);SaveProfile();ShowSettings(fromGame);},false,list,60,19);
+            Button("Efektler: "+(Profile.Settings.Sfx>0?"Açık":"Kapalı"),()=>{Profile.Settings.Sfx=Profile.Settings.Sfx>0?0:.65f;audioService.Configure(Profile.Settings);SaveProfile();ShowSettings(fromGame);},false,list,60,19);
             Setting("Titreşim",Profile.Settings.Vibration,()=>Profile.Settings.Vibration=!Profile.Settings.Vibration,list,fromGame);
             Setting("Hareketi azalt",Profile.Settings.ReducedMotion,()=>Profile.Settings.ReducedMotion=!Profile.Settings.ReducedMotion,list,fromGame);
             Setting("Parlamayı azalt",Profile.Settings.ReducedGlow,()=>Profile.Settings.ReducedGlow=!Profile.Settings.ReducedGlow,list,fromGame);
@@ -169,22 +183,22 @@ namespace Prismaze.Unity
             Setting("Renk işaretleri",Profile.Settings.ColorAssist,()=>Profile.Settings.ColorAssist=!Profile.Settings.ColorAssist,list,fromGame);
             if (!Monetization.HasNoAds)
             {
-                Button("Reklamları Kaldır (Satın Al)", () => Monetization.PurchaseNoAds((ok, msg) => { SaveProfile(); ShowSettings(fromGame); }), false, list);
-                Button("Satın Alımları Geri Yükle", () => Monetization.RestorePurchases(ok => { SaveProfile(); ShowSettings(fromGame); }), false, list);
+                Button("Reklamları Kaldır (Satın Al)", () => Monetization.PurchaseNoAds((ok, msg) => { SaveProfile(); ShowSettings(fromGame); }), false, list, 60, 19);
+                Button("Satın Alımları Geri Yükle", () => Monetization.RestorePurchases(ok => { SaveProfile(); ShowSettings(fromGame); }), false, list, 60, 19);
             }
             else
             {
-                Label("Reklamlar Kaldırıldı (Premium)", 20, Accent, list);
+                Label("Reklamlar Kaldırıldı (Premium)", 19, Accent, list);
             }
             if (Monetization.IsPrivacyOptionsRequired)
             {
-                Button("Gizlilik Seçenekleri (KVKK/GDPR)", Monetization.ShowPrivacyOptions, false, list);
+                Button("Gizlilik Seçenekleri (KVKK/GDPR)", Monetization.ShowPrivacyOptions, false, list, 60, 19);
             }
-            Label("Tüm bulmacalar ve kayıtların bu cihazda çalışır.",24,null,list);
-            Button("İlk Bölüm Eğitimini Tekrarla",()=>OpenLevel(0,false,true),false,list);
+            Label("Tüm bulmacalar ve kayıtların bu cihazda çalışır.",19,TextDim,list);
+            Button("İlk Bölüm Eğitimini Tekrarla",()=>OpenLevel(0,false,true),false,list,60,19);
         }
         void Setting(string label,bool enabled,Action toggle,Transform parent,bool fromGame)
-        { Button(label+": "+(enabled?"Açık":"Kapalı"),()=>{toggle();SaveProfile();ShowSettings(fromGame);},false,parent); }
+        { Button(label+": "+(enabled?"Açık":"Kapalı"),()=>{toggle();SaveProfile();ShowSettings(fromGame);},false,parent,60,19); }
         void Back()
         {
             if(ScreenName=="playing")Pause();else if(ScreenName=="paused")Resume();
@@ -206,7 +220,11 @@ namespace Prismaze.Unity
         {
             if(modal){modal.gameObject.SetActive(false);Destroy(modal.gameObject);}
             modal=Rect("Modal",safe);Stretch(modal);modal.gameObject.AddComponent<Image>().color=new Color(.01f,.02f,.04f,.93f);
+            var shadow=Rect("PanelShadow",modal);shadow.anchorMin=new Vector2(.07f,.2f);shadow.anchorMax=new Vector2(.93f,.8f);shadow.offsetMin=shadow.offsetMax=Vector2.zero;
+            shadow.anchoredPosition=new Vector2(0,6);
+            var shadowImage=shadow.gameObject.AddComponent<RoundedRect>();shadowImage.Radius=22;shadowImage.color=new Color(0,0,0,.45f);
             var box=Rect("Panel",modal);box.anchorMin=new Vector2(.07f,.2f);box.anchorMax=new Vector2(.93f,.8f);box.offsetMin=box.offsetMax=Vector2.zero;
+            var panel=box.gameObject.AddComponent<RoundedRect>();panel.Radius=22;panel.Border=1.5f;panel.BorderColor=new Color(1,1,1,.12f);panel.color=Panel;
             var layout=box.gameObject.AddComponent<VerticalLayoutGroup>();layout.spacing=20;layout.childForceExpandHeight=false;layout.childAlignment=TextAnchor.MiddleCenter;
             Label(title,34,Accent,box);return box;
         }
@@ -222,20 +240,29 @@ namespace Prismaze.Unity
         Text Label(string text,int size,Color? tint=null,Transform parent=null)
         {
             var rect=Rect("Text",parent?parent:content);var label=rect.gameObject.AddComponent<Text>();label.font=font;label.fontSize=size;
-            label.text=text;label.color=tint??new Color(.91f,.94f,1);label.alignment=TextAnchor.MiddleCenter;label.raycastTarget=false;
-            rect.gameObject.AddComponent<LayoutElement>().minHeight=size*1.6f;return label;
+            label.text=text;label.color=tint??TextLight;label.alignment=TextAnchor.MiddleCenter;label.raycastTarget=false;
+            rect.gameObject.AddComponent<LayoutElement>().minHeight=size*1.5f;return label;
         }
-        Button Button(string text,Action action,bool primary=false,Transform parent=null)
+        Button Button(string text,Action action,bool primary=false,Transform parent=null,int height=88,int fontSize=25)
         {
-            var rect=Rect(text,parent?parent:content);rect.gameObject.AddComponent<LayoutElement>().preferredHeight=88;
-            var image=rect.gameObject.AddComponent<Image>();image.color=primary?Accent:Panel;
+            var rect=Rect(text,parent?parent:content);rect.gameObject.AddComponent<LayoutElement>().preferredHeight=height;
+            var glow=Rect("Glow",rect);glow.gameObject.AddComponent<LayoutElement>().ignoreLayout=true;
+            glow.anchorMin=Vector2.zero;glow.anchorMax=Vector2.one;
+            glow.offsetMin=new Vector2(-height*.35f,-height*.2f);glow.offsetMax=new Vector2(height*.35f,height*.3f);
+            var glowImage=glow.gameObject.AddComponent<RoundedRect>();glowImage.Radius=height;glowImage.color=primary?new Color(Accent.r,Accent.g,Accent.b,.16f):new Color(1,1,1,.05f);
+            var image=rect.gameObject.AddComponent<RoundedRect>();image.Radius=height*.32f;image.Border=1.5f;image.BorderColor=new Color(1,1,1,.10f);
+            image.color=primary?Accent:Panel;
             var button=rect.gameObject.AddComponent<Button>();button.targetGraphic=image;
+            button.transition=Selectable.Transition.ColorTint;var colors=button.colors;
+            colors.normalColor=Color.white;colors.highlightedColor=new Color(.94f,.96f,.98f);colors.pressedColor=new Color(.82f,.85f,.90f);button.colors=colors;
             button.onClick.AddListener(()=>{audioService.Sfx("click");action();});
-            var label=Label(text,25,primary?Background:(Color?)null,rect);Stretch(label.rectTransform);label.rectTransform.offsetMin=new Vector2(12,4);label.rectTransform.offsetMax=new Vector2(-12,-4);
+            var label=Label(text,fontSize,primary?Background:(Color?)null,rect);Stretch(label.rectTransform);label.rectTransform.offsetMin=new Vector2(12,2);label.rectTransform.offsetMax=new Vector2(-12,-2);
             return button;
         }
         void Space(float height,bool expand=false) { var e=Rect("Space",content).gameObject.AddComponent<LayoutElement>();e.preferredHeight=height;e.flexibleHeight=expand?1:0; }
         static RectTransform Rect(string name,Transform parent) {var r=new GameObject(name,typeof(RectTransform)).GetComponent<RectTransform>();r.SetParent(parent,false);return r;}
+        static RectTransform Anchored(string name,Transform parent,Vector2 anchorMin,Vector2 anchorMax,Vector2 offsetMin,Vector2 offsetMax)
+        { var r=Rect(name,parent);r.anchorMin=anchorMin;r.anchorMax=anchorMax;r.offsetMin=offsetMin;r.offsetMax=offsetMax;return r; }
         static void Stretch(RectTransform rect) {rect.anchorMin=Vector2.zero;rect.anchorMax=Vector2.one;rect.offsetMin=rect.offsetMax=Vector2.zero;}
     }
 }
