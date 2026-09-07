@@ -101,13 +101,31 @@ namespace Prismaze.Unity.Editor
         [MenuItem("Prismaze/Build Android Development APK")]
         public static void BuildAndroid()
         {
+            if(!BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Android,BuildTarget.Android))
+                throw new BuildFailedException("Install Android Build Support for Unity 6000.3.17f1 first.");
+            try
+            {
+                foreach(var pair in new[]{("sdkRootPath","PRISMAZE_ANDROID_SDK"),("ndkRootPath","PRISMAZE_ANDROID_NDK"),("jdkRootPath","PRISMAZE_ANDROID_JDK")})
+                {
+                    var path=System.Environment.GetEnvironmentVariable(pair.Item2);
+                    if(string.IsNullOrEmpty(path))continue;
+                    System.Type tools=null;
+                    foreach(var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+                    { tools=assembly.GetType("UnityEditor.Android.AndroidExternalToolsSettings");if(tools!=null)break; }
+                    var property=tools?.GetProperty(pair.Item1,System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Static);
+                    if(property==null || !property.CanWrite)throw new BuildFailedException("Android tool configuration API unavailable: "+pair.Item1);
+                    property.SetValue(null,path);
+                }
             Prepare();Directory.CreateDirectory("Builds/Android");
+            PlayerSettings.Android.targetSdkVersion=AndroidSdkVersions.AndroidApiLevel36;
             EditorUserBuildSettings.buildAppBundle=false;
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions {
                 scenes=new[]{BootPath},locationPathName="Builds/Android/Prismaze-dev.apk",
                 target=BuildTarget.Android,options=BuildOptions.Development
             });
             if(report.summary.result!=BuildResult.Succeeded)throw new BuildFailedException("Prismaze Android build failed.");
+            }
+            finally { }
         }
     }
 }
