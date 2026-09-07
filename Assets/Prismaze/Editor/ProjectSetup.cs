@@ -121,7 +121,7 @@ namespace Prismaze.Unity.Editor
             EditorUserBuildSettings.buildAppBundle=false;
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions {
                 scenes=new[]{BootPath},locationPathName="Builds/Android/Prismaze-dev.apk",
-                target=BuildTarget.Android,options=BuildOptions.Development
+                target=BuildTarget.Android,options=BuildOptions.None
             });
             if(report.summary.result!=BuildResult.Succeeded)throw new BuildFailedException("Prismaze Android build failed.");
             }

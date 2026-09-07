@@ -8,7 +8,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $editorRoot = Split-Path $UnityPath -Parent
-foreach ($required in @($UnityPath, "$editorRoot\Data\PlaybackEngines\AndroidPlayer", "$SdkPath\platform-tools\adb.exe", "$SdkPath\platforms\android-36\android.jar", "$NdkPath\source.properties", "$JdkPath\bin\java.exe")) {
+foreach ($required in @($UnityPath, "$editorRoot\Data\PlaybackEngines\AndroidPlayer", "$SdkPath\platform-tools\adb.exe", "$SdkPath\platforms\android-36\android.jar", "$SdkPath\cmake\3.22.1\bin\cmake.exe", "$NdkPath\source.properties", "$JdkPath\bin\java.exe")) {
     if (-not (Test-Path -LiteralPath $required)) { throw "Missing Android build dependency: $required" }
 }
 if (-not (Select-String -LiteralPath "$NdkPath\source.properties" -Pattern '27\.2\.12479018' -Quiet)) { throw 'Unity 6000.3.17f1 requires NDK r27c (27.2.12479018).' }
