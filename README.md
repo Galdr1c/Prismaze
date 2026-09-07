@@ -9,6 +9,7 @@ ScriptableObject ve JSON yerel kayıttır. iOS daha sonraki olası hedeftir.
 ## Aktif belgeler
 
 - [Unity tasarımı](docs/superpowers/specs/2026-09-06-prismaze-unity-design.md)
+- [Optics V2 uygulama rehberi](docs/superpowers/specs/2026-09-07-prismaze-optics-v2-implementation-guide.md)
 - [Unity uygulama planı ve kabul kapıları](docs/superpowers/plans/2026-09-06-prismaze-unity-implementation-plan.md)
 - [Yerel kurulum ve doğrulama](SETUP.md)
 - [Asset kaynak/lisans kaydı](ASSET_LICENSES.md)
