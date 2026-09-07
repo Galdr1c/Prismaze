@@ -95,8 +95,21 @@ artifact yolu ve cihaz/OS bilgisini içermelidir. C# test geçişi Unity import
 başarısı değildir; APK üretimi fiziksel cihaz QA başarısı değildir.
 Eski Godot test sayıları ve silinen APK bu kapılara kanıt oluşturmaz.
 
-Dikey dilim ads/billing/consent SDK'sı veya INTERNET izni paketlemez. Merged
-manifest ve build raporu denetlenir; uçak modunda gerçek oynanış ayrıca sınanır.
+Geliştirme APK'sı AdMob, UMP consent ve Unity IAP adapter'larını test
+kimlikleriyle içerir; bu nedenle INTERNET, ağ durumu ve Billing izinleri
+manifestte görülebilir. Temel oynanış, bölüm yükleme, kayıt ve ilerleme uçak
+modunda çalışmaya devam etmelidir. Gerçek reklam kimlikleri, ürün kimliği,
+privacy metinleri ve mağaza imzası release öncesi değiştirilir.
+
+APK'yı USB hata ayıklaması açık tek bir Android cihazda kurup başlatmak için:
+
+```powershell
+.\tools\Install-Android.ps1
+```
+
+Birden fazla cihaz varsa `-DeviceSerial SERIAL` kullan. Cihaz kabulünde uçak
+modunda bölüm oynama/kayıt, bağlantı geldiğinde consent, test reklamı ve Billing
+fallback akışları ayrı ayrı kontrol edilir.
 iOS için daha sonra macOS, uyumlu Xcode, imzalama ve fiziksel cihaz QA gerekir.
 
 [Aktif uygulama planı](docs/superpowers/plans/2026-09-06-prismaze-unity-implementation-plan.md)

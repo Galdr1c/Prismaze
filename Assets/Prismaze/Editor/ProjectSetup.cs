@@ -51,7 +51,7 @@ namespace Prismaze.Unity.Editor
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.Android,"com.prismaze.game.dev");
             PlayerSettings.defaultInterfaceOrientation=UIOrientation.Portrait;
             PlayerSettings.Android.minSdkVersion=AndroidSdkVersions.AndroidApiLevel25;
-            PlayerSettings.Android.targetSdkVersion=AndroidSdkVersions.AndroidApiLevelAuto;
+            PlayerSettings.Android.targetSdkVersion=AndroidSdkVersions.AndroidApiLevel36;
             PlayerSettings.Android.forceInternetPermission=false;
             PlayerSettings.SetScriptingBackend(NamedBuildTarget.Android,ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures=AndroidArchitecture.ARM64;

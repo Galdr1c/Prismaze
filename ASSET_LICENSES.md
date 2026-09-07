@@ -43,6 +43,18 @@ or permission evidence, modification history and attribution obligations for
 each audio file. Supplied assets must not be labeled original or royalty-free
 without evidence. No audio rights were newly verified in this documentation pass.
 
+## Monetization SDKs
+
+- Google Mobile Ads Unity plugin: `com.google.ads.mobile` 11.5.0.
+- External Dependency Manager: `com.google.external-dependency-manager` 1.2.187.
+- Unity In-App Purchasing: `com.unity.purchasing` 5.4.2.
+- The development build uses Google test ad identifiers and a development
+  Google Play product path. Production identifiers, privacy/consent text,
+  store disclosures and package notices must be replaced and verified before
+  release.
+- Core gameplay, campaign, save and progression remain usable without these
+  services or a network connection.
+
 ## Packaging and future assets
 
 Only required runtime exports belong in Unity Assets/Resources. Editable

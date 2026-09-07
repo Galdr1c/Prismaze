@@ -1,7 +1,7 @@
 # Prismaze — Unity Tasarım Belgesi
 
 **Tarih:** 2026-09-06  
-**Durum:** Unity import/derlemesi, 4 EditMode ve 3 PlayMode testi geçti; saf C# çekirdeğinde 1417 kontrol geçti (723 temel + 694 solver/generator/katalog). Android debug APK üretildi; AAB, fiziksel cihaz ve görsel performans doğrulaması açıktır.
+**Durum:** Unity import/derlemesi, 4 EditMode ve 3 PlayMode testi geçti; saf C# çekirdeğinde 1417 kontrol geçti (723 temel + 694 solver/generator/katalog). Android debug APK üretildi; cihazda menü, tutorial, gerçek ayna dokunuşu, bölüm tamamlanması, sonraki bölüm ve pause akışı kontrol edildi. AAB, tam cihaz/performance matrisi ve release doğrulaması açıktır.
 **Kapsam:** Android öncelikli, offline çalışan, 2D optik bulmaca oyunu
 
 ## 1. Belgenin amacı
@@ -79,9 +79,9 @@ Bütün hedefler doğru renkliyse bölüm tamamlanır
 - Bulut kayıt
 - Gerçek 3D ortam
 
-İlk 12 bölümlük dikey dilim monetization kapalı olarak geliştirilecektir.
-Yayınlanabilir sürümde monetization etkinleştirilirse yalnızca Bölüm 8’deki
-offline oynanış sözleşmesine uyan reklam ve ürünler eklenebilir.
+İlk 12 bölümlük geliştirme APK'sı monetization adapter'larını test kimlikleriyle
+barındırabilir. Yayınlanabilir sürümde gerçek monetization etkinleştirilirse
+yalnızca Bölüm 8'deki offline oynanış sözleşmesine uyan reklam ve ürünler eklenir.
 
 ## 3. Teknoloji kararı
 
@@ -682,7 +682,7 @@ Platform adapters
     └── AppleStoreKitAdapter (gelecek)
 ~~~
 
-İlk 12 bölümlük dikey dilimde bu katman kapalıdır. Monetized build’de
+İlk 12 bölümlük dikey dilimde geliştirme adapter'ları çalışabilir. Monetized build'de
 `MonetizationController` hazır değilse veya herhangi bir servis hata verirse
 oyun reklam göstermeden ve satın alma sunmadan çalışmaya devam eder.
 
@@ -820,8 +820,9 @@ sözleşmelerin iOS uygulaması kullanılacaktır.
   ana uygulama tarafından doğrulanır.
 - Debug APK gerçek cihaz testi içindir; release keystore ile AAB yayın içindir.
 - IL2CPP/ARM64, stripping ve serialization player build'inde ayrıca test edilir.
-- Dikey dilimin birleşik manifestinde INTERNET izni, ads, billing veya consent
-  SDK'sı bulunmadığı denetlenir; Resources içeriği tamamen yerelden gelir.
+- Geliştirme monetization build'inin birleşik manifestinde INTERNET, ads, billing
+  ve consent izinleri denetlenir. Temel oynanış bu servisler olmadan da çalışır;
+  release kimlikleri ve mağaza ayarları ayrıca doğrulanır.
 - Çentik/safe-area, pause/resume, geri tuşu ve uçak modu cihazda doğrulanır.
 - Ortak Android Studio SDK/JDK silinmez; Unity'nin desteklediği araç sürümleri
   ayrı kontrol edilir. Mevcut ortam değişkenleri tek başına uyumluluk kanıtı değildir.
@@ -906,7 +907,7 @@ kapılar doğrulanmamış kalır; masaüstü C# başarısı APK başarısı say�
 
 ### 9.4. Monetization testleri
 
-- Dikey dilimde reklam, billing veya consent plugin’i yüklenmez.
+- Geliştirme build'inde reklam, billing ve consent plugin'leri test kimlikleriyle yüklenebilir.
 - Interstitial gameplay sırasında hiçbir koşulda açılmaz.
 - İlk 5 bölümde interstitial isteği yapılmaz.
 - Frequency-cap ve `remove_ads` interstitial çağrısını bastırır.

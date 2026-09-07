@@ -10,10 +10,12 @@ AAB, görsel performans ve fiziksel cihaz kabulü açıktır.
 
 ## 1. Teslim ve sorumluluk sınırları
 
-İlk teslim Android portre ekranında internet olmadan oynanabilen 12 el yapımı
+İlk teslim Android portre ekranında bağlantı olmadan oynanabilen 12 el yapımı
 bölümdür. Unity + C# + URP 2D + ScriptableObject bölüm içeriği + JSON yerel
-kayıt onaylıdır. Olası iOS sonraki hedeftir. Solver, solved-state deterministik
-generator ve seed kataloğu dikey dilimden sonra gelir. Monetization ilk dilimde yoktur.
+kayıt onaylıdır. Monetization adapter'ları geliştirme APK'sında test kimlikleriyle
+bulunabilir; reklam, consent veya Billing erişilemezse temel oyun akışı devam eder.
+Olası iOS sonraki hedeftir. Solver, solved-state deterministik generator ve seed
+kataloğu dikey dilimden sonra gelir.
 
 - Ana uygulama çalışması: Unity runtime/UI, Editor araçları, sahneler,
   ProjectSettings, Packages ve kesin Editor pin'i.
@@ -169,8 +171,9 @@ process kill sonrası son kabul edilmiş hamle ve bozuk save recovery cihazda do
 ## 9. Aşama 7 — Dikey dilim Android kabulü
 
 1. Unity import/compile ve EditMode/PlayMode sonuç XML/loglarını sakla.
-2. Android debug APK üret; merged manifest'te INTERNET/ads/billing yokluğunu,
-   build raporunda kaynak/arşiv dosyalarının paketlenmediğini denetle.
+2. Android debug APK üret; geliştirme monetization build'inde AdMob/UMP/Billing
+   izinlerini, test kimliklerini ve bağlantısız fallback davranışını denetle.
+   Release profili gerçek kimlikler ve privacy/legal içeriğiyle ayrıca doğrulanır.
 3. Düşük/orta/üst fiziksel cihazlarda safe-area, input, offline, ses, suspend/resume,
    save, Türkçe metin, erişilebilirlik ve 12 bölüm tamamlamayı test et.
 4. Unity IL2CPP/ARM64, stripping/serializer ve imzalı AAB ayrıca doğrulanır.
@@ -215,7 +218,8 @@ build içine alınması (release hazırlığı).
 
 ## 11. Sonraki opsiyonel servisler ve iOS
 
-Ads/billing/consent adapter'ları ancak ayrı yayın kapsamıyla eklenir. İlk 5 bölüm
+Ads/billing/consent adapter'ları geliştirme APK'sında test kimlikleriyle bulunur;
+ayrı release kimlikleri ve mağaza ayarları daha sonra doğrulanır. İlk 5 bölüm
 interstitial yok, sonra en fazla 3 tamamlamada bir; gameplay banner/app-open yok.
 Rewarded yalnız açık talep ve earned-reward callback'iyle bir kez kredi verir.
 Consent veya bağlantı hatası oyunu durdurmaz. remove_ads/premium_theme_pack
@@ -237,9 +241,10 @@ günlük etkinlik ve tüketilebilir ekonomi bu planın ilk teslimine dahil deği
   12 bölümün canonical çözümleri doğrulandı.
 - [x] Unity EditMode: 4/4; PlayMode: 3/3 geçti.
 - [x] 12 ScriptableObject bölüm dosyası, Boot sahnesi ve URP 2D varlıkları.
-- [x] Menü/oyun/tutorial/sonuç/ayarlar, ses ve JSON adapter kaynakları taşındı.
+- [x] Menü/oyun/tutorial/sonuç/ayarlar, ses, JSON ve monetization adapter kaynakları taşındı.
 - [x] Android debug APK üretildi (Builds/Android/Prismaze-dev.apk); manifest
-  ve build log arşivlendi. AAB/fiziksel cihaz kabul raporu açık.
+  ve build log arşivlendi. Cihazda menü/tutorial/gerçek tap/sonuç/sonraki bölüm/
+  pause akışları kontrol edildi. AAB, tam cihaz matrisi ve release kabulü açık.
 - [ ] Noto Sans/fallback, lisans/hak manifesti ve kullanıcı testleri.
 - [x] Solver, deterministik solved-state generator (LayoutGenerator,
   SolvedBoardBuilder, ScrambleService, GeneratorV1), DifficultyValidator ve
@@ -248,7 +253,8 @@ günlük etkinlik ve tüketilebilir ekonomi bu planın ilk teslimine dahil deği
   PlayMode 3/3 geçti.
 - [ ] Editor tool ile ≥10.000 aday taraması ve kayıtlı katalog asset'inin
   üretilmesi (release hazırlığı).
-- [ ] Sonraki opsiyonel servis kabulü.
+- [ ] Monetization geliştirme APK'sında fiziksel cihaz, consent, reklam fallback'i,
+  Billing test ürünü ve bağlantısız temel oyun kabulü.
 
 Eşzamanlı geliştirme sırasında kaynakların varlığı test başarısı değildir.
 Ana uygulama sonuçları geldikçe yalnız kanıtlanan kalemler kapatılır.

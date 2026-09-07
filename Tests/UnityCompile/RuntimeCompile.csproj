@@ -4,10 +4,12 @@
     <LangVersion>9.0</LangVersion>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <UnityEditorRoot Condition="'$(UnityEditorRoot)' == ''">D:/Unity/6000.3.17f1/Editor</UnityEditorRoot>
+    <DefineConstants>UNITY_EDITOR;UNITY_6000_0_OR_NEWER;UNITY_2022_1_OR_NEWER</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../Assets/Prismaze/Core/**/*.cs" />
-    <Compile Include="../../Assets/Prismaze/Runtime/**/*.cs" />
+    <Compile Include="../../Assets/Prismaze/Runtime/**/*.cs"
+             Exclude="../../Assets/Prismaze/Runtime/Monetization/GoogleMobileAdsAdapter.cs;../../Assets/Prismaze/Runtime/Monetization/UnityIAPAdapter.cs" />
     <Reference Include="$(UnityEditorRoot)/Data/Managed/UnityEngine/*.dll" />
     <ProjectReference Include="UnityUI.csproj" />
   </ItemGroup>
