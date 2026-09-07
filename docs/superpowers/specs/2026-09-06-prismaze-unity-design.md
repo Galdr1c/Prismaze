@@ -1,7 +1,7 @@
 # Prismaze — Unity Tasarım Belgesi
 
 **Tarih:** 2026-09-06  
-**Durum:** Unity import/derlemesi, 4 EditMode ve 3 PlayMode testi geçti; saf C# çekirdeğinde 723 kontrol geçti. Android build/cihaz ve görsel performans doğrulaması açıktır.
+**Durum:** Unity import/derlemesi, 4 EditMode ve 3 PlayMode testi geçti; saf C# çekirdeğinde 1417 kontrol geçti (723 temel + 694 solver/generator/katalog). Android debug APK üretildi; AAB, fiziksel cihaz ve görsel performans doğrulaması açıktır.
 **Kapsam:** Android öncelikli, offline çalışan, 2D optik bulmaca oyunu
 
 ## 1. Belgenin amacı

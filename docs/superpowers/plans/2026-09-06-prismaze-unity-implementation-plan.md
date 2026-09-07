@@ -5,7 +5,8 @@
 **Proje kökü:** `D:/Prismaze/`  
 **Durum:** Unity 6000.3.17f1 kuruldu ve Personal lisansı etkinleştirildi.
 Unity import/derlemesi, 4 EditMode ve 3 PlayMode testi geçti; saf C# çekirdeği
-723 kontrolden geçti. APK/AAB, görsel performans ve fiziksel cihaz kabulü açıktır.
+1417 kontrolden geçti (723 temel + 694 solver/generator/katalog). APK üretildi;
+AAB, görsel performans ve fiziksel cihaz kabulü açıktır.
 
 ## 1. Teslim ve sorumluluk sınırları
 
@@ -203,6 +204,15 @@ canonical replay'leri ve profil eşikleri geçer. Godot v1 seed/signature uyumlu
 varsayılmaz; port yeni sürüm kimliği veya kanıtlanmış uyumluluk gerektirir.
 Campaign 30–50 bölüme genişleyebilir; endless kabulü campaign'i bekletmez.
 
+Kabul durumu: TestRunner'da 694 yeni kontrol (Layouts, Builders, Scrambles,
+SolverTests, ValidatorTests, GeneratorTests, CatalogTests) eklendi; toplam
+1417 kontrol geçti. Determinizme, canonical replay kazanımına, profil
+eşiklerine, signature doğrulamasına ve emergency fallback'e karşılık gelen
+kabul kriterleri doğrulandı. Godot seed/signature uyumluluğu varsayılmadı;
+C# portu yeni DeterministicRng (SplitMix64) ve kendi version kimliğiyle
+çalışır. Kalan: Editor tool'un 10.000+ aday taraması ve katalog asset'inin
+build içine alınması (release hazırlığı).
+
 ## 11. Sonraki opsiyonel servisler ve iOS
 
 Ads/billing/consent adapter'ları ancak ayrı yayın kapsamıyla eklenir. İlk 5 bölüm
@@ -223,13 +233,22 @@ günlük etkinlik ve tüketilebilir ekonomi bu planın ilk teslimine dahil deği
 - [x] Aktif Unity tasarımı, planı ve kök dokümantasyon uyarlandı.
 - [x] Ana uygulamanın ProjectVersion.txt pin'i 6000.3.17f1 olarak gözlendi.
 - [x] Unity Editor 6000.3.17f1 kurulumu/pin ile import ve derleme doğrulaması.
-- [x] Saf C# çekirdeği: 723 kontrol; 12 bölümün canonical çözümleri doğrulandı.
+- [x] Saf C# çekirdeği: 1417 kontrol (723 temel + 694 solver/generator/katalog);
+  12 bölümün canonical çözümleri doğrulandı.
 - [x] Unity EditMode: 4/4; PlayMode: 3/3 geçti.
 - [x] 12 ScriptableObject bölüm dosyası, Boot sahnesi ve URP 2D varlıkları.
 - [x] Menü/oyun/tutorial/sonuç/ayarlar, ses ve JSON adapter kaynakları taşındı.
-- [ ] Android APK/AAB ve fiziksel cihaz kabul raporu.
+- [x] Android debug APK üretildi (Builds/Android/Prismaze-dev.apk); manifest
+  ve build log arşivlendi. AAB/fiziksel cihaz kabul raporu açık.
 - [ ] Noto Sans/fallback, lisans/hak manifesti ve kullanıcı testleri.
-- [ ] Sonraki solver/generator/katalog ve opsiyonel servis kabulü.
+- [x] Solver, deterministik solved-state generator (LayoutGenerator,
+  SolvedBoardBuilder, ScrambleService, GeneratorV1), DifficultyValidator ve
+  doğrulanmış seed catalog (CatalogBuilder + EndlessSeedCatalogAsset +
+  Editor tool): 694 yeni kontrol; toplam 1417 kontrol; Unity EditMode 4/4,
+  PlayMode 3/3 geçti.
+- [ ] Editor tool ile ≥10.000 aday taraması ve kayıtlı katalog asset'inin
+  üretilmesi (release hazırlığı).
+- [ ] Sonraki opsiyonel servis kabulü.
 
 Eşzamanlı geliştirme sırasında kaynakların varlığı test başarısı değildir.
 Ana uygulama sonuçları geldikçe yalnız kanıtlanan kalemler kapatılır.
