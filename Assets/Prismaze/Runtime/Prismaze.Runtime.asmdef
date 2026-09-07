@@ -1,6 +1,6 @@
 {
   "name": "Prismaze.Runtime",
   "rootNamespace": "Prismaze.Unity",
-  "references": ["Prismaze.Core", "UnityEngine.UI"],
+  "references": ["Prismaze.Core", "UnityEngine.UI", "Unity.Purchasing", "Unity.Services.Core"],
   "autoReferenced": true
 }

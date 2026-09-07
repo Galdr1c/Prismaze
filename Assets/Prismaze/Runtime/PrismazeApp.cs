@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using Prismaze.Core;
+using Prismaze.Unity.Monetization;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -12,6 +13,7 @@ namespace Prismaze.Unity
         public GameSession Session { get; } = new GameSession();
         public string ScreenName { get; private set; }
         public PlayerProfile Profile { get; private set; }
+        public MonetizationController Monetization { get; private set; }
         [NonSerialized] public string SaveDirectoryOverride;
         SaveService saves;
         GameAudio audioService;
@@ -42,6 +44,8 @@ namespace Prismaze.Unity
             Screen.orientation = ScreenOrientation.Portrait;
             saves = new SaveService(string.IsNullOrEmpty(SaveDirectoryOverride) ? Application.persistentDataPath : SaveDirectoryOverride);
             Profile = saves.Load();
+            Monetization = new MonetizationController(saves, Profile);
+            Monetization.Initialize();
             var assets = Resources.LoadAll<LevelDefinition>("Levels");
             levels = assets.Length == 12 ? assets.Select(x=>x.Data).OrderBy(x=>x.Id).ToArray() : Campaign.Create();
             font = Resources.Load<Font>("Fonts/DynaPuff-Medium") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -135,7 +139,7 @@ namespace Prismaze.Unity
             SaveProfile();audioService.Sfx("complete");
             var box=Modal("Işık tamamlandı!");Label(new string('★',stars),58,Accent,box);
             Label(Session.Moves+" hamle",26,null,box);
-            if(index<11)Button("Sonraki Bölüm",()=>OpenLevel(index+1,false),true,box);
+            if(index<11)Button("Sonraki Bölüm",()=>Monetization.OnLevelCompleted(index+1, ()=>OpenLevel(index+1,false)),true,box);
             else Label("12 bölüm tamam!",30,Accent,box);
             Button("Tekrar Oyna",()=>OpenLevel(index,false),false,box);Button("Ana Menü",ShowMenu,false,box);
         }
@@ -163,6 +167,19 @@ namespace Prismaze.Unity
             Setting("Parlamayı azalt",Profile.Settings.ReducedGlow,()=>Profile.Settings.ReducedGlow=!Profile.Settings.ReducedGlow,list,fromGame);
             Setting("Yüksek kontrast",Profile.Settings.HighContrast,()=>Profile.Settings.HighContrast=!Profile.Settings.HighContrast,list,fromGame);
             Setting("Renk işaretleri",Profile.Settings.ColorAssist,()=>Profile.Settings.ColorAssist=!Profile.Settings.ColorAssist,list,fromGame);
+            if (!Monetization.HasNoAds)
+            {
+                Button("Reklamları Kaldır (Satın Al)", () => Monetization.PurchaseNoAds((ok, msg) => { SaveProfile(); ShowSettings(fromGame); }), false, list);
+                Button("Satın Alımları Geri Yükle", () => Monetization.RestorePurchases(ok => { SaveProfile(); ShowSettings(fromGame); }), false, list);
+            }
+            else
+            {
+                Label("Reklamlar Kaldırıldı (Premium)", 20, Accent, list);
+            }
+            if (Monetization.IsPrivacyOptionsRequired)
+            {
+                Button("Gizlilik Seçenekleri (KVKK/GDPR)", Monetization.ShowPrivacyOptions, false, list);
+            }
             Label("Tüm bulmacalar ve kayıtların bu cihazda çalışır.",24,null,list);
             Button("İlk Bölüm Eğitimini Tekrarla",()=>OpenLevel(0,false,true),false,list);
         }

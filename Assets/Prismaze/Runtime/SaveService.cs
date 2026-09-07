@@ -17,7 +17,8 @@ namespace Prismaze.Unity
     {
         public int Schema = 1, Unlocked = 1, Current;
         public int[] Stars = new int[12], BestMoves = new int[12];
-        public bool TutorialDone;
+        public bool TutorialDone, NoAds;
+        public int HintCredits;
         public Preferences Settings = new Preferences();
         public SessionSnapshot Active;
     }
